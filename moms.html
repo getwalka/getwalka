@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Walka for new mums — a gentler way to get moving</title>
+<meta name="description" content="A walking plan and accountability cohort built for pregnancy and postpartum — at your pace, with grace built in.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700&display=swap" rel="stylesheet">
+<!-- PostHog -->
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getPageViewId captureTraceMetric captureTraceFeedback".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init('phc_q8C6NUirtfZUaW4yjhhmT8AFFKHGCPriaEWHnC44c78G', {
+    api_host: 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+    defaults: '2025-05-24'
+  });
+</script>
+<style>
+  :root{
+    --cream:#F7F1E8;
+    --cream-deep:#EDE3D3;
+    --card:#FFFFFF;
+    --ink:#1B2232;
+    --ink-soft:#6E7488;
+    --sage:#4E9C74;
+    --sage-deep:#3F8862;
+    --sage-tint:#E3F0E8;
+    --lavender:#E6DFF6;
+    --lavender-ink:#7C6BC4;
+    --gold:#C79A3D;
+    --amber:#E5A85A;
+    --amber-tint:#F6E9D6;
+    --rose:#E8A7A3;
+    --rose-tint:#FBEAE8;
+    --line:rgba(43,46,74,.08);
+    --r-card:24px;
+    --r-inner:16px;
+    --display:'Quicksand',system-ui,sans-serif;
+    --body:'Nunito Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--body);font-size:17px;line-height:1.6;
+    color:var(--ink);background:var(--cream);min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+  }
+  img{max-width:100%;display:block}
+  :focus-visible{outline:3px solid var(--lavender-ink);outline-offset:3px;border-radius:8px}
+
+  .nav{
+    position:sticky;top:0;z-index:50;
+    background:color-mix(in srgb,var(--cream) 90%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  .nav__in{display:flex;align-items:center;justify-content:space-between;height:64px;max-width:600px;margin:0 auto;padding:0 20px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .brand img{height:30px;width:auto}
+  .brand__name{font-family:var(--display);font-weight:700;font-size:1.2rem;color:var(--sage)}
+  .exit{font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--ink-soft);text-decoration:none}
+  .exit:hover{color:var(--ink)}
+
+  main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 20px 60px}
+  .shell{max-width:440px;width:100%}
+
+  .progress{height:8px;border-radius:99px;background:var(--cream-deep);overflow:hidden;margin-bottom:22px}
+  .progress__fill{height:100%;width:0;background:var(--sage);border-radius:99px;transition:width .4s ease}
+
+  .resume-banner{
+    background:var(--lavender);color:var(--lavender-ink);font-weight:700;font-size:.85rem;
+    border-radius:var(--r-inner);padding:10px 16px;margin-bottom:18px;text-align:center;
+  }
+
+  .card{
+    background:var(--card);border-radius:var(--r-card);
+    box-shadow:0 24px 60px -24px rgba(43,46,74,.25);
+    padding:32px 26px;margin-bottom:18px;
+  }
+
+  .eyebrow{font-family:var(--body);font-weight:700;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:block}
+  .q-title{font-family:var(--display);font-weight:700;font-size:1.55rem;letter-spacing:-.01em;line-height:1.2;margin-bottom:14px}
+  .q-body{color:var(--ink-soft);font-size:1rem;margin-bottom:16px}
+  .q-label{font-family:var(--display);font-weight:700;font-size:.92rem;margin:20px 0 10px}
+  .q-note{background:var(--sage-tint);color:var(--sage-deep);border-radius:var(--r-inner);padding:14px 16px;font-size:.9rem;margin-top:14px}
+  .q-hint{color:var(--ink-soft);font-size:.82rem;margin-top:10px}
+  .q-disclaimer{color:var(--ink-soft);font-size:.78rem;margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .q-error{color:#B3443A;font-size:.85rem;margin-top:10px;font-weight:600}
+
+  .opts{display:flex;flex-wrap:wrap;gap:10px}
+  .pill{
+    font-family:var(--display);font-weight:600;font-size:.92rem;color:var(--ink);
+    background:var(--cream);border:1.5px solid var(--line);border-radius:999px;
+    padding:.6rem 1.1rem;cursor:pointer;transition:all .15s ease;
+  }
+  .pill:hover{border-color:var(--sage)}
+  .pill.is-active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .opts--cards{flex-direction:column;gap:12px}
+  .card-opt{
+    display:flex;flex-direction:column;gap:4px;text-align:left;
+    background:var(--cream);border:1.5px solid var(--line);border-radius:var(--r-inner);
+    padding:16px 18px;cursor:pointer;transition:all .15s ease;
+  }
+  .card-opt:hover{border-color:var(--sage)}
+  .card-opt.is-active{background:var(--sage-tint);border-color:var(--sage)}
+  .card-opt__label{font-family:var(--display);font-weight:700;font-size:1rem}
+  .card-opt__desc{color:var(--ink-soft);font-size:.86rem;line-height:1.45}
+
+  .field{display:block;margin-top:16px}
+  .field span{display:block;font-family:var(--display);font-weight:700;font-size:.88rem;margin-bottom:6px}
+  .field input{
+    width:100%;font-family:var(--body);font-size:1rem;color:var(--ink);
+    background:var(--cream);border:1.5px solid var(--line);border-radius:var(--r-inner);
+    padding:.75rem .9rem;
+  }
+  .field input:focus{border-color:var(--sage)}
+
+  .checkline{display:flex;align-items:flex-start;gap:10px;font-size:.88rem;color:var(--ink-soft);margin-top:18px;cursor:pointer}
+  .checkline input{margin-top:3px;flex:none}
+  .checkline a{color:var(--sage);text-decoration:underline}
+
+  .goal-stepper{display:flex;align-items:center;justify-content:center;gap:22px;margin:22px 0}
+  .goal-btn{
+    width:48px;height:48px;border-radius:50%;border:1.5px solid var(--line);background:var(--cream);
+    font-size:1.5rem;font-family:var(--display);color:var(--ink);cursor:pointer;
+  }
+  .goal-btn:hover{border-color:var(--sage)}
+  .goal-value{text-align:center}
+  .goal-value #goalNum{display:block;font-family:var(--display);font-weight:700;font-size:2.2rem;color:var(--sage)}
+  .goal-unit{font-size:.82rem;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+
+  .summary{background:var(--cream);border-radius:var(--r-inner);padding:16px 18px;margin:16px 0}
+  .summary__row{display:flex;justify-content:space-between;font-size:.9rem;padding:6px 0}
+  .summary__row span{color:var(--ink-soft)}
+
+  .rules{list-style:none;padding:0;margin-top:8px}
+  .rules li{font-size:.88rem;color:var(--ink-soft);padding:8px 0;border-top:1px solid var(--line)}
+  .rules li:first-child{border-top:none}
+
+  .flownav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+    font-family:var(--display);font-weight:600;font-size:1rem;
+    padding:.9rem 1.8rem;border-radius:999px;text-decoration:none;border:none;cursor:pointer;
+    transition:transform .15s ease,background .2s ease;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn--ink{background:var(--ink);color:#fff;box-shadow:0 8px 22px rgba(43,46,74,.22)}
+  .btn--ink:hover{background:#10141F}
+  .btn--ink:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+  .link{font-family:var(--display);font-weight:600;font-size:.95rem;color:var(--ink-soft);background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  .link:hover{color:var(--ink)}
+
+  #loading{color:var(--ink-soft);font-family:var(--display);font-weight:600;padding:60px 0}
+  #gate{max-width:440px;text-align:center}
+  #gate .btn{margin-top:18px}
+
+  .footer{background:var(--ink);color:#8B8EA3;padding:22px 20px;text-align:center}
+  .footer a{color:#B9BCCB;text-decoration:none;font-size:.82rem;margin:0 10px}
+  .footer a:hover{color:var(--cream)}
+
+  @media (max-width:480px){
+    .card{padding:26px 20px}
+    .q-title{font-size:1.35rem}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav__in">
+    <a class="brand" href="#top" aria-label="Walka home">
+      <img src="logo.png" alt="" onerror="this.style.display='none'">
+      <span class="brand__name">Walka</span>
+    </a>
+    <a class="exit" href="/">Save &amp; exit</a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="shell">
+    <div id="loading">Loading…</div>
+
+    <div id="gate" hidden></div>
+
+    <div id="app" hidden>
+      <div class="progress"><div class="progress__fill" id="progressFill"></div></div>
+      <div class="resume-banner" id="resumeBanner" hidden></div>
+      <div class="card" id="screen"></div>
+      <div class="flownav">
+        <button type="button" class="link" id="backBtn" hidden>Back</button>
+        <button type="button" class="btn btn--ink" id="continueBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <a href="/terms">Terms of Service</a>
+  <a href="/privacy">Privacy Policy</a>
+</footer>
+
+<script src="moms-copy.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="moms-app.js"></script>
+</body>
+</html>
