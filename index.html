@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Walka: For everyone on attempt number four</title>
-<meta name="description" content="Put real money on your daily walk. Finish your challenge and earn it back. Walka gives you the accountability that motivation can't.">
+<meta name="description" content="Put real money on your daily walk. Finish the week and get your stake back. Walka gives you the accountability that motivation can't.">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,12 +104,6 @@
   .hero__sub{font-size:1.14rem;color:var(--ink-soft);max-width:31rem;margin-bottom:32px}
   .hero__sub strong{color:var(--ink)}
   .hero__ctas{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
-  .hero__levels{display:flex;gap:8px;margin-top:26px;flex-wrap:wrap;align-items:center}
-  .hero__levels span{
-    font-size:.8rem;font-weight:700;padding:.35rem .9rem;border-radius:999px;
-    background:#fff;border:1px solid var(--line);color:var(--ink-soft);
-  }
-  .hero__levels span:first-child{background:transparent;border:none;padding-left:0;font-weight:600}
 
   /* ---------- app cards ---------- */
   .stack{position:relative;max-width:430px;margin-left:auto}
@@ -182,6 +176,8 @@
   /* ---------- how (skin in the game) ---------- */
   .how{background:var(--card)}
   .how .eyebrow{color:var(--lavender-ink)}
+  .how__group + .how__group{margin-top:56px}
+  .how__group .eyebrow{margin-bottom:20px}
   .steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
   .s3{background:var(--cream);border-radius:var(--r-card);padding:32px 28px}
   .s3__ic{
@@ -268,30 +264,24 @@
       <div>
         <p class="eyebrow">For everyone on attempt number four</p>
         <h1>Starting is easy. <em>Sticking</em> is hard.</h1>
-        <p class="hero__sub">Put real money on your daily walk. <strong>Finish your challenge and earn it back.</strong></p>
+        <p class="hero__sub">Put real money on your daily walk. <strong>Finish the week and get your stake back.</strong></p>
         <div class="hero__ctas">
           <a class="btn btn--ink" href="https://apps.apple.com/us/app/walka/id6758069435">Get Walka</a>
         </div>
-        <div class="hero__levels" aria-label="Challenge levels">
-          <span>Choose your pace</span>
-          <span>5K</span>
-          <span>10K</span>
-          <span>12K+</span>
-        </div>
       </div>
 
-      <div class="stack" aria-label="Example challenge from the app">
+      <div class="stack" aria-label="Example weekly challenge from the app">
         <div class="appcard">
           <div class="appcard__row">
-            <span class="badge badge--lav">Your challenge</span>
-            <span class="appcard__meta">Day 19 of 30</span>
+            <span class="badge badge--lav">Example cohort</span>
+            <span class="appcard__meta">Day 3 of 5</span>
           </div>
-          <h3>30-Day 10K</h3>
-          <p class="appcard__desc">Walk 10,000 steps each day for a month.</p>
+          <h3>5-Day Weekly Cohort</h3>
+          <p class="appcard__desc">Mon to Fri. One daily step goal, set for the whole cohort. No grace days.</p>
           <div class="appcard__money">
-            <div><span class="lbl">Your stake</span><span class="amt">$30</span></div>
-            <div><span class="lbl">Finish to earn</span><span class="amt amt--sage">$38</span></div>
+            <div><span class="lbl">Your stake</span><span class="amt">$15</span></div>
           </div>
+          <p class="appcard__desc">Finish all five days and your $15 comes back, plus a share of any stakes forfeited by people who dropped out.</p>
           <div class="appcard__walk">
             <div class="appcard__walk-row">
               <span class="l">Today's walk</span>
@@ -308,7 +298,7 @@
   <!-- TICKER -->
   <div class="ticker" aria-hidden="true">
     <div class="ticker__track">
-      <span>Grace days built in</span><span>Finishers split the pot</span><span>Show up anyway</span>
+      <span>Five days, no grace</span><span>Finishers split the forfeits</span><span>Show up anyway</span>
     </div>
   </div>
 
@@ -319,21 +309,45 @@
         <p class="eyebrow">How it works</p>
         <h2>A little skin in the game.</h2>
       </div>
-      <div class="steps3">
-        <div class="s3 rv">
-          <div class="s3__ic s3__ic--lav">👣</div>
-          <h3>Choose your goal</h3>
-          <p>Pick a daily step target and challenge length that fits your life.</p>
+      <div class="how__group">
+        <p class="eyebrow rv">Weekly cohort</p>
+        <div class="steps3">
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--lav">👣</div>
+            <h3>Join a cohort</h3>
+            <p>Every cohort runs Monday to Friday with one daily step goal set for everyone in it.</p>
+          </div>
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--amber">💵</div>
+            <h3>Put money on it</h3>
+            <p>Put up a $15 stake. It comes back if you finish the week.</p>
+          </div>
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--sage">🏆</div>
+            <h3>Earn it back</h3>
+            <p>Finish every day and your stake comes back with a share of the drop-outs' stakes. Miss a day and you're out, and your stake goes to the finishers.</p>
+          </div>
         </div>
-        <div class="s3 rv">
-          <div class="s3__ic s3__ic--amber">💵</div>
-          <h3>Put money on it</h3>
-          <p>Commit an amount that makes showing up feel real.</p>
-        </div>
-        <div class="s3 rv">
-          <div class="s3__ic s3__ic--sage">🏆</div>
-          <h3>Earn it back</h3>
-          <p>Hit your goal, finish strong, and take your money back.</p>
+      </div>
+
+      <div class="how__group">
+        <p class="eyebrow rv">Solo</p>
+        <div class="steps3">
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--lav">🎯</div>
+            <h3>Pick your goal</h3>
+            <p>Choose a length and a daily step goal from 3K to 15K steps.</p>
+          </div>
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--amber">💵</div>
+            <h3>Choose your stake</h3>
+            <p>$15, $25, $50 or $100.</p>
+          </div>
+          <div class="s3 rv">
+            <div class="s3__ic s3__ic--sage">✅</div>
+            <h3>Hit it every day</h3>
+            <p>Hit your goal every day for your full stake back. Each missed day takes the amount you chose.</p>
+          </div>
         </div>
       </div>
     </div>

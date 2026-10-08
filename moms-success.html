@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>You're in — Walka</title>
+<title>You're in | Walka</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
@@ -83,7 +83,8 @@
 
     track(WM.EVENTS.checkoutCompleted, {
       local_id: state.localId,
-      commitment_option: state.answers.commitment_option,
+      stake_cents: state.answers.stake_cents,
+      miss_cents: state.answers.miss_cents,
       has_session_id: hasSessionId
     });
 
@@ -98,7 +99,7 @@
     }
   } else {
     // Different browser/device than onboarding, or storage was cleared.
-    // We can't personalize or confirm which plan this was — payment itself
+    // We can't personalize or confirm which plan this was, since payment
     // already happened on Stripe's hosted page before redirecting here.
     titleEl.textContent = WM.COPY.returnMissing.title;
     bodyEl.textContent = WM.COPY.returnMissing.body;

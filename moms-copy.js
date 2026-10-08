@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Walka — Postpartum Mums test flow: COPY + CONFIG
+   Walka: Postpartum Mums test flow, COPY + CONFIG
    Everything editable about this experiment lives in this one file:
    wording, tone variants, commitment-mechanic settings, feature flag name,
    and third-party keys/links. No other file should need to change to tune
@@ -26,66 +26,103 @@ window.WALKA_MOMS = (function () {
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
-   * 2. PAYMENTS — Stripe, TEST MODE by default
+   * 2. PAYMENTS: Stripe, TEST MODE by default
    *
    *    This repo has no payment backend, so checkout uses Stripe
-   *    Payment Links (hosted by Stripe — we never touch card data).
-   *    Each commitment option + amount below needs its own Payment
-   *    Link created in the Stripe TEST MODE dashboard:
+   *    Payment Links (hosted by Stripe; we never touch card data).
+   *    Each stake tier below needs its own Payment Link created in the
+   *    Stripe TEST MODE dashboard:
    *      Products > + Add product > ... > Create payment link
    *    Then under the link's settings, set "After payment" to redirect
    *    to your own URL:
    *      https://getwalka.com/moms-success
-   *    (Stripe Payment Links don't support a separate "cancel" redirect —
+   *    (Stripe Payment Links don't support a separate "cancel" redirect;
    *    if someone abandons, they just use the browser back button.)
    *
    *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" and
-   *    fill in the "live" link for each option below once you've
-   *    created the equivalent live-mode Payment Links.
+   *    fill in the "live" link for each tier below once you've created
+   *    the equivalent live-mode Payment Links.
    * ------------------------------------------------------------------ */
   var STRIPE_MODE = "test"; // "test" | "live"
 
-  var COMMITMENT_OPTIONS = [
+  /* Cohort members always stake this amount, no choice shown. */
+  var COHORT_STAKE_AMOUNT_CENTS = 1500;
+
+  /* Solo members pick one of these as their total stake, then pick how
+     much of it is actually at risk per missed week from that tier's
+     missOptions. One Payment Link per tier (price = amountCents). */
+  var STAKE_TIERS = [
     {
-      id: "buyin",
-      kind: "stake",
-      label: "Small buy-in",
-      amountCents: 1500, // $15 default — change freely, keep in sync with the Payment Link price
+      amountCents: 1500,
       amountLabel: "$15",
-      blurb: "Finish your plan and it comes back. Miss too much and it doesn't — but grace weeks and passes mean normal new-mum chaos won't cost you.",
+      missOptions: [
+        { cents: 100, label: "$1" },
+        { cents: 200, label: "$2" },
+        { cents: 300, label: "$3" }
+      ],
       links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_BUYIN",
-        live: "https://buy.stripe.com/REPLACE_ME_BUYIN"
+        test: "https://buy.stripe.com/test_REPLACE_ME_15",
+        live: "https://buy.stripe.com/REPLACE_ME_15"
       }
     },
     {
-      id: "pledge",
-      kind: "no_loss",
-      label: "Commitment pledge",
-      amountCents: 2000, // $20 default — fully refundable regardless of outcome
-      amountLabel: "$20",
-      blurb: "A fully refundable deposit. You get every cent back no matter what happens — it's just a commitment signal, not a stake.",
+      amountCents: 2500,
+      amountLabel: "$25",
+      missOptions: [
+        { cents: 200, label: "$2" },
+        { cents: 350, label: "$3.50" },
+        { cents: 500, label: "$5" }
+      ],
       links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_PLEDGE",
-        live: "https://buy.stripe.com/REPLACE_ME_PLEDGE"
+        test: "https://buy.stripe.com/test_REPLACE_ME_25",
+        live: "https://buy.stripe.com/REPLACE_ME_25"
+      }
+    },
+    {
+      amountCents: 5000,
+      amountLabel: "$50",
+      missOptions: [
+        { cents: 300, label: "$3" },
+        { cents: 500, label: "$5" },
+        { cents: 1000, label: "$10" }
+      ],
+      links: {
+        test: "https://buy.stripe.com/test_REPLACE_ME_50",
+        live: "https://buy.stripe.com/REPLACE_ME_50"
+      }
+    },
+    {
+      amountCents: 10000,
+      amountLabel: "$100",
+      missOptions: [
+        { cents: 500, label: "$5" },
+        { cents: 1000, label: "$10" },
+        { cents: 2000, label: "$20" }
+      ],
+      links: {
+        test: "https://buy.stripe.com/test_REPLACE_ME_100",
+        live: "https://buy.stripe.com/REPLACE_ME_100"
       }
     }
   ];
 
-  var GRACE_PERIOD_WEEKS = 2;        // no money at risk for this many weeks after joining
-  var LIFE_HAPPENED_PASSES_PER_MONTH = 2; // missed-week passes that cost nothing
+  /* One-time payment, fixed-length challenge (not a subscription).
+     Stripe Payment Links above should be one-time prices, not recurring. */
+  var PROGRAM_LENGTH_WEEKS = 8;
+  var GRACE_PERIOD_WEEKS = 2;          // no money at risk for this many weeks after joining
+  var LIFE_HAPPENED_PASSES_TOTAL = 4;  // free misses for the whole challenge, not recurring
 
   /* ------------------------------------------------------------------ *
-   * 3. SUPABASE — stores onboarding answers + lead status
+   * 3. SUPABASE: stores onboarding answers + lead status
    *
    *    Public anon key only (never the service role key in client code).
-   *    Protected by the RLS policy in supabase/moms_leads.sql — anon can
+   *    Protected by the RLS policy in supabase/moms_leads.sql; anon can
    *    insert and can update only the row matching the local_id it
-   *    already holds; nothing is readable with this key.
+   *    already holds, nothing is readable with this key.
    *    Fill these in from Project Settings > API in your Supabase dashboard.
    * ------------------------------------------------------------------ */
-  var SUPABASE_URL = "REPLACE_ME_SUPABASE_URL";
-  var SUPABASE_ANON_KEY = "REPLACE_ME_SUPABASE_ANON_KEY";
+  var SUPABASE_URL = "https://mgocpqbxssvjlmqzqfgn.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nb2NwcWJ4c3N2amxtcXpxZmduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNzQyMjQsImV4cCI6MjA3Nzk1MDIyNH0.CEgJvGEOJJe5slTp3EKvOqw1pOwJOWK2GTitoL1QODY";
   var SUPABASE_TABLE = "moms_leads";
 
   /* ------------------------------------------------------------------ *
@@ -105,60 +142,66 @@ window.WALKA_MOMS = (function () {
   var PREPARE_MODE_DEFAULT_GOAL = null; // no numeric step goal until cleared
 
   /* ------------------------------------------------------------------ *
-   * 5. COPY — by motivation style. "princess" is the default tone;
+   * 5. COPY, by motivation style. "princess" is the default tone;
    *    every onboarding/checkout string below should pull from here
-   *    rather than being hardcoded in the page.
+   *    rather than being hardcoded in the page. Keep it short.
    * ------------------------------------------------------------------ */
   var TONE = {
     princess: {
       name: "Princess treatment",
-      welcomeTitle: "You've just done something huge.",
-      welcomeBody: "Let's get you moving at your own pace — gently, and on your terms. This takes about 3 minutes.",
       continue: "Continue",
-      encourageGoal: "Here's a gentle starting goal — you can always adjust it.",
-      prepareModeNote: "No pressure, no numbers yet. You're welcome here exactly as you are right now.",
-      checkoutIntro: "Here's your plan. Take a breath — you've got this."
+      encourageGoal: "Here's a gentle starting goal. You can adjust it.",
+      prepareModeNote: "No pressure, no numbers yet. You're welcome here as you are.",
+      checkoutIntro: "Here's your plan."
     },
     coach: {
       name: "Tough coach",
-      welcomeTitle: "You showed up. That's step one.",
-      welcomeBody: "No excuses from here — just a plan you can actually stick to. Takes about 3 minutes.",
       continue: "Next",
-      encourageGoal: "Here's your starting number. Adjust it if you need to, but commit to it.",
-      prepareModeNote: "No goal yet — get cleared first. Then we go to work.",
+      encourageGoal: "Here's your starting number. Adjust if needed, but commit.",
+      prepareModeNote: "No goal yet. Get cleared first, then we go to work.",
       checkoutIntro: "Here's the deal. Lock it in."
     }
   };
 
   var COPY = {
-    metaTitle: "Walka for new mums — a gentler way to get moving",
-    metaDescription: "A walking plan and accountability cohort built for pregnancy and postpartum — at your pace, with grace built in.",
+    metaTitle: "Walka for new mums",
+    metaDescription: "A walking plan and accountability cohort for pregnancy and postpartum, at your pace.",
 
     gate: {
       title: "This page isn't open yet.",
-      body: "You've reached a page we're still testing. Check back soon, or head back to the Walka homepage.",
+      body: "Check back soon, or head back to the homepage.",
       cta: "Back to getwalka.com"
     },
 
-    nav: { back: "← Save & exit" },
+    nav: { back: "Save & exit" },
 
-    resumeBanner: "Welcome back — picking up where you left off.",
+    resumeBanner: "Welcome back. Picking up where you left off.",
 
-    disclaimer: "Walka is not medical advice. Always follow your doctor's or midwife's guidance about when and how to exercise.",
+    disclaimer: "Not medical advice. Follow your doctor's or midwife's guidance.",
+
+    landing: {
+      eyebrow: "For pregnancy & postpartum",
+      title: "A gentler way to keep moving.",
+      body: "A walking plan and cohort built around new motherhood. Set your own pace, show up with people who get it.",
+      features: [
+        { icon: "🌱", title: "Starts gentle", desc: "Goals ramp up slowly. Nothing before you're cleared." },
+        { icon: "🤝", title: "A cohort that gets it", desc: "Walk alongside other pregnant and postpartum mums." },
+        { icon: "💛", title: "Grace, not guilt", desc: "Free weeks and free misses built in. Finish and your stake comes back." }
+      ],
+      stakeNote: "A small, mostly-refundable stake, from $15.",
+      cta: "Let's begin",
+      takesTime: "About 3 minutes."
+    },
 
     steps: {
-      welcome: {
-        eyebrow: "For pregnancy & postpartum",
-        cta: "Let's begin"
-      },
       stage: {
         title: "Where are you right now?",
         options: [
           { value: "pregnant", label: "Pregnant" },
           { value: "postpartum", label: "Postpartum" }
         ],
-        dueDateLabel: "When's your due date? (optional)",
-        weeksLabel: "How many weeks postpartum are you? (optional)",
+        dueDateLabel: "Due date (optional)",
+        weeksLabel: "Weeks postpartum (optional)",
         deliveryLabel: "Delivery type",
         deliveryOptions: [
           { value: "vaginal", label: "Vaginal" },
@@ -167,18 +210,18 @@ window.WALKA_MOMS = (function () {
         ]
       },
       clearance: {
-        title: "Has your doctor or midwife cleared you for exercise?",
+        title: "Cleared for exercise by your doctor or midwife?",
         options: [
-          { value: "yes", label: "Yes, I'm cleared" },
+          { value: "yes", label: "Yes" },
           { value: "not_yet", label: "Not yet" },
           { value: "not_sure", label: "Not sure" }
         ],
-        notClearedNote: "Totally fine — you can still join now in “prepare mode.” You'll meet your cohort and get ready, and we won't set any step goals until you're cleared. We'll never push you to exercise before then.",
-        medicalReminder: "Walka is not medical advice — please check with your doctor or midwife before starting any new activity."
+        notClearedNote: "No problem. Join now in prepare mode, no step goals until you're cleared.",
+        medicalReminder: "Not medical advice. Check with your doctor or midwife first."
       },
       baseline: {
-        title: "Let's get a feel for where you're starting.",
-        stepsLabel: "Roughly how many steps do you walk on a typical day right now?",
+        title: "Where are you starting from?",
+        stepsLabel: "Typical steps per day",
         stepsOptions: [
           { value: "under_2k", label: "Under 2,000" },
           { value: "2k_5k", label: "2,000–5,000" },
@@ -186,40 +229,40 @@ window.WALKA_MOMS = (function () {
           { value: "8k_plus", label: "8,000+" },
           { value: "not_sure", label: "Not sure" }
         ],
-        energyLabel: "How's your energy most days lately?",
+        energyLabel: "Energy level lately",
         energyOptions: [
-          { value: "low", label: "Low — running on fumes" },
-          { value: "medium", label: "Okay — some good hours" },
-          { value: "high", label: "Pretty good" }
+          { value: "low", label: "Low" },
+          { value: "medium", label: "Okay" },
+          { value: "high", label: "Good" }
         ],
-        barriersLabel: "What tends to get in the way? (pick any that fit)",
+        barriersLabel: "What gets in the way?",
         barriersOptions: [
-          { value: "baby_sleep", label: "Baby's sleep schedule" },
-          { value: "time", label: "Finding the time" },
+          { value: "baby_sleep", label: "Baby's sleep" },
+          { value: "time", label: "Time" },
           { value: "tiredness", label: "Tiredness" },
           { value: "motivation", label: "Motivation" },
-          { value: "pain", label: "Pain or discomfort" },
+          { value: "pain", label: "Pain" },
           { value: "other", label: "Something else" }
         ]
       },
       goal: {
         title: "Your starting goal",
-        adjustHint: "Drag it up or down — there's no wrong answer.",
+        adjustHint: "Drag up or down. No wrong answer.",
         dailyLabel: "Daily steps",
-        weeklyFrame: "We'll count it a win on any day you hit this — aim for 5 good days a week, not 7.",
-        prepareModeTitle: "No step goal yet — and that's the plan.",
+        weeklyFrame: "Aim for 5 good days a week, not 7.",
+        prepareModeTitle: "No step goal yet, and that's the plan."
       },
       motivation: {
         title: "What kind of voice helps you most?",
         options: [
-          { value: "princess", label: "Princess treatment", desc: "Gentle, warm, encouraging" },
-          { value: "coach", label: "Tough coach", desc: "Direct, strict, no excuses" }
+          { value: "princess", label: "Princess treatment", desc: "Gentle and encouraging" },
+          { value: "coach", label: "Tough coach", desc: "Direct, no excuses" }
         ]
       },
       cohort: {
         title: "Pick your people",
         soloOption: { value: "solo", label: "Just me, solo" },
-        partnerLabel: "I'd like a walking partner matched to me",
+        partnerNote: "Want a walking partner instead? You can ask once you're in.",
         groupsPregnant: [
           { value: "due_soon", label: "Due soon" }
         ],
@@ -230,36 +273,38 @@ window.WALKA_MOMS = (function () {
         ]
       },
       commit: {
-        title: "Choose how you want to commit",
-        rulesTitle: "How this works, in plain language:",
-        graceRule: "First {grace} weeks: nothing is ever at risk, no matter what.",
-        passesRule: "After that: you get {passes} “life happened” passes a month. Use one and a missed week costs you nothing.",
-        hitRule: "Hit your plan: you get the full amount back.",
-        stakeMissRule: "Miss a week with no pass left (buy-in option): that week's portion is forfeited — the rest keeps going.",
-        pledgeMissRule: "Pledge option: you get it back regardless. It's a commitment signal, not a stake."
+        title: "Your stake",
+        lengthNote: "Your challenge runs {weeks} weeks.",
+        chooseStakeLabel: "Choose your stake",
+        cohortStakeNote: "Your stake is {amount}.",
+        missLabel: "If you miss a week, how much is at risk?",
+        summaryLine: "Miss a week, lose {miss}. Finish, keep it all.",
+        summaryHint: "No risk for your first {grace} weeks, plus {passes} free misses after that."
       },
       checkout: {
-        title: "Review & confirm",
+        title: "Confirm",
         nameLabel: "First name",
         emailLabel: "Email",
-        emailHint: "We'll send your plan and cohort details here.",
-        summaryGoalLabel: "Daily goal",
+        summaryGoalLabel: "Goal",
+        summaryLengthLabel: "Challenge length",
         summaryCohortLabel: "Cohort",
         summaryToneLabel: "Style",
-        summaryAmountLabel: "Amount",
-        summaryGraceLabel: "Grace period",
-        summaryPassesLabel: "Passes",
-        agreeLabel: "I agree to the Terms of Service and Privacy Policy",
-        payCta: "Confirm — pay with card",
-        testModeNote: "Test mode — use card 4242 4242 4242 4242, any future date, any CVC. No real money moves.",
+        summaryAmountLabel: "Stake",
+        summaryMissLabel: "If you miss",
+        agreePrefix: "I agree to the",
+        agreeTermsText: "Terms",
+        agreeJoiner: "and",
+        agreePrivacyText: "Privacy Policy",
+        payCta: "Pay",
+        testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         legalLinks: { terms: "/terms", privacy: "/privacy" }
       }
     },
 
     success: {
       title: "You're in.",
-      body: "Welcome to your cohort. We'll email your plan and next steps shortly — including how to connect step tracking and say hello to your group.",
-      note: "Keep an eye on your inbox — that's where the details are headed next."
+      body: "Welcome to your cohort. We'll email your plan and next steps soon.",
+      note: "Check your inbox for details."
     },
 
     returnMissing: {
@@ -269,7 +314,7 @@ window.WALKA_MOMS = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 6. ANALYTICS EVENT NAMES — keep these in sync with anything you
+   * 6. ANALYTICS EVENT NAMES: keep these in sync with anything you
    *    build in PostHog (insights, funnels). All prefixed moms_ so they
    *    never collide with the main flow's events.
    * ------------------------------------------------------------------ */
@@ -293,9 +338,11 @@ window.WALKA_MOMS = (function () {
     PREVIEW_STORAGE_KEY: PREVIEW_STORAGE_KEY,
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
     STRIPE_MODE: STRIPE_MODE,
-    COMMITMENT_OPTIONS: COMMITMENT_OPTIONS,
+    COHORT_STAKE_AMOUNT_CENTS: COHORT_STAKE_AMOUNT_CENTS,
+    STAKE_TIERS: STAKE_TIERS,
+    PROGRAM_LENGTH_WEEKS: PROGRAM_LENGTH_WEEKS,
     GRACE_PERIOD_WEEKS: GRACE_PERIOD_WEEKS,
-    LIFE_HAPPENED_PASSES_PER_MONTH: LIFE_HAPPENED_PASSES_PER_MONTH,
+    LIFE_HAPPENED_PASSES_TOTAL: LIFE_HAPPENED_PASSES_TOTAL,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,

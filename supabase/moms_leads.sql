@@ -1,4 +1,4 @@
--- Walka — Postpartum Mums test flow: leads table
+-- Walka: Postpartum Mums test flow, leads table
 -- Run this once in the Supabase SQL editor for your project.
 -- Written client-side (anon key) from moms.html / moms-app.js / moms-success.html.
 
@@ -26,17 +26,17 @@ create table if not exists public.moms_leads (
   motivation_style text default 'princess', -- 'princess' | 'coach'
 
   cohort text,
-  wants_walking_partner boolean,
 
-  commitment_option text,                -- 'buyin' | 'pledge'
-  buyin_amount_cents int,
+  stake_cents int,                       -- total stake: 1500 | 2500 | 5000 | 10000 (cohort is always 1500)
+  miss_cents int,                        -- amount actually at risk per missed week, from that stake's miss options
+  program_length_weeks int,              -- one-time payment, fixed-length challenge (not a subscription)
   grace_period_weeks int,
-  passes_per_month int,
+  passes_total int,                      -- free misses for the whole challenge, not recurring
 
   first_name text,
   email text,
 
-  last_step text,                        -- furthest step reached — the drop-off signal
+  last_step text,                        -- furthest step reached, the drop-off signal
   checkout_status text not null default 'not_started' -- not_started | viewed | started | completed_unverified
 );
 
@@ -46,17 +46,19 @@ create index if not exists moms_leads_created_at_idx on public.moms_leads (creat
 alter table public.moms_leads enable row level security;
 
 -- Anon (public) key can create its own lead row...
-create policy if not exists "moms_leads anon insert"
+drop policy if exists "moms_leads anon insert" on public.moms_leads;
+create policy "moms_leads anon insert"
   on public.moms_leads for insert
   to anon
   with check (true);
 
 -- ...and update only the row whose local_id it already holds (the UUID is
 -- generated client-side and never shown in the UI/URL, so it isn't guessable
--- in practice — acceptable for a short-lived test, but note this is the one
+-- in practice; acceptable for a short-lived test, but note this is the one
 -- trade-off of going backend-less: anyone with the anon key + a given
 -- local_id could overwrite that row).
-create policy if not exists "moms_leads anon update own row"
+drop policy if exists "moms_leads anon update own row" on public.moms_leads;
+create policy "moms_leads anon update own row"
   on public.moms_leads for update
   to anon
   using (true);

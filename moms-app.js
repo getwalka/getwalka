@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Walka — Postpartum Mums test flow: ENGINE
+   Walka: Postpartum Mums test flow, ENGINE
    Step state machine, feature-flag gate, resume-from-localStorage,
    analytics events, Supabase sync, Stripe Payment Link handoff.
-   All copy/config lives in moms-copy.js — this file should not contain
+   All copy/config lives in moms-copy.js, this file should not contain
    user-facing strings.
    ========================================================================== */
 (function () {
@@ -12,7 +12,7 @@
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
   var STORAGE_KEY = "walka_moms_state_v1";
-  var STEP_IDS = ["welcome", "stage", "clearance", "baseline", "goal", "motivation", "cohort", "commit", "checkout"];
+  var STEP_IDS = ["stage", "clearance", "baseline", "goal", "motivation", "cohort", "commit", "checkout"];
 
   /* ---------------- utilities ---------------- */
 
@@ -75,7 +75,7 @@
   if (window.supabase && WM.SUPABASE_URL.indexOf("REPLACE_ME") === -1 && WM.SUPABASE_ANON_KEY.indexOf("REPLACE_ME") === -1) {
     try { sbClient = window.supabase.createClient(WM.SUPABASE_URL, WM.SUPABASE_ANON_KEY); } catch (e) { sbClient = null; }
   } else {
-    console.warn("[moms-flow] Supabase URL/key not configured yet — onboarding answers will only be captured via PostHog until moms-copy.js is filled in.");
+    console.warn("[moms-flow] Supabase URL/key not configured yet. Onboarding answers will only be captured via PostHog until moms-copy.js is filled in.");
   }
 
   function syncLead(extra) {
@@ -97,11 +97,11 @@
       adjusted_goal: a.adjusted_goal != null ? a.adjusted_goal : null,
       motivation_style: a.motivation_style || "princess",
       cohort: a.cohort || null,
-      wants_walking_partner: a.wants_walking_partner != null ? a.wants_walking_partner : null,
-      commitment_option: a.commitment_option || null,
-      buyin_amount_cents: a.buyin_amount_cents != null ? a.buyin_amount_cents : null,
+      stake_cents: a.stake_cents != null ? a.stake_cents : null,
+      miss_cents: a.miss_cents != null ? a.miss_cents : null,
+      program_length_weeks: WM.PROGRAM_LENGTH_WEEKS,
       grace_period_weeks: WM.GRACE_PERIOD_WEEKS,
-      passes_per_month: WM.LIFE_HAPPENED_PASSES_PER_MONTH,
+      passes_total: WM.LIFE_HAPPENED_PASSES_TOTAL,
       email: a.email || null,
       first_name: a.first_name || null,
       last_step: STEP_IDS[state.stepIndex] || null,
@@ -127,26 +127,13 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, appEl, loadingEl;
+  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
      canAdvance() -> bool, onEnter() optional, onLeave() optional (validate+persist) */
 
   var steps = {
-
-    welcome: {
-      render: function () {
-        var t = tone();
-        return '<p class="eyebrow">' + COPY.steps.welcome.eyebrow + '</p>' +
-          '<h1 class="q-title">' + t.welcomeTitle + '</h1>' +
-          '<p class="q-body">' + t.welcomeBody + '</p>' +
-          '<p class="q-disclaimer">' + COPY.disclaimer + '</p>';
-      },
-      bind: function () {},
-      canAdvance: function () { return true; },
-      continueLabel: function () { return COPY.steps.welcome.cta; }
-    },
 
     stage: {
       render: function (a) {
@@ -309,10 +296,9 @@
         var opts = all.map(function (o) {
           return pillOption("cohort_value", o.value, o.label, a.cohort === o.value);
         }).join("");
-        var partnerChecked = !!a.wants_walking_partner;
         return '<h2 class="q-title">' + COPY.steps.cohort.title + '</h2>' +
           '<div class="opts" id="cohortOpts">' + opts + '</div>' +
-          '<label class="checkline"><input type="checkbox" id="partnerCheck"' + (partnerChecked ? " checked" : "") + '> ' + COPY.steps.cohort.partnerLabel + '</label>';
+          '<p class="q-hint">' + COPY.steps.cohort.partnerNote + '</p>';
       },
       bind: function (root) {
         root.querySelectorAll('#cohortOpts .pill').forEach(function (b) {
@@ -322,66 +308,80 @@
             refreshContinue();
           });
         });
-        var partner = root.querySelector("#partnerCheck");
-        partner.addEventListener("change", function () { state.answers.wants_walking_partner = partner.checked; });
       },
       canAdvance: function (a) { return !!a.cohort; },
-      onLeave: function (a) { track(EVENTS.cohortChosen, { cohort: a.cohort, wants_walking_partner: !!a.wants_walking_partner }); }
+      onLeave: function (a) { track(EVENTS.cohortChosen, { cohort: a.cohort }); }
     },
 
     commit: {
       render: function (a) {
-        var cards = WM.COMMITMENT_OPTIONS.map(function (o) {
-          var active = a.commitment_option === o.id;
-          return '<button type="button" class="card-opt' + (active ? " is-active" : "") + '" data-value="' + o.id + '">' +
-            '<span class="card-opt__label">' + o.label + ' — ' + o.amountLabel + '</span>' +
-            '<span class="card-opt__desc">' + o.blurb + '</span></button>';
-        }).join("");
-        var selected = WM.COMMITMENT_OPTIONS.filter(function (o) { return o.id === a.commitment_option; })[0];
-        var rules = '<li>' + fmtTemplate(COPY.steps.commit.graceRule, { grace: WM.GRACE_PERIOD_WEEKS }) + '</li>' +
-          '<li>' + fmtTemplate(COPY.steps.commit.passesRule, { passes: WM.LIFE_HAPPENED_PASSES_PER_MONTH }) + '</li>' +
-          '<li>' + COPY.steps.commit.hitRule + '</li>';
-        if (selected) rules += selected.kind === "stake"
-          ? '<li>' + COPY.steps.commit.stakeMissRule + '</li>'
-          : '<li>' + COPY.steps.commit.pledgeMissRule + '</li>';
-        return '<h2 class="q-title">' + COPY.steps.commit.title + '</h2>' +
-          '<div class="opts opts--cards" id="commitOpts">' + cards + '</div>' +
-          '<p class="q-label" style="margin-top:28px">' + COPY.steps.commit.rulesTitle + '</p>' +
-          '<ul class="rules" id="commitRules">' + rules + '</ul>';
+        var c = COPY.steps.commit;
+        var isCohort = a.cohort && a.cohort !== "solo";
+        var html = '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + fmtTemplate(c.lengthNote, { weeks: WM.PROGRAM_LENGTH_WEEKS }) + '</p>';
+
+        if (isCohort) {
+          a.stake_cents = WM.COHORT_STAKE_AMOUNT_CENTS;
+          var cohortTier = tierFor(a.stake_cents);
+          html += '<p class="q-body">' + fmtTemplate(c.cohortStakeNote, { amount: cohortTier.amountLabel }) + '</p>';
+        } else {
+          html += '<p class="q-label">' + c.chooseStakeLabel + '</p>' +
+            '<div class="opts" id="stakeOpts">' + WM.STAKE_TIERS.map(function (t) {
+              return pillOption("stake", t.amountCents, t.amountLabel, a.stake_cents === t.amountCents);
+            }).join("") + '</div>';
+        }
+
+        var tier = tierFor(a.stake_cents);
+        if (tier) {
+          html += '<p class="q-label">' + c.missLabel + '</p>' +
+            '<div class="opts" id="missOpts">' + tier.missOptions.map(function (m) {
+              return pillOption("miss", m.cents, m.label, a.miss_cents === m.cents);
+            }).join("") + '</div>';
+          var missOpt = tier.missOptions.filter(function (m) { return m.cents === a.miss_cents; })[0];
+          html += stakeSummaryHTML(missOpt);
+        }
+        return html;
       },
       bind: function (root) {
-        root.querySelectorAll('#commitOpts .card-opt').forEach(function (b) {
+        root.querySelectorAll('#stakeOpts .pill').forEach(function (b) {
           b.addEventListener("click", function () {
-            var opt = WM.COMMITMENT_OPTIONS.filter(function (o) { return o.id === b.getAttribute("data-value"); })[0];
-            state.answers.commitment_option = opt.id;
-            state.answers.buyin_amount_cents = opt.amountCents;
-            renderStep(false); // re-render to refresh rules + selection state, no duplicate view event
+            state.answers.stake_cents = Number(b.getAttribute("data-value"));
+            state.answers.miss_cents = null; // miss options differ per tier
+            renderStep(false);
+          });
+        });
+        root.querySelectorAll('#missOpts .pill').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.miss_cents = Number(b.getAttribute("data-value"));
+            renderStep(false);
           });
         });
       },
-      canAdvance: function (a) { return !!a.commitment_option; }
+      canAdvance: function (a) { return !!a.stake_cents && a.miss_cents != null; }
     },
 
     checkout: {
       render: function (a) {
-        var selected = WM.COMMITMENT_OPTIONS.filter(function (o) { return o.id === a.commitment_option; })[0];
-        var goalText = a.clearance_status === "yes" && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode — no goal yet";
+        var tier = tierFor(a.stake_cents);
+        var missOpt = tier ? tier.missOptions.filter(function (m) { return m.cents === a.miss_cents; })[0] : null;
+        var goalText = a.clearance_status === "yes" && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode, no goal yet";
         var c = COPY.steps.checkout;
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + tone().checkoutIntro + '</p>' +
           '<div class="summary">' +
             summaryRow(c.summaryGoalLabel, goalText) +
+            summaryRow(c.summaryLengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
             summaryRow(c.summaryCohortLabel, prettyCohort(a.cohort)) +
             summaryRow(c.summaryToneLabel, WM.TONE[a.motivation_style || "princess"].name) +
-            summaryRow(c.summaryAmountLabel, selected ? selected.label + " — " + selected.amountLabel : "") +
-            summaryRow(c.summaryGraceLabel, WM.GRACE_PERIOD_WEEKS + " weeks") +
-            summaryRow(c.summaryPassesLabel, WM.LIFE_HAPPENED_PASSES_PER_MONTH + " / month") +
+            summaryRow(c.summaryAmountLabel, tier ? tier.amountLabel : "") +
+            summaryRow(c.summaryMissLabel, missOpt ? missOpt.label : "") +
           '</div>' +
-          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '"></label>' +
-          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com"></label>' +
-          '<p class="q-hint">' + c.emailHint + '</p>' +
-          '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreeLabel +
-            ' (<a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">Terms</a>, <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">Privacy</a>)</label>' +
+          stakeSummaryHTML(missOpt) +
+          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
+          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
+          '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
+            ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
+            ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           '<p class="q-note">' + c.testModeNote + '</p>' +
           '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
@@ -402,11 +402,11 @@
 
         pay.addEventListener("click", function () {
           if (!validate()) return;
-          var selected = WM.COMMITMENT_OPTIONS.filter(function (o) { return o.id === state.answers.commitment_option; })[0];
-          if (!selected) { err.textContent = "Please pick a commitment option first."; err.hidden = false; return; }
-          var link = selected.links[WM.STRIPE_MODE];
+          var tier = tierFor(state.answers.stake_cents);
+          if (!tier) { err.textContent = "Please pick a stake first."; err.hidden = false; return; }
+          var link = tier.links[WM.STRIPE_MODE];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
-            err.textContent = "Payment link isn't configured yet — add it to moms-copy.js.";
+            err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";
             err.hidden = false;
             track(EVENTS.checkoutFailed, { reason: "missing_payment_link" });
             return;
@@ -414,7 +414,7 @@
           state.answers.checkout_status = "started";
           saveState();
           track(EVENTS.checkoutStarted, {
-            commitment_option: selected.id, amount_cents: selected.amountCents, local_id: state.localId
+            stake_cents: tier.amountCents, miss_cents: state.answers.miss_cents, local_id: state.localId
           });
           syncLead();
 
@@ -426,7 +426,7 @@
       canAdvance: function () { return false; }, // own pay button drives navigation
       onEnter: function (a) {
         if (a.checkout_status !== "started") a.checkout_status = "viewed";
-        track(EVENTS.checkoutViewed, { commitment_option: a.commitment_option });
+        track(EVENTS.checkoutViewed, { stake_cents: a.stake_cents, miss_cents: a.miss_cents });
         syncLead();
       }
     }
@@ -440,6 +440,18 @@
 
   function summaryRow(label, value) {
     return '<div class="summary__row"><span>' + label + '</span><b>' + value + '</b></div>';
+  }
+
+  function tierFor(cents) {
+    return WM.STAKE_TIERS.filter(function (t) { return t.amountCents === cents; })[0];
+  }
+
+  function stakeSummaryHTML(missOpt) {
+    if (!missOpt) return "";
+    var c = COPY.steps.commit;
+    var vars = { grace: WM.GRACE_PERIOD_WEEKS, passes: WM.LIFE_HAPPENED_PASSES_TOTAL, miss: missOpt.label };
+    return '<p class="q-note">' + fmtTemplate(c.summaryLine, vars) + '</p>' +
+      '<p class="q-hint">' + fmtTemplate(c.summaryHint, vars) + '</p>';
   }
 
   function prettyCohort(value) {
@@ -494,7 +506,7 @@
     var isCheckout = id === "checkout";
     continueBtn.hidden = isCheckout;
     if (!isCheckout) {
-      continueBtn.textContent = step.continueLabel ? step.continueLabel() : tone().continue;
+      continueBtn.textContent = tone().continue;
       refreshContinue();
     }
     if (trackView !== false) {
@@ -508,10 +520,6 @@
     var id = currentStepId();
     var step = steps[id];
     if (!step.canAdvance(state.answers)) return;
-    if (id === "welcome" && !state.onboardingStarted) {
-      state.onboardingStarted = true;
-      track(EVENTS.onboardingStart, { local_id: state.localId });
-    }
     track(EVENTS.stepCompleted, { step: id, step_index: state.stepIndex });
     if (step.onLeave) step.onLeave(state.answers);
     syncLead();
@@ -533,7 +541,7 @@
   function maybeFireDropoff() {
     if (dropoffFired) return;
     if (state.answers.checkout_status === "completed") return;
-    if (currentStepId() === "welcome" && !state.onboardingStarted) return;
+    if (!state.onboardingStarted) return;
     dropoffFired = true;
     track(EVENTS.dropoff, { step: currentStepId(), step_index: state.stepIndex });
   }
@@ -561,15 +569,51 @@
       '<a class="btn btn--ink" href="/">' + COPY.gate.cta + '</a>';
   }
 
+  function showLanding() {
+    landingEl.hidden = false;
+    var L = COPY.landing;
+    landingEl.innerHTML =
+      '<div class="card">' +
+        '<p class="eyebrow">' + L.eyebrow + '</p>' +
+        '<h1 class="q-title" style="font-size:1.7rem">' + L.title + '</h1>' +
+        '<p class="q-body">' + L.body + '</p>' +
+        L.features.map(function (f) {
+          return '<div class="landing-feature">' +
+            '<div class="landing-feature__ic">' + f.icon + '</div>' +
+            '<div><div class="landing-feature__title">' + f.title + '</div>' +
+            '<div class="landing-feature__desc">' + f.desc + '</div></div>' +
+          '</div>';
+        }).join("") +
+        '<p class="q-note">' + L.stakeNote + '</p>' +
+        '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
+        '<button type="button" class="btn btn--ink" id="landingCta" style="width:100%;margin-top:4px">' + L.cta + '</button>' +
+        '<p class="landing-time">' + L.takesTime + '</p>' +
+      '</div>';
+
+    track(EVENTS.landingView, { local_id: state.localId });
+
+    document.getElementById("landingCta").addEventListener("click", function () {
+      state.onboardingStarted = true;
+      track(EVENTS.onboardingStart, { local_id: state.localId });
+      saveState();
+      landingEl.hidden = true;
+      appEl.hidden = false;
+      renderStep();
+    });
+  }
+
   function startFlow() {
     loadingEl.hidden = true;
-    appEl.hidden = false;
-    track(EVENTS.landingView, { local_id: state.localId, resumed: state.stepIndex > 0 });
-    if (state.stepIndex > 0) {
-      resumeBanner.hidden = false;
-      resumeBanner.textContent = COPY.resumeBanner;
+    if (state.onboardingStarted) {
+      appEl.hidden = false;
+      if (state.stepIndex > 0) {
+        resumeBanner.hidden = false;
+        resumeBanner.textContent = COPY.resumeBanner;
+      }
+      renderStep();
+    } else {
+      showLanding();
     }
-    renderStep();
   }
 
   function initGate() {
@@ -597,6 +641,7 @@
     progressFill = document.getElementById("progressFill");
     resumeBanner = document.getElementById("resumeBanner");
     gateEl = document.getElementById("gate");
+    landingEl = document.getElementById("landing");
     appEl = document.getElementById("app");
     loadingEl = document.getElementById("loading");
 

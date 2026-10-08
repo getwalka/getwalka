@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walka for new mums — a gentler way to get moving</title>
-<meta name="description" content="A walking plan and accountability cohort built for pregnancy and postpartum — at your pace, with grace built in.">
+<title>Walka for new mums</title>
+<meta name="description" content="A walking plan and accountability cohort for pregnancy and postpartum, at your pace.">
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
@@ -44,6 +44,7 @@
     --body:'Nunito Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
   body{
     font-family:var(--body);font-size:17px;line-height:1.6;
     color:var(--ink);background:var(--cream);min-height:100vh;
@@ -138,10 +139,6 @@
   .summary__row{display:flex;justify-content:space-between;font-size:.9rem;padding:6px 0}
   .summary__row span{color:var(--ink-soft)}
 
-  .rules{list-style:none;padding:0;margin-top:8px}
-  .rules li{font-size:.88rem;color:var(--ink-soft);padding:8px 0;border-top:1px solid var(--line)}
-  .rules li:first-child{border-top:none}
-
   .flownav{display:flex;align-items:center;justify-content:space-between;gap:16px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
@@ -159,6 +156,15 @@
   #loading{color:var(--ink-soft);font-family:var(--display);font-weight:600;padding:60px 0}
   #gate{max-width:440px;text-align:center}
   #gate .btn{margin-top:18px}
+
+  .landing-feature{display:flex;gap:14px;align-items:flex-start;margin:16px 0}
+  .landing-feature__ic{
+    width:40px;height:40px;border-radius:12px;background:var(--sage-tint);
+    display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex:none;
+  }
+  .landing-feature__title{font-family:var(--display);font-weight:700;font-size:.95rem;margin-bottom:2px}
+  .landing-feature__desc{color:var(--ink-soft);font-size:.85rem;line-height:1.4}
+  .landing-time{color:var(--ink-soft);font-size:.8rem;text-align:center;margin-top:10px}
 
   .footer{background:var(--ink);color:#8B8EA3;padding:22px 20px;text-align:center}
   .footer a{color:#B9BCCB;text-decoration:none;font-size:.82rem;margin:0 10px}
@@ -187,6 +193,8 @@
     <div id="loading">Loading…</div>
 
     <div id="gate" hidden></div>
+
+    <div id="landing" hidden></div>
 
     <div id="app" hidden>
       <div class="progress"><div class="progress__fill" id="progressFill"></div></div>

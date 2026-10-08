@@ -161,8 +161,9 @@
     <ul>
       <li>Winners are determined by <strong>fewest missed days</strong>. Ties are broken by total steps over the challenge window.</li>
       <li>A participant who misses more than <strong>30% of challenge days</strong> (the &ldquo;miss limit&rdquo;) is disqualified and cannot win, regardless of total steps.</li>
-      <li>The prize pool equals the sum of all buy-ins, minus a <strong>platform fee of 10%</strong>.</li>
-      <li>Winners&rsquo; original buy-ins are refunded, and the remaining (post-fee) pool is split equally among winners.</li>
+      <li>Each participant puts up a <strong>stake</strong> set by the challenge (currently $15 for a weekly cohort).</li>
+      <li>Participants who finish keep their stake back. The stakes of participants who drop out or are disqualified are split evenly among the participants who finish.</li>
+      <li>If everyone finishes, there are no forfeited stakes to split, and each participant simply gets their own stake back.</li>
       <li>Payouts are processed via Stripe Connect to a payout method you configure. You authorize Walka to initiate transfers to that account.</li>
       <li>Payouts may take <strong>3&ndash;7 business days</strong> to arrive after a challenge settles.</li>
     </ul>
@@ -171,11 +172,11 @@
     <ul>
       <li>A creator may cancel a challenge before it starts; all participants receive a full refund.</li>
       <li>If a challenge fails to start (e.g., minimum participants not reached by the join deadline), all participants receive a full refund automatically.</li>
-      <li>Once a challenge has started, <strong>buy-ins are non-refundable except as described in these Terms or required by law</strong>.</li>
+      <li>Once a challenge has started, <strong>stakes are returned only as described in these Terms or required by law</strong>. Dropping out forfeits your stake.</li>
     </ul>
 
     <h3>4.5 Sole-Finisher Edge Case</h3>
-    <p>If a challenge starts with multiple participants but only one participant remains eligible at settlement (e.g., everyone else is disqualified for exceeding the miss limit), that participant is treated as the sole winner. They receive the post-fee pool minus their own refunded buy-in, on the same terms as any other winner. Walka does not refund pool contributions from disqualified participants.</p>
+    <p>If a challenge starts with multiple participants but only one participant remains eligible at settlement (e.g., everyone else is disqualified for exceeding the miss limit), that participant is treated as the sole winner. They receive their own stake back plus the stakes forfeited by everyone else, on the same terms as any other finisher. Walka does not refund the stakes of disqualified participants.</p>
 
     <h3>4.6 Chargebacks</h3>
     <p>If you initiate a chargeback or payment dispute with your card issuer after a challenge has started, Walka may, in addition to disputing the chargeback with the issuer:</p>
@@ -188,7 +189,6 @@
 
     <h2>5. Fees</h2>
     <ul>
-      <li>Walka retains a <strong>10% platform fee</strong> of the total challenge pot. This fee funds operations, payment processing, and platform costs.</li>
       <li>Stripe payment processing fees are absorbed by Walka and not separately charged to you on top of the buy-in.</li>
     </ul>
 
