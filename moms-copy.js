@@ -28,11 +28,11 @@ window.WALKA_MOMS = (function () {
   /* ------------------------------------------------------------------ *
    * 2. PAYMENTS: Stripe, TEST MODE by default
    *
-   *    This repo has no payment backend, so checkout uses Stripe
-   *    Payment Links (hosted by Stripe; we never touch card data).
-   *    Each stake tier below needs its own Payment Link created in the
-   *    Stripe TEST MODE dashboard:
-   *      Products > + Add product > ... > Create payment link
+   *    This repo has no payment backend, so checkout uses one Stripe
+   *    Payment Link (hosted by Stripe; we never touch card data) for
+   *    the whole cohort plan below, price = TOTAL_CHARGE_CENTS.
+   *    Create it in the Stripe TEST MODE dashboard:
+   *      Products > + Add product > one-time price > Create payment link
    *    Then under the link's settings, set "After payment" to redirect
    *    to your own URL:
    *      https://getwalka.com/moms-success
@@ -40,77 +40,37 @@ window.WALKA_MOMS = (function () {
    *    if someone abandons, they just use the browser back button.)
    *
    *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" and
-   *    fill in the "live" link for each tier below once you've created
-   *    the equivalent live-mode Payment Links.
+   *    fill in the "live" link once you've created the equivalent
+   *    live-mode Payment Link.
+   *
+   *    Cohort only: solo is out of scope for this flow (hidden behind a
+   *    separate feature flag on mobile, not built here).
    * ------------------------------------------------------------------ */
   var STRIPE_MODE = "test"; // "test" | "live"
 
-  /* Cohort members always stake this amount, no choice shown. */
-  var COHORT_STAKE_AMOUNT_CENTS = 1500;
+  var PROGRAM_LENGTH_WEEKS = 4;
 
-  /* Solo members pick one of these as their total stake, then pick how
-     much of it is actually at risk per missed week from that tier's
-     missOptions. One Payment Link per tier (price = amountCents). */
-  var STAKE_TIERS = [
-    {
-      amountCents: 1500,
-      amountLabel: "$15",
-      missOptions: [
-        { cents: 100, label: "$1" },
-        { cents: 200, label: "$2" },
-        { cents: 300, label: "$3" }
-      ],
-      links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_15",
-        live: "https://buy.stripe.com/REPLACE_ME_15"
-      }
-    },
-    {
-      amountCents: 2500,
-      amountLabel: "$25",
-      missOptions: [
-        { cents: 200, label: "$2" },
-        { cents: 350, label: "$3.50" },
-        { cents: 500, label: "$5" }
-      ],
-      links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_25",
-        live: "https://buy.stripe.com/REPLACE_ME_25"
-      }
-    },
-    {
-      amountCents: 5000,
-      amountLabel: "$50",
-      missOptions: [
-        { cents: 300, label: "$3" },
-        { cents: 500, label: "$5" },
-        { cents: 1000, label: "$10" }
-      ],
-      links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_50",
-        live: "https://buy.stripe.com/REPLACE_ME_50"
-      }
-    },
-    {
-      amountCents: 10000,
-      amountLabel: "$100",
-      missOptions: [
-        { cents: 500, label: "$5" },
-        { cents: 1000, label: "$10" },
-        { cents: 2000, label: "$20" }
-      ],
-      links: {
-        test: "https://buy.stripe.com/test_REPLACE_ME_100",
-        live: "https://buy.stripe.com/REPLACE_ME_100"
-      }
-    }
-  ];
+  /* Total stake, returned in full if you finish without missing every day. */
+  var COHORT_STAKE_AMOUNT_CENTS = 6000; // $60 total: $15/week x 4 weeks
 
-  /* One-time payment, fixed-length challenge (not a subscription).
-     Stripe Payment Links above should be one-time prices, not recurring. */
-  var PROGRAM_LENGTH_WEEKS = 8;
-  var GRACE_PERIOD_WEEKS = 2;          // no money at risk for this many weeks after joining
-  var LIFE_HAPPENED_PASSES_TOTAL = 4;  // free misses for the whole challenge, not recurring
+  /* Platform revenue, not returned. One upfront charge, marketed as
+     "$4.99/week" but never billed weekly, that would make it a recurring
+     subscription collected outside the App/Play Store, which this flow
+     must not do. */
+  var ENTRY_FEE_CENTS = 2000; // $20 total ($4.99/week x 4, rounded)
+
+  /* Applies from day 1: no grace period, no free "life happened" passes.
+     Missing every day across the whole program forfeits exactly the full
+     stake (300 x 20 weekdays = 6000). Forfeited money goes into the pool
+     split among cohort members who finish, same mechanic as the main app. */
+  var MISS_AMOUNT_CENTS_PER_DAY = 300; // $3/day
+
+  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $80, one charge
+
+  var COHORT_PAYMENT_LINK = {
+    test: "https://buy.stripe.com/test_REPLACE_ME_COHORT",
+    live: "https://buy.stripe.com/REPLACE_ME_COHORT"
+  };
 
   /* ------------------------------------------------------------------ *
    * 3. SUPABASE: stores onboarding answers + lead status
@@ -181,16 +141,42 @@ window.WALKA_MOMS = (function () {
 
     landing: {
       eyebrow: "For pregnancy & postpartum",
-      title: "A gentler way to keep moving.",
-      body: "A walking plan and cohort built around new motherhood. Set your own pace, show up with people who get it.",
-      features: [
-        { icon: "🌱", title: "Starts gentle", desc: "Goals ramp up slowly. Nothing before you're cleared." },
-        { icon: "🤝", title: "A cohort that gets it", desc: "Walk alongside other pregnant and postpartum mums." },
-        { icon: "💛", title: "Grace, not guilt", desc: "Free weeks and free misses built in. Finish and your stake comes back." }
-      ],
-      stakeNote: "A small, mostly-refundable stake, from $15.",
+      title: "Moving again, gently.",
+      body: "A short walking plan built around where your body actually is right now, pregnant or postpartum. No weigh-ins, no before-and-afters, no bouncing back to anything.",
       cta: "Let's begin",
-      takesTime: "About 3 minutes."
+      takesTime: "About 3 minutes.",
+
+      howEyebrow: "How it works",
+      howTitle: "Three steps, at your pace.",
+      howSteps: [
+        {
+          icon: "💬",
+          title: "Tell us where you're at",
+          desc: "A few quick questions about your stage, clearance, and energy. No pressure, no wrong answers."
+        },
+        {
+          icon: "🤝",
+          title: "Get matched to your cohort",
+          desc: "Walk alongside others at a similar stage, due soon, or weeks to months postpartum."
+        },
+        {
+          icon: "👣",
+          title: "Walk, and get your stake back",
+          desc: "A $60 stake over 4 weeks. Miss a day, lose $3. Finish, and the rest comes right back."
+        }
+      ],
+
+      cohortEyebrow: "Your people",
+      cohortTitle: "Walk with people who get it.",
+      cohortBody: "Every cohort is grouped by stage, so you're never the only one due soon or a few weeks postpartum.",
+      cohortGroups: [
+        { caption: "Due soon", photo: "images/cohort-due-soon.jpg", fallbackIcon: "🤰" },
+        { caption: "0–3 months postpartum", photo: "images/cohort-0-3m.jpg", fallbackIcon: "🚶‍♀️" },
+        { caption: "3–6 months postpartum", photo: "images/cohort-3-6m.jpg", fallbackIcon: "🚶‍♀️" },
+        { caption: "6–12 months postpartum", photo: "images/cohort-6-12m.jpg", fallbackIcon: "🚶‍♀️" }
+      ],
+
+      stakeNote: "A $60 stake over 4 weeks, plus a one-time $20 entry fee."
     },
 
     steps: {
@@ -261,7 +247,6 @@ window.WALKA_MOMS = (function () {
       },
       cohort: {
         title: "Pick your people",
-        soloOption: { value: "solo", label: "Just me, solo" },
         partnerNote: "Want a walking partner instead? You can ask once you're in.",
         groupsPregnant: [
           { value: "due_soon", label: "Due soon" }
@@ -275,11 +260,12 @@ window.WALKA_MOMS = (function () {
       commit: {
         title: "Your stake",
         lengthNote: "Your challenge runs {weeks} weeks.",
-        chooseStakeLabel: "Choose your stake",
-        cohortStakeNote: "Your stake is {amount}.",
-        missLabel: "If you miss a week, how much is at risk?",
-        summaryLine: "Miss a week, lose {miss}. Finish, keep it all.",
-        summaryHint: "No risk for your first {grace} weeks, plus {passes} free misses after that."
+        stakeLine: "You're staking {stake}.",
+        missLine: "Miss a day, lose {miss}. No grace days, no free passes, every day counts from day one.",
+        poolLine: "Money from missed days goes to the cohort members who finish.",
+        feeLine: "Plus a one-time {fee} entry fee, charged today, not refundable.",
+        summaryLine: "Miss a day, lose {miss}. Finish, keep your stake.",
+        summaryHint: "Every day counts from day one. No grace period, no free misses."
       },
       checkout: {
         title: "Confirm",
@@ -289,8 +275,10 @@ window.WALKA_MOMS = (function () {
         summaryLengthLabel: "Challenge length",
         summaryCohortLabel: "Cohort",
         summaryToneLabel: "Style",
-        summaryAmountLabel: "Stake",
-        summaryMissLabel: "If you miss",
+        summaryStakeLabel: "Stake",
+        summaryFeeLabel: "Entry fee",
+        summaryMissLabel: "If you miss a day",
+        summaryTotalLabel: "Total today",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -338,11 +326,12 @@ window.WALKA_MOMS = (function () {
     PREVIEW_STORAGE_KEY: PREVIEW_STORAGE_KEY,
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
     STRIPE_MODE: STRIPE_MODE,
-    COHORT_STAKE_AMOUNT_CENTS: COHORT_STAKE_AMOUNT_CENTS,
-    STAKE_TIERS: STAKE_TIERS,
     PROGRAM_LENGTH_WEEKS: PROGRAM_LENGTH_WEEKS,
-    GRACE_PERIOD_WEEKS: GRACE_PERIOD_WEEKS,
-    LIFE_HAPPENED_PASSES_TOTAL: LIFE_HAPPENED_PASSES_TOTAL,
+    COHORT_STAKE_AMOUNT_CENTS: COHORT_STAKE_AMOUNT_CENTS,
+    ENTRY_FEE_CENTS: ENTRY_FEE_CENTS,
+    MISS_AMOUNT_CENTS_PER_DAY: MISS_AMOUNT_CENTS_PER_DAY,
+    TOTAL_CHARGE_CENTS: TOTAL_CHARGE_CENTS,
+    COHORT_PAYMENT_LINK: COHORT_PAYMENT_LINK,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,

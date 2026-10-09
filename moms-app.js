@@ -97,11 +97,10 @@
       adjusted_goal: a.adjusted_goal != null ? a.adjusted_goal : null,
       motivation_style: a.motivation_style || "princess",
       cohort: a.cohort || null,
-      stake_cents: a.stake_cents != null ? a.stake_cents : null,
-      miss_cents: a.miss_cents != null ? a.miss_cents : null,
+      stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS,
+      miss_cents: WM.MISS_AMOUNT_CENTS_PER_DAY,
+      entry_fee_cents: WM.ENTRY_FEE_CENTS,
       program_length_weeks: WM.PROGRAM_LENGTH_WEEKS,
-      grace_period_weeks: WM.GRACE_PERIOD_WEEKS,
-      passes_total: WM.LIFE_HAPPENED_PASSES_TOTAL,
       email: a.email || null,
       first_name: a.first_name || null,
       last_step: STEP_IDS[state.stepIndex] || null,
@@ -127,7 +126,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl;
+  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -292,8 +291,7 @@
     cohort: {
       render: function (a) {
         var groups = a.stage === "pregnant" ? COPY.steps.cohort.groupsPregnant : COPY.steps.cohort.groupsPostpartum;
-        var all = groups.concat([COPY.steps.cohort.soloOption]);
-        var opts = all.map(function (o) {
+        var opts = groups.map(function (o) {
           return pillOption("cohort_value", o.value, o.label, a.cohort === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.cohort.title + '</h2>' +
@@ -316,54 +314,19 @@
     commit: {
       render: function (a) {
         var c = COPY.steps.commit;
-        var isCohort = a.cohort && a.cohort !== "solo";
-        var html = '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + fmtTemplate(c.lengthNote, { weeks: WM.PROGRAM_LENGTH_WEEKS }) + '</p>';
-
-        if (isCohort) {
-          a.stake_cents = WM.COHORT_STAKE_AMOUNT_CENTS;
-          var cohortTier = tierFor(a.stake_cents);
-          html += '<p class="q-body">' + fmtTemplate(c.cohortStakeNote, { amount: cohortTier.amountLabel }) + '</p>';
-        } else {
-          html += '<p class="q-label">' + c.chooseStakeLabel + '</p>' +
-            '<div class="opts" id="stakeOpts">' + WM.STAKE_TIERS.map(function (t) {
-              return pillOption("stake", t.amountCents, t.amountLabel, a.stake_cents === t.amountCents);
-            }).join("") + '</div>';
-        }
-
-        var tier = tierFor(a.stake_cents);
-        if (tier) {
-          html += '<p class="q-label">' + c.missLabel + '</p>' +
-            '<div class="opts" id="missOpts">' + tier.missOptions.map(function (m) {
-              return pillOption("miss", m.cents, m.label, a.miss_cents === m.cents);
-            }).join("") + '</div>';
-          var missOpt = tier.missOptions.filter(function (m) { return m.cents === a.miss_cents; })[0];
-          html += stakeSummaryHTML(missOpt);
-        }
-        return html;
+        return '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + fmtTemplate(c.lengthNote, { weeks: WM.PROGRAM_LENGTH_WEEKS }) + '</p>' +
+          '<p class="q-body">' + fmtTemplate(c.stakeLine, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' +
+          '<p class="q-body">' + fmtTemplate(c.missLine, { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) }) + '</p>' +
+          '<p class="q-note">' + c.poolLine + '</p>' +
+          '<p class="q-hint">' + fmtTemplate(c.feeLine, { fee: centsLabel(WM.ENTRY_FEE_CENTS) }) + '</p>';
       },
-      bind: function (root) {
-        root.querySelectorAll('#stakeOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.stake_cents = Number(b.getAttribute("data-value"));
-            state.answers.miss_cents = null; // miss options differ per tier
-            renderStep(false);
-          });
-        });
-        root.querySelectorAll('#missOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.miss_cents = Number(b.getAttribute("data-value"));
-            renderStep(false);
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.stake_cents && a.miss_cents != null; }
+      bind: function () {},
+      canAdvance: function () { return true; }
     },
 
     checkout: {
       render: function (a) {
-        var tier = tierFor(a.stake_cents);
-        var missOpt = tier ? tier.missOptions.filter(function (m) { return m.cents === a.miss_cents; })[0] : null;
         var goalText = a.clearance_status === "yes" && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode, no goal yet";
         var c = COPY.steps.checkout;
         return '<h2 class="q-title">' + c.title + '</h2>' +
@@ -373,17 +336,19 @@
             summaryRow(c.summaryLengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
             summaryRow(c.summaryCohortLabel, prettyCohort(a.cohort)) +
             summaryRow(c.summaryToneLabel, WM.TONE[a.motivation_style || "princess"].name) +
-            summaryRow(c.summaryAmountLabel, tier ? tier.amountLabel : "") +
-            summaryRow(c.summaryMissLabel, missOpt ? missOpt.label : "") +
+            summaryRow(c.summaryStakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
+            summaryRow(c.summaryFeeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
+            summaryRow(c.summaryMissLabel, centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
+            summaryRow(c.summaryTotalLabel, centsLabel(WM.TOTAL_CHARGE_CENTS)) +
           '</div>' +
-          stakeSummaryHTML(missOpt) +
+          stakeSummaryHTML() +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
           '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
             ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
-          '<p class="q-note">' + c.testModeNote + '</p>' +
+          (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
@@ -402,9 +367,7 @@
 
         pay.addEventListener("click", function () {
           if (!validate()) return;
-          var tier = tierFor(state.answers.stake_cents);
-          if (!tier) { err.textContent = "Please pick a stake first."; err.hidden = false; return; }
-          var link = tier.links[WM.STRIPE_MODE];
+          var link = WM.COHORT_PAYMENT_LINK[WM.STRIPE_MODE];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
             err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";
             err.hidden = false;
@@ -414,7 +377,7 @@
           state.answers.checkout_status = "started";
           saveState();
           track(EVENTS.checkoutStarted, {
-            stake_cents: tier.amountCents, miss_cents: state.answers.miss_cents, local_id: state.localId
+            stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS, entry_fee_cents: WM.ENTRY_FEE_CENTS, local_id: state.localId
           });
           syncLead();
 
@@ -426,7 +389,7 @@
       canAdvance: function () { return false; }, // own pay button drives navigation
       onEnter: function (a) {
         if (a.checkout_status !== "started") a.checkout_status = "viewed";
-        track(EVENTS.checkoutViewed, { stake_cents: a.stake_cents, miss_cents: a.miss_cents });
+        track(EVENTS.checkoutViewed, { stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS, entry_fee_cents: WM.ENTRY_FEE_CENTS });
         syncLead();
       }
     }
@@ -442,20 +405,19 @@
     return '<div class="summary__row"><span>' + label + '</span><b>' + value + '</b></div>';
   }
 
-  function tierFor(cents) {
-    return WM.STAKE_TIERS.filter(function (t) { return t.amountCents === cents; })[0];
+  function centsLabel(cents) {
+    return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  function stakeSummaryHTML(missOpt) {
-    if (!missOpt) return "";
+  function stakeSummaryHTML() {
     var c = COPY.steps.commit;
-    var vars = { grace: WM.GRACE_PERIOD_WEEKS, passes: WM.LIFE_HAPPENED_PASSES_TOTAL, miss: missOpt.label };
+    var vars = { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) };
     return '<p class="q-note">' + fmtTemplate(c.summaryLine, vars) + '</p>' +
-      '<p class="q-hint">' + fmtTemplate(c.summaryHint, vars) + '</p>';
+      '<p class="q-hint">' + c.summaryHint + '</p>';
   }
 
   function prettyCohort(value) {
-    var all = COPY.steps.cohort.groupsPregnant.concat(COPY.steps.cohort.groupsPostpartum, [COPY.steps.cohort.soloOption]);
+    var all = COPY.steps.cohort.groupsPregnant.concat(COPY.steps.cohort.groupsPostpartum);
     var match = all.filter(function (o) { return o.value === value; })[0];
     return match ? match.label : value || "";
   }
@@ -569,34 +531,84 @@
       '<a class="btn btn--ink" href="/">' + COPY.gate.cta + '</a>';
   }
 
+  function observeReveals(root) {
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var els = root.querySelectorAll(".rv");
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach(function (e) { e.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.15 });
+    els.forEach(function (e) { io.observe(e); });
+  }
+
   function showLanding() {
+    mainEl.hidden = true;
     landingEl.hidden = false;
     var L = COPY.landing;
+
     landingEl.innerHTML =
-      '<div class="card">' +
+      '<section class="mhero"><div class="wrap">' +
         '<p class="eyebrow">' + L.eyebrow + '</p>' +
-        '<h1 class="q-title" style="font-size:1.7rem">' + L.title + '</h1>' +
-        '<p class="q-body">' + L.body + '</p>' +
-        L.features.map(function (f) {
-          return '<div class="landing-feature">' +
-            '<div class="landing-feature__ic">' + f.icon + '</div>' +
-            '<div><div class="landing-feature__title">' + f.title + '</div>' +
-            '<div class="landing-feature__desc">' + f.desc + '</div></div>' +
-          '</div>';
-        }).join("") +
-        '<p class="q-note">' + L.stakeNote + '</p>' +
-        '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
-        '<button type="button" class="btn btn--ink" id="landingCta" style="width:100%;margin-top:4px">' + L.cta + '</button>' +
-        '<p class="landing-time">' + L.takesTime + '</p>' +
-      '</div>';
+        '<h1>' + L.title + '</h1>' +
+        '<p class="mhero__sub">' + L.body + '</p>' +
+        '<div class="mhero__ctas">' +
+          '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
+          '<span class="landing-time">' + L.takesTime + '</span>' +
+        '</div>' +
+        '<p class="q-note" style="max-width:28rem;margin-top:20px">' + L.stakeNote + '</p>' +
+        '<p class="q-disclaimer" style="border-top:none;padding-top:0;max-width:28rem">' + COPY.disclaimer + '</p>' +
+      '</div></section>' +
+
+      '<section class="mhow"><div class="wrap">' +
+        '<div class="sec-head rv">' +
+          '<p class="eyebrow">' + L.howEyebrow + '</p>' +
+          '<h2>' + L.howTitle + '</h2>' +
+        '</div>' +
+        '<div class="msteps3">' +
+          L.howSteps.map(function (s) {
+            return '<div class="ms3 rv">' +
+              '<div class="ms3__ic">' + s.icon + '</div>' +
+              '<h3>' + s.title + '</h3>' +
+              '<p>' + s.desc + '</p>' +
+            '</div>';
+          }).join("") +
+        '</div>' +
+      '</div></section>' +
+
+      '<section class="mcohort"><div class="wrap">' +
+        '<div class="sec-head rv">' +
+          '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
+          '<h2>' + L.cohortTitle + '</h2>' +
+          '<p class="q-body" style="margin:10px 0 0">' + L.cohortBody + '</p>' +
+        '</div>' +
+        '<div class="cohort-grid">' +
+          L.cohortGroups.map(function (g) {
+            return '<div class="cohort-card rv">' +
+              '<div class="member-ph">' +
+                '<img src="' + escapeAttr(g.photo) + '" alt="" ' +
+                  'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                '<span class="member-ph__fallback">' + g.fallbackIcon + '</span>' +
+              '</div>' +
+              '<p class="cohort-card__caption">' + g.caption + '</p>' +
+            '</div>';
+          }).join("") +
+        '</div>' +
+      '</div></section>';
 
     track(EVENTS.landingView, { local_id: state.localId });
+    observeReveals(landingEl);
 
     document.getElementById("landingCta").addEventListener("click", function () {
       state.onboardingStarted = true;
       track(EVENTS.onboardingStart, { local_id: state.localId });
       saveState();
       landingEl.hidden = true;
+      mainEl.hidden = false;
       appEl.hidden = false;
       renderStep();
     });
@@ -644,6 +656,7 @@
     landingEl = document.getElementById("landing");
     appEl = document.getElementById("app");
     loadingEl = document.getElementById("loading");
+    mainEl = document.getElementById("top");
 
     continueBtn.addEventListener("click", goNext);
     backBtn.addEventListener("click", goBack);

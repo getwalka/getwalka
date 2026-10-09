@@ -10,20 +10,36 @@ PostHog is wired into every page for analytics.
 A standalone, flagged-off onboarding + checkout experiment living alongside
 the main site, built to test whether postpartum/pregnant mums will sign up
 and commit under a gentler commitment mechanic. It does not touch the main
-flow, legal copy, or stake logic.
+flow or its stake logic (it does link to the shared `/terms` and `/privacy`
+pages).
 
-Visitors see a landing screen (what Walka for new mums is, what's at stake,
-roughly how long it takes) before any onboarding question, then the
-step-by-step wizard. Resuming a started session skips straight back to the
-wizard, no landing page again.
+**Cohort only.** Solo is out of scope for this flow, it's hidden behind a
+separate feature flag on mobile, not built here. Every `/moms` signup joins
+a cohort group.
+
+Visitors see a full-width marketing landing page first (headline, a 3-step
+"how it works", a cohort section), then the step-by-step wizard. Resuming a
+started session skips straight back to the wizard, no landing page again.
+The landing lives outside the wizard's 440px card shell (it's a sibling of
+`<main>` in `moms.html`, toggled by `mainEl`/`landingEl` in `moms-app.js`),
+reusing the main site's `.wrap`/`.steps3`/`.s3`-style visual language rather
+than the compact wizard card look.
+
+The cohort section's photo slots (`COPY.landing.cohortGroups[].photo` in
+`moms-copy.js`) point at `images/cohort-*.jpg`, which don't exist yet; each
+`<img>` fails gracefully to a colored fallback icon via `onerror` until real
+photos are dropped into a `getwalka/images/` folder at those exact paths.
+Nothing here uses stock or generated photos of people, real cohort photos
+(with consent) are a prerequisite for that section to look finished, not
+optional polish.
 
 Files:
 - `moms.html`: the route itself (page shell, styles, landing + step markup
   containers).
 - `moms-copy.js`: **every** piece of copy and every tunable config value
-  (feature flag key, Stripe links/mode, stake tiers, grace period, passes,
-  goal-suggestion math, tone copy for "princess"/"coach"). Edit this file,
-  not the others, to change wording or mechanics.
+  (feature flag key, Stripe link/mode, stake/fee/miss amounts, program
+  length, goal-suggestion math, tone copy for "princess"/"coach"). Edit
+  this file, not the others, to change wording or mechanics.
 - `moms-app.js`: the step engine (state machine, validation, resume,
   analytics, Supabase sync, Stripe handoff). Shouldn't contain user-facing
   strings.
@@ -47,43 +63,44 @@ Gated by a PostHog feature flag (PostHog is already on every page):
 
 ### Payments: Stripe, test mode by default
 
-This is a one-time payment for a fixed-length challenge, not a
+This is a single one-time payment for a fixed-length challenge, not a
 subscription. There's no payment backend in this repo, so checkout hands
-off to Stripe-hosted **Payment Links**; we never touch card data ourselves.
-1. In the Stripe **test mode** dashboard, create one **one-time price**
-   Payment Link per stake tier in `moms-copy.js` → `STAKE_TIERS` (currently
-   $15 / $25 / $50 / $100). Do not use a recurring/subscription price.
-2. In each Payment Link's settings, set "After payment" → redirect to your
+off to one Stripe-hosted **Payment Link**; we never touch card data
+ourselves.
+1. In the Stripe **test mode** dashboard, create **one one-time price**
+   Payment Link, price = `TOTAL_CHARGE_CENTS` in `moms-copy.js` (stake +
+   entry fee, currently $80). Do not use a recurring/subscription price,
+   and do not create separate links for the stake and the fee, it's one
+   checkout.
+2. In the Payment Link's settings, set "After payment" → redirect to your
    own URL → `https://getwalka.com/moms-success`.
-3. Paste the resulting `https://buy.stripe.com/test_...` URL into that
-   tier's `links.test` in `moms-copy.js`.
-4. To go live later: create the equivalent live-mode Payment Links, fill in
-   `links.live`, and flip `STRIPE_MODE` from `"test"` to `"live"`. That's
-   the entire switch.
+3. Paste the resulting `https://buy.stripe.com/test_...` URL into
+   `COHORT_PAYMENT_LINK.test` in `moms-copy.js`.
+4. To go live later: create the equivalent live-mode Payment Link, fill in
+   `COHORT_PAYMENT_LINK.live`, and flip `STRIPE_MODE` from `"test"` to
+   `"live"`. That's the entire switch (also hides the test-mode card note
+   on checkout, it's gated on `STRIPE_MODE`).
 
 Card test number: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ### The stake mechanic
 
-All in `moms-copy.js`:
-- `PROGRAM_LENGTH_WEEKS`: how long the challenge runs (currently 8 weeks).
-  A placeholder default, since the brief didn't specify one; tune this to
-  the real program length.
-- `COHORT_STAKE_AMOUNT_CENTS`: fixed stake for cohort members (currently
-  $15), no choice shown.
-- `STAKE_TIERS`: the total stake solo members choose from (currently $15 /
-  $25 / $50 / $100). Each tier has its own Stripe Payment Link (price must
-  match `amountCents`) and its own `missOptions`, the amount actually at
-  risk per missed week (e.g. the $15 tier offers $1 / $2 / $3).
-- `GRACE_PERIOD_WEEKS`: weeks after joining with nothing at risk.
-- `LIFE_HAPPENED_PASSES_TOTAL`: free misses for the whole challenge
-  (currently 4). A flat total, not a recurring monthly allowance, since the
-  stake is a one-time payment for a fixed-length challenge.
-
-Everyone (cohort or solo) picks a miss amount from their tier's
-`missOptions`. That amount, not the full stake, is what's actually at risk
-per missed week once grace weeks and passes are used up; finishing the
-challenge returns the rest.
+All in `moms-copy.js`, cohort only, no tiers or choices shown:
+- `PROGRAM_LENGTH_WEEKS`: 4 weeks.
+- `COHORT_STAKE_AMOUNT_CENTS`: $60 total stake ($15/week x 4), returned in
+  full if you don't miss every day.
+- `ENTRY_FEE_CENTS`: $20 total, platform revenue, not refundable. Marketed
+  as "$4.99/week" but charged as this one upfront amount, never billed
+  weekly; a real weekly charge would make it a recurring subscription
+  collected outside IAP, which this flow must not do, same invariant as
+  the main app.
+- `MISS_AMOUNT_CENTS_PER_DAY`: $3, applies from day one. No grace period,
+  no free "life happened" passes, every missed day costs $3 (missing all
+  20 weekdays forfeits exactly the $60 stake). Money from missed days goes
+  into the pool split among cohort members who finish, same mechanic as
+  the main app's weekly cohorts.
+- `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
+  charges ($80).
 
 ### Data storage (Supabase)
 
@@ -132,28 +149,26 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
 - **The RLS policy lets anon update any row by `local_id`.** The UUID is
   never shown in the UI or URL, so it isn't practically guessable, but it's
   a real trade-off of skipping a backend; see `supabase/moms_leads.sql`.
-- **Nothing in this repo tracks actual missed weeks or enforces the stake
+- **Nothing in this repo tracks actual missed days or enforces the stake
   loss.** That bookkeeping (who missed, how much they lose, payouts) lives
   in the native app/backend, same as the main flow. This checkout only
-  captures the plan someone agreed to and takes payment for the total
-  stake; enforcing the per-week miss amount is a follow-up build.
-- **`PROGRAM_LENGTH_WEEKS` defaults to 8**, a placeholder since no actual
-  challenge length was specified. This is what makes "finish" mean
-  something concrete and what the free-misses total is scoped to; confirm
-  the real number and update `moms-copy.js`.
+  captures the plan someone agreed to and takes one payment for stake +
+  entry fee; enforcing the per-day miss amount and pooling it to the
+  cohort's finishers is a follow-up build.
 - **An email + first name step was added to checkout** (not explicitly in
   the brief) since there was otherwise no way to reach someone after
   payment or tie a Supabase row to a person.
 - **Not linked from the main site nav**, by design, so it stays a quiet,
   share-by-link test. `<meta name="robots" content="noindex">` is set on
   both `moms.html` and `moms-success.html`.
-- **Legal copy was reused, not rewritten**: the checkout screen links to
-  the existing `/terms` and `/privacy`. `terms.html` §4.4 (refunds) and
-  §15 (arbitration) still have unfilled placeholders (`[STATE]`,
-  `[CITY, STATE]`, `[JAMS or AAA]`) predating this work, worth legal review
-  before this flow takes real payments, same as the main flow. The
-  stake/miss language on the `/moms` checkout screen is new copy and
-  should get a legal look too.
+- **Legal copy is shared with the main flow, not rewritten for this
+  mechanic**: the checkout screen links to the existing `/terms` and
+  `/privacy`. `terms.html` §15's governing law (Delaware) and arbitration
+  venue (San Francisco, CA, administered by AAA) are filled in. The
+  stake/fee/miss language on the `/moms` checkout screen is new copy and
+  hasn't had a legal look yet; get one before taking real payments.
+  `privacy.html` still has an unfilled EEA/UK data-transfer-mechanism
+  placeholder, only matters if this flow reaches EU/UK users.
 - **Goal-suggestion math is a first guess**, not clinically validated:
   baseline steps by self-reported bucket times an energy multiplier,
   clamped 1,000 to 15,000, rounded to the nearest 500. Tune in
@@ -180,18 +195,16 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       is pushed.
 - [ ] Goal step: +/- buttons move by 500, clamp at 1,000 and 15,000.
 - [ ] Cohort: pregnant shows "Due soon"; postpartum shows the baby-age
-      groups; Solo always available; walking-partner line is just a note,
-      not a selectable option.
-- [ ] Commit, cohort picked: stake is locked to $15, no stake chooser shown,
-      only the miss-amount pills ($1/$2/$3).
-- [ ] Commit, solo picked: choosing a different stake tier resets the
-      miss-amount choice and shows that tier's three options.
-- [ ] Checkout: summary shows the right stake and miss amount; Pay button
-      stays disabled until a valid email is entered and the terms checkbox
-      is checked.
-- [ ] Checkout → **Pay** redirects to the correct test-mode Stripe Payment
-      Link for the chosen stake tier, with `client_reference_id` and
-      `prefilled_email` populated in the URL.
+      groups; no solo option; walking-partner line is just a note, not a
+      selectable option.
+- [ ] Commit: shows $60 stake, $3/day if you miss, $20 entry fee, no
+      choices to make, just a Continue button.
+- [ ] Checkout: summary shows stake ($60), entry fee ($20), miss amount
+      ($3), and total today ($80); Pay button stays disabled until a
+      valid email is entered and the terms checkbox is checked.
+- [ ] Checkout → **Pay** redirects to the single test-mode Stripe Payment
+      Link, with `client_reference_id` and `prefilled_email` populated in
+      the URL.
 - [ ] Complete a test payment (4242 card): lands on `/moms-success` with a
       personalized message; Supabase row's `checkout_status` becomes
       `completed_unverified`.
