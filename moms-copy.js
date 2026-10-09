@@ -20,9 +20,14 @@ window.WALKA_MOMS = (function () {
    *    visit /moms?preview=1 once in a browser to locally unlock the
    *    flow on that device regardless of the flag (stored in
    *    localStorage). /moms?preview=0 removes the override.
+   *
+   *    FORCE_FLOW_ENABLED bypasses this gate for everyone, no PostHog
+   *    flag or ?preview needed. Flip back to false (not delete the gate
+   *    code) to go back to flag-gated access.
    * ------------------------------------------------------------------ */
   var FEATURE_FLAG_KEY = "moms-postpartum-flow";
   var PREVIEW_STORAGE_KEY = "walka_moms_preview";
+  var FORCE_FLOW_ENABLED = true;
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
@@ -323,6 +328,7 @@ window.WALKA_MOMS = (function () {
 
   return {
     FEATURE_FLAG_KEY: FEATURE_FLAG_KEY,
+    FORCE_FLOW_ENABLED: FORCE_FLOW_ENABLED,
     PREVIEW_STORAGE_KEY: PREVIEW_STORAGE_KEY,
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
     STRIPE_MODE: STRIPE_MODE,

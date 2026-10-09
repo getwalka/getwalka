@@ -629,6 +629,8 @@
   }
 
   function initGate() {
+    if (WM.FORCE_FLOW_ENABLED) { startFlow(); return; }
+
     if (previewOverrideActive()) { startFlow(); return; }
 
     if (!window.posthog) { showGate(); return; }
