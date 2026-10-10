@@ -196,10 +196,30 @@ window.WALKA_MOMS = (function () {
       cohortTitle: "Walk with people who get it.",
       cohortBody: "Every cohort is grouped by stage, so you're never the only one due soon or a few weeks postpartum.",
       cohortGroups: [
-        { caption: "Due soon", photo: "images/cohort-due-soon.jpg", fallbackIcon: "🤰" },
-        { caption: "0–3 months postpartum", photo: "images/cohort-0-3m.jpg", fallbackIcon: "🚶‍♀️" },
-        { caption: "3–6 months postpartum", photo: "images/cohort-3-6m.jpg", fallbackIcon: "🚶‍♀️" },
-        { caption: "6–12 months postpartum", photo: "images/cohort-6-12m.jpg", fallbackIcon: "🚶‍♀️" }
+        {
+          caption: "Due soon",
+          benefit: "Gentle movement as you count down the days.",
+          photo: "images/cohort-due-soon.jpg",
+          fallbackIcon: "🤰🌱"
+        },
+        {
+          caption: "0–3 months postpartum",
+          benefit: "Flexible check-ins that flex with naptime.",
+          photo: "images/cohort-0-3m.jpg",
+          fallbackIcon: "🚶‍♀️🍼"
+        },
+        {
+          caption: "3–6 months postpartum",
+          benefit: "A steady rhythm as your energy comes back.",
+          photo: "images/cohort-3-6m.jpg",
+          fallbackIcon: "🚶‍♀️🧸"
+        },
+        {
+          caption: "6–12 months postpartum",
+          benefit: "Building a walking routine that actually sticks.",
+          photo: "images/cohort-6-12m.jpg",
+          fallbackIcon: "🚶‍♀️🧒"
+        }
       ],
 
       stakeNote: "A $60 stake over 4 weeks, plus a one-time $20 entry fee."

@@ -611,6 +611,7 @@
                 '<span class="member-ph__fallback">' + g.fallbackIcon + '</span>' +
               '</div>' +
               '<p class="cohort-card__caption">' + g.caption + '</p>' +
+              '<p class="cohort-card__benefit">' + g.benefit + '</p>' +
             '</div>';
           }).join("") +
         '</div>' +
