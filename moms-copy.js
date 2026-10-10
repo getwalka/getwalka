@@ -157,18 +157,38 @@ window.WALKA_MOMS = (function () {
       howSteps: [
         {
           icon: "💬",
-          title: "Tell us where you're at",
+          title: "Find your starting point",
           desc: "A few quick questions about your stage, clearance, and energy. No pressure, no wrong answers."
         },
         {
           icon: "🤝",
-          title: "Get matched to your cohort",
-          desc: "Walk alongside others at a similar stage, due soon, or weeks to months postpartum."
+          title: "Meet your circle and coach",
+          desc: "Walk alongside others at a similar stage, with daily nudges from Walka's AI coach along the way."
         },
         {
           icon: "👣",
-          title: "Walk, and get your stake back",
+          title: "Walk together. Stay accountable.",
           desc: "A $60 stake over 4 weeks. Miss a day, lose $3. Finish, and the rest comes right back."
+        }
+      ],
+
+      moreEyebrow: "Beyond the walk",
+      moreTitle: "More than just a walking challenge.",
+      moreFeatures: [
+        {
+          icon: "💬",
+          title: "An AI coach in your corner",
+          desc: "Daily encouragement and gentle check-ins from Walka's AI coach, built around how a new mum's days actually go."
+        },
+        {
+          icon: "🫂",
+          title: "Mums who understand",
+          desc: "Share the good days, the hard days, and everything in between with women at a similar stage."
+        },
+        {
+          icon: "🚶‍♀️",
+          title: "Progress at your pace",
+          desc: "A goal suited to your circumstances, with no comparing yourself to anyone else."
         }
       ],
 

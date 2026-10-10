@@ -581,6 +581,21 @@
         '</div>' +
       '</div></section>' +
 
+      '<section class="mmore"><div class="wrap">' +
+        '<div class="sec-head rv">' +
+          '<p class="eyebrow">' + L.moreEyebrow + '</p>' +
+          '<h2>' + L.moreTitle + '</h2>' +
+        '</div>' +
+        '<div class="feature-list rv">' +
+          L.moreFeatures.map(function (f) {
+            return '<div class="feature-row">' +
+              '<div class="feature-row__ic">' + f.icon + '</div>' +
+              '<div><h3>' + f.title + '</h3><p>' + f.desc + '</p></div>' +
+            '</div>';
+          }).join("") +
+        '</div>' +
+      '</div></section>' +
+
       '<section class="mcohort"><div class="wrap">' +
         '<div class="sec-head rv">' +
           '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
