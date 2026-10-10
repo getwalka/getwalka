@@ -147,7 +147,8 @@ window.WALKA_MOMS = (function () {
     landing: {
       eyebrow: "For pregnancy & postpartum",
       title: "Moving again, gently.",
-      body: "A short walking plan built around where your body actually is right now, pregnant or postpartum. No weigh-ins, no before-and-afters, no bouncing back to anything.",
+      body: "A four-week walking challenge for pregnant and postpartum mums. Set a goal that fits your stage, join a small circle of women who get it, and build a routine together.",
+      tagline: "No weigh-ins. No bouncing back. Just movement at your pace.",
       cta: "Let's begin",
       takesTime: "About 3 minutes.",
 

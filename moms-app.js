@@ -556,6 +556,7 @@
         '<p class="eyebrow">' + L.eyebrow + '</p>' +
         '<h1>' + L.title + '</h1>' +
         '<p class="mhero__sub">' + L.body + '</p>' +
+        '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
         '<div class="mhero__ctas">' +
           '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
           '<span class="landing-time">' + L.takesTime + '</span>' +
