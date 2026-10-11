@@ -141,7 +141,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl;
+  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -617,13 +617,11 @@
         '<div>' +
           '<p class="eyebrow">' + L.eyebrow + '</p>' +
           '<h1>' + L.title + '</h1>' +
-          '<p class="mhero__sub">' + L.body + '</p>' +
           '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
           '<div class="mhero__ctas">' +
             '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
             '<span class="landing-time">' + L.takesTime + '</span>' +
           '</div>' +
-          '<p class="q-note" style="max-width:28rem;margin-top:20px">' + L.stakeNote + '</p>' +
           '<p class="q-disclaimer" style="border-top:none;padding-top:0;max-width:28rem">' + COPY.disclaimer + '</p>' +
         '</div>' +
         '<div class="mhero__media">' +
@@ -678,6 +676,7 @@
       landingEl.hidden = true;
       mainEl.hidden = false;
       appEl.hidden = false;
+      exitLink.hidden = false;
       if (state.stepIndex > 0) {
         resumeBanner.hidden = false;
         resumeBanner.textContent = COPY.resumeBanner;
@@ -722,6 +721,7 @@
     appEl = document.getElementById("app");
     loadingEl = document.getElementById("loading");
     mainEl = document.getElementById("top");
+    exitLink = document.getElementById("exitLink");
 
     continueBtn.addEventListener("click", goNext);
     backBtn.addEventListener("click", goBack);

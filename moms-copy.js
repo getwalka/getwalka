@@ -154,7 +154,6 @@ window.WALKA_MOMS = (function () {
     landing: {
       eyebrow: "For pregnancy & postpartum",
       title: "Moving again, gently.",
-      body: "A four-week walking challenge for pregnancy and postpartum.",
       tagline: "No weigh-ins. No bouncing back. Just your pace.",
       cta: "Let's begin",
       takesTime: "About 3 minutes.",
@@ -191,9 +190,7 @@ window.WALKA_MOMS = (function () {
         { caption: "0–3 months postpartum" },
         { caption: "3–6 months postpartum" },
         { caption: "6–12 months postpartum" }
-      ],
-
-      stakeNote: "A $60 stake over 4 weeks, plus a one-time $20 entry fee."
+      ]
     },
 
     steps: {
