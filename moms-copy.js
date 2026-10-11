@@ -73,8 +73,8 @@ window.WALKA_MOMS = (function () {
   var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $50, one charge
 
   var COHORT_PAYMENT_LINK = {
-    test: "https://buy.stripe.com/test_REPLACE_ME_COHORT",
-    live: "https://buy.stripe.com/REPLACE_ME_COHORT"
+    test: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00",
+    live: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00"
   };
 
   /* ------------------------------------------------------------------ *
