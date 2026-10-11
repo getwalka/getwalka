@@ -177,16 +177,19 @@ window.WALKA_MOMS = (function () {
       moreFeatures: [
         {
           icon: "💬",
+          photo: "images/feature-coach.jpg",
           title: "An AI coach in your corner",
           desc: "Daily encouragement and gentle check-ins from Walka's AI coach, built around how a new mum's days actually go."
         },
         {
           icon: "🫂",
+          photo: "images/feature-circle.jpg",
           title: "Mums who understand",
           desc: "Share the good days, the hard days, and everything in between with women at a similar stage."
         },
         {
           icon: "🚶‍♀️",
+          photo: "images/feature-pace.jpg",
           title: "Progress at your pace",
           desc: "A goal suited to your circumstances, with no comparing yourself to anyone else."
         }

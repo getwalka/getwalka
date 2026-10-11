@@ -589,7 +589,11 @@
         '<div class="feature-list rv">' +
           L.moreFeatures.map(function (f) {
             return '<div class="feature-row">' +
-              '<div class="feature-row__ic">' + f.icon + '</div>' +
+              '<div class="feature-row__ic">' +
+                '<img src="' + escapeAttr(f.photo) + '" alt="" ' +
+                  'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                '<span class="feature-row__fallback">' + f.icon + '</span>' +
+              '</div>' +
               '<div><h3>' + f.title + '</h3><p>' + f.desc + '</p></div>' +
             '</div>';
           }).join("") +
