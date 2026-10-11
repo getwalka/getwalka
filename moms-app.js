@@ -620,9 +620,7 @@
           '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
           '<div class="mhero__ctas">' +
             '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
-            '<span class="landing-time">' + L.takesTime + '</span>' +
           '</div>' +
-          '<p class="q-disclaimer" style="border-top:none;padding-top:0;max-width:28rem">' + COPY.disclaimer + '</p>' +
         '</div>' +
         '<div class="mhero__media">' +
           '<img src="' + escapeAttr(L.heroPhoto) + '" alt="A mum walking outside with a stroller">' +

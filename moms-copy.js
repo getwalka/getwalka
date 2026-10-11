@@ -156,7 +156,6 @@ window.WALKA_MOMS = (function () {
       title: "Moving again, gently.",
       tagline: "No weigh-ins. No bouncing back. Just your pace.",
       cta: "Let's begin",
-      takesTime: "About 3 minutes.",
       heroPhoto: "images/feature-pace.jpg",
 
       howEyebrow: "How it works",
