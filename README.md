@@ -123,8 +123,16 @@ the browser as the upsert key.
    the **anon/public** key only, never the service role key) in
    `moms-copy.js`.
 3. View/export leads from the Supabase dashboard Table Editor (service
-   role, bypasses RLS). The anon key used by the page can write but not
-   read back.
+   role, bypasses RLS). Nothing in this page reads leads back, but the
+   anon key can technically `select` its own row by `local_id`, that
+   policy exists only because Postgres requires it to resolve
+   `upsert()`'s `ON CONFLICT` under RLS, see the note in
+   `supabase/moms_leads.sql`. Without it, every single upsert, including
+   a brand-new row with nothing to conflict with, fails outright with a
+   row-level security error. This isn't a hypothetical: it's exactly
+   what silently broke lead capture for this flow until the select
+   policy was added, so don't remove it as a "we don't need reads"
+   cleanup.
 
 ### Analytics events
 
@@ -157,9 +165,10 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
 - **Resume only works on the same browser/device**: state lives in
   `localStorage`, keyed by a client-generated `local_id`. Switching devices
   mid-flow starts over.
-- **The RLS policy lets anon update any row by `local_id`.** The UUID is
-  never shown in the UI or URL, so it isn't practically guessable, but it's
-  a real trade-off of skipping a backend; see `supabase/moms_leads.sql`.
+- **The RLS policy lets anon read and update any row by `local_id`.** The
+  UUID is never shown in the UI or URL, so it isn't practically guessable,
+  but it's a real trade-off of skipping a backend; see
+  `supabase/moms_leads.sql`.
 - **Nothing in this repo tracks actual missed days or enforces the stake
   loss.** That bookkeeping (who missed, how much they lose, payouts) lives
   in the native app/backend, same as the main flow. This checkout only

@@ -597,23 +597,38 @@
     els.forEach(function (e) { io.observe(e); });
   }
 
+  var COHORT_VISUAL_SVG =
+    '<svg viewBox="0 0 200 200" role="img" aria-label="Four women walking together in a circle">' +
+      '<circle cx="100" cy="100" r="74" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="6 10"/>' +
+      '<circle cx="100" cy="26" r="22" fill="var(--rose)"/>' +
+      '<circle cx="174" cy="100" r="22" fill="var(--lavender)"/>' +
+      '<circle cx="100" cy="174" r="22" fill="var(--amber)"/>' +
+      '<circle cx="26" cy="100" r="22" fill="var(--sage)"/>' +
+      '<text x="100" y="112" text-anchor="middle" font-size="36">🚶‍♀️</text>' +
+    '</svg>';
+
   function showLanding() {
     mainEl.hidden = true;
     landingEl.hidden = false;
     var L = COPY.landing;
 
     landingEl.innerHTML =
-      '<section class="mhero"><div class="wrap">' +
-        '<p class="eyebrow">' + L.eyebrow + '</p>' +
-        '<h1>' + L.title + '</h1>' +
-        '<p class="mhero__sub">' + L.body + '</p>' +
-        '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
-        '<div class="mhero__ctas">' +
-          '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
-          '<span class="landing-time">' + L.takesTime + '</span>' +
+      '<section class="mhero"><div class="wrap mhero__grid">' +
+        '<div>' +
+          '<p class="eyebrow">' + L.eyebrow + '</p>' +
+          '<h1>' + L.title + '</h1>' +
+          '<p class="mhero__sub">' + L.body + '</p>' +
+          '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
+          '<div class="mhero__ctas">' +
+            '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
+            '<span class="landing-time">' + L.takesTime + '</span>' +
+          '</div>' +
+          '<p class="q-note" style="max-width:28rem;margin-top:20px">' + L.stakeNote + '</p>' +
+          '<p class="q-disclaimer" style="border-top:none;padding-top:0;max-width:28rem">' + COPY.disclaimer + '</p>' +
         '</div>' +
-        '<p class="q-note" style="max-width:28rem;margin-top:20px">' + L.stakeNote + '</p>' +
-        '<p class="q-disclaimer" style="border-top:none;padding-top:0;max-width:28rem">' + COPY.disclaimer + '</p>' +
+        '<div class="mhero__media">' +
+          '<img src="' + escapeAttr(L.heroPhoto) + '" alt="A mum walking outside with a stroller">' +
+        '</div>' +
       '</div></section>' +
 
       '<section class="mhow"><div class="wrap">' +
@@ -622,53 +637,34 @@
           '<h2>' + L.howTitle + '</h2>' +
         '</div>' +
         '<div class="msteps3">' +
-          L.howSteps.map(function (s) {
+          L.howSteps.map(function (s, i) {
             return '<div class="ms3 rv">' +
-              '<div class="ms3__ic">' + s.icon + '</div>' +
-              '<h3>' + s.title + '</h3>' +
-              '<p>' + s.desc + '</p>' +
-            '</div>';
-          }).join("") +
-        '</div>' +
-      '</div></section>' +
-
-      '<section class="mmore"><div class="wrap">' +
-        '<div class="sec-head rv">' +
-          '<p class="eyebrow">' + L.moreEyebrow + '</p>' +
-          '<h2>' + L.moreTitle + '</h2>' +
-        '</div>' +
-        '<div class="feature-list rv">' +
-          L.moreFeatures.map(function (f) {
-            return '<div class="feature-row">' +
-              '<div class="feature-row__ic">' +
-                '<img src="' + escapeAttr(f.photo) + '" alt="" ' +
+              '<div class="ms3__photo">' +
+                '<img src="' + escapeAttr(s.photo) + '" alt="" ' +
                   'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                '<span class="feature-row__fallback">' + f.icon + '</span>' +
+                '<span class="ms3__fallback">' + s.icon + '</span>' +
               '</div>' +
-              '<div><h3>' + f.title + '</h3><p>' + f.desc + '</p></div>' +
+              '<div class="ms3__body">' +
+                '<p class="ms3__step">Step ' + (i + 1) + '</p>' +
+                '<h3>' + s.title + '</h3>' +
+                '<p>' + s.desc + '</p>' +
+              '</div>' +
             '</div>';
           }).join("") +
         '</div>' +
       '</div></section>' +
 
-      '<section class="mcohort"><div class="wrap">' +
-        '<div class="sec-head rv">' +
+      '<section class="mcohort"><div class="wrap cohort-layout">' +
+        '<div class="cohort-visual rv">' + COHORT_VISUAL_SVG + '</div>' +
+        '<div class="rv">' +
           '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
           '<h2>' + L.cohortTitle + '</h2>' +
-          '<p class="q-body" style="margin:10px 0 0">' + L.cohortBody + '</p>' +
-        '</div>' +
-        '<div class="cohort-grid">' +
-          L.cohortGroups.map(function (g) {
-            return '<div class="cohort-card rv">' +
-              '<div class="member-ph">' +
-                '<img src="' + escapeAttr(g.photo) + '" alt="" ' +
-                  'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                '<span class="member-ph__fallback">' + g.fallbackIcon + '</span>' +
-              '</div>' +
-              '<p class="cohort-card__caption">' + g.caption + '</p>' +
-              '<p class="cohort-card__benefit">' + g.benefit + '</p>' +
-            '</div>';
-          }).join("") +
+          '<p class="q-body" style="margin:10px 0 18px">' + L.cohortBody + '</p>' +
+          '<div class="cohort-chips">' +
+            L.cohortGroups.map(function (g) {
+              return '<span class="cohort-chip">' + g.caption + '</span>';
+            }).join("") +
+          '</div>' +
         '</div>' +
       '</div></section>';
 

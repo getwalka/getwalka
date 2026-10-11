@@ -69,6 +69,15 @@ create policy "moms_leads anon update own row"
   to anon
   using (true);
 
--- No select policy for anon: the anon key can write but not read back leads.
--- View/export leads from the Supabase dashboard (Table Editor), which uses
--- the service role and bypasses RLS.
+-- A SELECT policy is required even though the anon key should only ever
+-- write: Postgres needs read visibility on the conflict target to resolve
+-- `upsert(..., { onConflict: "local_id" })` under RLS, and silently rejects
+-- the INSERT itself (not just the read) without one, "new row violates
+-- row-level security policy", even on a brand-new row with no actual
+-- conflict. Scoped the same as the update policy above (same unguessable
+-- UUID trade-off, not a wider exposure than update already allowed).
+drop policy if exists "moms_leads anon select own row" on public.moms_leads;
+create policy "moms_leads anon select own row"
+  on public.moms_leads for select
+  to anon
+  using (true);

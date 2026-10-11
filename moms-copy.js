@@ -82,8 +82,10 @@ window.WALKA_MOMS = (function () {
    *
    *    Public anon key only (never the service role key in client code).
    *    Protected by the RLS policy in supabase/moms_leads.sql; anon can
-   *    insert and can update only the row matching the local_id it
-   *    already holds, nothing is readable with this key.
+   *    insert, and can read/update only the row matching the local_id it
+   *    already holds. The select policy exists because Postgres needs
+   *    read visibility to resolve upsert()'s ON CONFLICT under RLS, not
+   *    because anything in this page actually reads leads back.
    *    Fill these in from Project Settings > API in your Supabase dashboard.
    * ------------------------------------------------------------------ */
   var SUPABASE_URL = "https://mgocpqbxssvjlmqzqfgn.supabase.co";
@@ -152,82 +154,43 @@ window.WALKA_MOMS = (function () {
     landing: {
       eyebrow: "For pregnancy & postpartum",
       title: "Moving again, gently.",
-      body: "A four-week walking challenge for pregnant and postpartum mums. Set a goal that fits your stage, join a small circle of women who get it, and build a routine together.",
-      tagline: "No weigh-ins. No bouncing back. Just movement at your pace.",
+      body: "A four-week walking challenge for pregnancy and postpartum.",
+      tagline: "No weigh-ins. No bouncing back. Just your pace.",
       cta: "Let's begin",
       takesTime: "About 3 minutes.",
+      heroPhoto: "images/feature-pace.jpg",
 
       howEyebrow: "How it works",
       howTitle: "Three steps, at your pace.",
       howSteps: [
         {
           icon: "💬",
-          title: "Find your starting point",
-          desc: "A few quick questions about your stage, clearance, and energy. No pressure, no wrong answers."
-        },
-        {
-          icon: "🤝",
-          title: "Meet your circle and coach",
-          desc: "Walk alongside others at a similar stage, with daily nudges from Walka's AI coach along the way."
-        },
-        {
-          icon: "👣",
-          title: "Walk together. Stay accountable.",
-          desc: "A $60 stake over 4 weeks. Miss a day, lose $3. Finish, and the rest comes right back."
-        }
-      ],
-
-      moreEyebrow: "Beyond the walk",
-      moreTitle: "More than just a walking challenge.",
-      moreFeatures: [
-        {
-          icon: "💬",
           photo: "images/feature-coach.jpg",
-          title: "Your personal walking companion",
-          desc: "A supportive coach that checks in, celebrates your progress, and helps you stay consistent at your own pace."
+          title: "Find your starting point",
+          desc: "A few quick questions. No wrong answers."
         },
         {
           icon: "🫂",
           photo: "images/feature-circle.jpg",
-          title: "Mums who understand",
-          desc: "Share the good days, the hard days, and everything in between with women at a similar stage."
+          title: "Meet your circle and coach",
+          desc: "Walk alongside others at a similar stage, with daily nudges from your AI coach."
         },
         {
           icon: "🚶‍♀️",
           photo: "images/feature-pace.jpg",
-          title: "Progress at your pace",
-          desc: "A goal suited to your circumstances, with no comparing yourself to anyone else."
+          title: "Walk together. Stay accountable.",
+          desc: "A $60 stake over 4 weeks. Finish, and it all comes back."
         }
       ],
 
       cohortEyebrow: "Your people",
       cohortTitle: "Walk with people who get it.",
-      cohortBody: "Every cohort is grouped by stage, so you're never the only one due soon or a few weeks postpartum.",
+      cohortBody: "Grouped by stage, so you're never the only one.",
       cohortGroups: [
-        {
-          caption: "Due soon",
-          benefit: "Gentle movement as you count down the days.",
-          photo: "images/cohort-due-soon.jpg",
-          fallbackIcon: "🤰🌱"
-        },
-        {
-          caption: "0–3 months postpartum",
-          benefit: "Flexible check-ins that flex with naptime.",
-          photo: "images/cohort-0-3m.jpg",
-          fallbackIcon: "🚶‍♀️🍼"
-        },
-        {
-          caption: "3–6 months postpartum",
-          benefit: "A steady rhythm as your energy comes back.",
-          photo: "images/cohort-3-6m.jpg",
-          fallbackIcon: "🚶‍♀️🧸"
-        },
-        {
-          caption: "6–12 months postpartum",
-          benefit: "Building a walking routine that actually sticks.",
-          photo: "images/cohort-6-12m.jpg",
-          fallbackIcon: "🚶‍♀️🧒"
-        }
+        { caption: "Due soon" },
+        { caption: "0–3 months postpartum" },
+        { caption: "3–6 months postpartum" },
+        { caption: "6–12 months postpartum" }
       ],
 
       stakeNote: "A $60 stake over 4 weeks, plus a one-time $20 entry fee."
