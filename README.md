@@ -61,6 +61,36 @@ Gated by a PostHog feature flag (PostHog is already on every page):
    device via `localStorage`, regardless of the flag. `/moms?preview=0`
    removes the override.
 
+### Geo gate: US/Canada only
+
+`/moms` is additionally restricted to US and Canadian visitors
+(`GEO_ALLOWED_COUNTRIES` in `moms-copy.js`), independent of the feature flag
+above.
+
+- `middleware.js` (Vercel Edge Middleware, matches `/moms` only) reads
+  Vercel's own `x-vercel-ip-country` request header and stamps it onto a
+  `walka_geo_country` cookie. This is the one piece of this experiment that
+  isn't purely static: everything else here is plain files with no build
+  step, this is a small edge function. No npm dependency, no `@vercel/edge`
+  package; it hand-writes the `x-middleware-next: 1` response header that
+  tells Vercel to keep serving the static route rather than replacing the
+  response.
+- `moms-app.js` reads that cookie and, if the country isn't in the allowed
+  list, shows `COPY.geoGate` instead of the landing page/wizard. The
+  decision lives here, not in middleware, so there's one place (same as the
+  feature-flag gate) that owns who gets in.
+- **Fails OPEN**, the opposite of the feature-flag gate: if the cookie is
+  missing or empty (middleware didn't run, e.g. plain `vercel dev` or a
+  local file open), the visitor is let through rather than blocked. A
+  detection hiccup should never cost a real US/CA signup.
+- `?preview=1` bypasses this gate too, same as the feature flag, so QA can
+  test from any location.
+- Every visitor's country, allowed, blocked, or unknown, is written to
+  `moms_leads.country` (upserted on landing, before onboarding even starts)
+  and sent as a `moms_geo_blocked` PostHog event when someone is actually
+  blocked, so the country breakdown is visible in both places, not just the
+  pass/fail outcome.
+
 ### Payments: Stripe, test mode by default
 
 This is a single one-time payment for a fixed-length challenge, not a
@@ -206,6 +236,15 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       "not open yet" gate, no flow visible.
 - [ ] `/moms?preview=1` unlocks the flow on that device; `?preview=0`
       relocks it.
+- [ ] From a US or Canadian IP (or a VPN set to one), `/moms` shows the
+      landing page/flow as normal; a `moms_leads` row appears with
+      `country` set to `US`/`CA` even before starting onboarding.
+- [ ] From a VPN set to a third country, `/moms` shows the "not available
+      in your country yet" gate instead of the landing page; a
+      `moms_geo_blocked` event fires in PostHog and the `moms_leads` row's
+      `country` reflects that country with `last_step: "geo_blocked"`.
+- [ ] `/moms?preview=1` from that same non-US/CA VPN still unlocks the full
+      flow (preview bypasses the geo gate, not just the feature flag).
 - [ ] Landing page always shows first on load, even mid-flow, with no
       "Save & exit" link in the header until the wizard actually starts.
 - [ ] Reload mid-flow (after starting the wizard) → landing page shows

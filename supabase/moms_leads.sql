@@ -8,6 +8,8 @@ create table if not exists public.moms_leads (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
+  country text,                          -- ISO country code from middleware.js's Vercel geo header; null if undetected
+
   stage text,                            -- 'pregnant' | 'postpartum'
   weeks_postpartum int,
   due_date date,
@@ -45,6 +47,7 @@ create table if not exists public.moms_leads (
 -- cohort-only/per-day-miss rewrite) adds the one new column without touching
 -- existing rows or policies.
 alter table public.moms_leads add column if not exists entry_fee_cents int;
+alter table public.moms_leads add column if not exists country text;
 
 create index if not exists moms_leads_checkout_status_idx on public.moms_leads (checkout_status);
 create index if not exists moms_leads_created_at_idx on public.moms_leads (created_at);

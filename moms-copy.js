@@ -31,6 +31,25 @@ window.WALKA_MOMS = (function () {
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
+   * 1b. GEO GATE: US/Canada only
+   *    middleware.js (Vercel Edge Middleware) stamps a walka_geo_country
+   *    cookie from Vercel's own IP geolocation on every /moms request.
+   *    moms-app.js reads that cookie and blocks checkout for anyone
+   *    outside this list, showing COPY.geoGate instead of the flow.
+   *
+   *    Fails OPEN: if the cookie is missing or empty (middleware didn't
+   *    run, e.g. local dev), the visitor is let through rather than
+   *    blocked, so a detection hiccup never costs a real US/CA signup.
+   *    The ?preview=1 override bypasses this gate too, same as the
+   *    feature-flag gate, so QA can test from anywhere.
+   *
+   *    Every visitor's country (allowed, blocked, or unknown) is still
+   *    logged to Supabase (moms_leads.country) and PostHog so you can see
+   *    the actual country breakdown, not just who got through.
+   * ------------------------------------------------------------------ */
+  var GEO_ALLOWED_COUNTRIES = ["US", "CA"];
+
+  /* ------------------------------------------------------------------ *
    * 2. PAYMENTS: Stripe, TEST MODE by default
    *
    *    This repo has no payment backend, so checkout uses one Stripe
@@ -51,7 +70,7 @@ window.WALKA_MOMS = (function () {
    *    Cohort only: solo is out of scope for this flow (hidden behind a
    *    separate feature flag on mobile, not built here).
    * ------------------------------------------------------------------ */
-  var STRIPE_MODE = "test"; // "test" | "live"
+  var STRIPE_MODE = "live"; // "test" | "live"
 
   var PROGRAM_LENGTH_WEEKS = 4;
 
@@ -127,6 +146,12 @@ window.WALKA_MOMS = (function () {
     gate: {
       title: "This page isn't open yet.",
       body: "Check back soon, or head back to the homepage.",
+      cta: "Back to getwalka.com"
+    },
+
+    geoGate: {
+      title: "Not available in your country yet.",
+      body: "This program is currently only open to the US and Canada. Check back as we expand to more places.",
       cta: "Back to getwalka.com"
     },
 
@@ -322,7 +347,8 @@ window.WALKA_MOMS = (function () {
     checkoutViewed: "moms_checkout_viewed",
     checkoutStarted: "moms_checkout_started",
     checkoutCompleted: "moms_checkout_completed",
-    checkoutFailed: "moms_checkout_failed"
+    checkoutFailed: "moms_checkout_failed",
+    geoBlocked: "moms_geo_blocked"
   };
 
   return {
@@ -330,6 +356,7 @@ window.WALKA_MOMS = (function () {
     FORCE_FLOW_ENABLED: FORCE_FLOW_ENABLED,
     PREVIEW_STORAGE_KEY: PREVIEW_STORAGE_KEY,
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
+    GEO_ALLOWED_COUNTRIES: GEO_ALLOWED_COUNTRIES,
     STRIPE_MODE: STRIPE_MODE,
     PROGRAM_LENGTH_WEEKS: PROGRAM_LENGTH_WEEKS,
     COHORT_STAKE_AMOUNT_CENTS: COHORT_STAKE_AMOUNT_CENTS,

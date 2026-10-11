@@ -50,6 +50,11 @@
     return str.replace(/\{(\w+)\}/g, function (_, k) { return vars[k] != null ? vars[k] : ""; });
   }
 
+  function getCookie(name) {
+    var match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
   /* ---------------- state ---------------- */
 
   var state = loadState();
@@ -84,6 +89,7 @@
     var row = Object.assign({
       local_id: state.localId,
       updated_at: new Date().toISOString(),
+      country: a.country || null,
       stage: a.stage || null,
       weeks_postpartum: a.weeks_postpartum != null ? Number(a.weeks_postpartum) : null,
       due_date: a.due_date || null,
@@ -531,6 +537,24 @@
       '<a class="btn btn--ink" href="/">' + COPY.gate.cta + '</a>';
   }
 
+  function showGeoGate() {
+    loadingEl.hidden = true;
+    gateEl.hidden = false;
+    gateEl.innerHTML = '<h1 class="q-title">' + COPY.geoGate.title + '</h1>' +
+      '<p class="q-body">' + COPY.geoGate.body + '</p>' +
+      '<a class="btn btn--ink" href="/">' + COPY.geoGate.cta + '</a>';
+  }
+
+  /* Vercel's middleware.js sets this from its own edge geolocation on every
+     /moms request. Empty if middleware didn't run (e.g. local dev without
+     `vercel dev`), in which case the gate below fails OPEN. */
+  function geoBlocked() {
+    var country = getCookie("walka_geo_country");
+    state.answers.country = country || state.answers.country || null;
+    if (!country) return false; // unknown: let through, log as unknown
+    return WM.GEO_ALLOWED_COUNTRIES.indexOf(country) === -1;
+  }
+
   function observeReveals(root) {
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var els = root.querySelectorAll(".rv");
@@ -638,9 +662,17 @@
   }
 
   function initGate() {
-    if (WM.FORCE_FLOW_ENABLED) { startFlow(); return; }
-
     if (previewOverrideActive()) { startFlow(); return; }
+
+    if (geoBlocked()) {
+      track(EVENTS.geoBlocked, { country: state.answers.country });
+      syncLead({ last_step: "geo_blocked" });
+      showGeoGate();
+      return;
+    }
+    syncLead({ last_step: "landing" });
+
+    if (WM.FORCE_FLOW_ENABLED) { startFlow(); return; }
 
     if (!window.posthog) { showGate(); return; }
 
