@@ -248,7 +248,6 @@ window.WALKA_MOMS = (function () {
           "Daily encouragement from Walka's AI coach",
           "A 4-week structure, at your own pace"
         ],
-        partnerNote: "Want a walking partner instead? You can ask once you're in.",
         mismatchNote: "Heads up: you told us {weeks} weeks postpartum, which usually fits a different group. You can still join this one if you'd rather.",
         groupsPregnant: [
           { value: "due_soon", label: "Due soon" }
@@ -261,16 +260,14 @@ window.WALKA_MOMS = (function () {
       },
       commit: {
         title: "Your stake",
-        recapLine: "You're joining {cohort}: a small circle, daily support from your AI coach, four weeks, your pace.",
-        lengthNote: "Your challenge runs {weeks} weeks.",
-        stakeLine: "You're staking {stake}.",
-        missLine: "Miss a weekday, lose {miss}. Weekends are yours, no grace days, no free passes once the challenge starts.",
-        poolLine: "Money from missed weekdays goes to the cohort members who finish.",
-        feeLine: "Plus a one-time {fee} entry fee, charged today, not refundable.",
-        summaryLine: "Miss a weekday, lose {miss}. Finish, keep your stake.",
-        summaryHint: "Monday to Friday counts, weekends don't. No grace period, no free misses once you start.",
-        prepareMissLine: "No step goal yet, so there's nothing to miss, you can't be charged for a missed day in prepare mode.",
-        prepareNote: "Your full stake comes back at the end of the 4 weeks. Once you're cleared, switch in and the per-weekday stake starts from then."
+        recapLine: "You're joining {cohort}.",
+        lengthLabel: "Length",
+        stakeLabel: "Stake",
+        feeLabel: "Entry fee",
+        missLabel: "Miss a weekday",
+        prepareMissValue: "Not tracked yet",
+        noteLine: "Finish, keep your stake. Weekends don't count.",
+        prepareNote: "Your full stake comes back at the end of the 4 weeks."
       },
       checkout: {
         title: "Confirm",
@@ -285,6 +282,7 @@ window.WALKA_MOMS = (function () {
         summaryMissLabel: "If you miss a weekday",
         summaryTotalLabel: "Total today",
         prepareMissValue: "Not tracked yet",
+        prepareExplainer: "You're reserving your spot, not starting a challenge yet. No workouts or missed-day charges until you're cleared, and your {stake} stake is fully refundable.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",

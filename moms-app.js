@@ -301,8 +301,7 @@
             '<ul class="recap__list">' + c.recapItems.map(function (i) { return '<li>' + i + '</li>'; }).join("") + '</ul>' +
           '</div>' +
           '<div class="opts" id="cohortOpts">' + opts + '</div>' +
-          '<div id="cohortMismatch">' + mismatchHtml + '</div>' +
-          '<p class="q-hint">' + c.partnerNote + '</p>';
+          '<div id="cohortMismatch">' + mismatchHtml + '</div>';
       },
       bind: function (root) {
         root.querySelectorAll('#cohortOpts .pill').forEach(function (b) {
@@ -320,19 +319,15 @@
       render: function (a) {
         var c = COPY.steps.commit;
         var prepareMode = a.clearance_status !== "yes";
-        var html = '<h2 class="q-title">' + c.title + '</h2>' +
+        return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-note">' + fmtTemplate(c.recapLine, { cohort: prettyCohort(a.cohort) }) + '</p>' +
-          '<p class="q-body">' + fmtTemplate(c.lengthNote, { weeks: WM.PROGRAM_LENGTH_WEEKS }) + '</p>' +
-          '<p class="q-body">' + fmtTemplate(c.stakeLine, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>';
-        if (prepareMode) {
-          html += '<p class="q-body">' + c.prepareMissLine + '</p>' +
-            '<p class="q-hint">' + c.prepareNote + '</p>';
-        } else {
-          html += '<p class="q-body">' + fmtTemplate(c.missLine, { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) }) + '</p>' +
-            '<p class="q-note">' + c.poolLine + '</p>';
-        }
-        html += '<p class="q-hint">' + fmtTemplate(c.feeLine, { fee: centsLabel(WM.ENTRY_FEE_CENTS) }) + '</p>';
-        return html;
+          '<div class="summary">' +
+            summaryRow(c.lengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
+            summaryRow(c.stakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
+            summaryRow(c.feeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
+            summaryRow(c.missLabel, prepareMode ? c.prepareMissValue : centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
+          '</div>' +
+          '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
       },
       bind: function () {},
       canAdvance: function () { return true; }
@@ -345,6 +340,7 @@
         var c = COPY.steps.checkout;
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + tone().checkoutIntro + '</p>' +
+          (prepareMode ? '<p class="q-note">' + fmtTemplate(c.prepareExplainer, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' : '') +
           '<div class="summary">' +
             summaryRow(c.summaryGoalLabel, goalText) +
             summaryRow(c.summaryLengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
@@ -425,12 +421,7 @@
 
   function stakeSummaryHTML(prepareMode) {
     var c = COPY.steps.commit;
-    if (prepareMode) {
-      return '<p class="q-hint">' + c.prepareNote + '</p>';
-    }
-    var vars = { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) };
-    return '<p class="q-note">' + fmtTemplate(c.summaryLine, vars) + '</p>' +
-      '<p class="q-hint">' + c.summaryHint + '</p>';
+    return '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
   }
 
   function prettyCohort(value) {
