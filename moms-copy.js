@@ -217,7 +217,7 @@ window.WALKA_MOMS = (function () {
         weeksLabel: "Weeks postpartum (optional)"
       },
       clearance: {
-        title: "Cleared for exercise by your doctor or midwife?",
+        title: "Are you cleared for exercise by your doctor or midwife?",
         options: [
           { value: "yes", label: "Yes" },
           { value: "not_yet", label: "Not yet" },
@@ -296,7 +296,7 @@ window.WALKA_MOMS = (function () {
         missLabel: "Miss a weekday",
         prepareMissValue: "Not tracked yet",
         noteLine: "Finish, keep your stake. Weekends don't count.",
-        prepareNote: "Your full stake comes back at the end of the 4 weeks."
+        prepareNote: "No payment until you're cleared. We'll email you when it's time to confirm your spot."
       },
       checkout: {
         title: "Confirm",
@@ -311,12 +311,16 @@ window.WALKA_MOMS = (function () {
         summaryMissLabel: "If you miss a weekday",
         summaryTotalLabel: "Total today",
         prepareMissValue: "Not tracked yet",
-        prepareExplainer: "You're reserving your spot, not starting a challenge yet. No workouts or missed-day charges until you're cleared, and your {stake} stake is fully refundable.",
+        prepareTotalValue: "Nothing today",
+        prepareExplainer: "You're reserving your spot, not starting a challenge yet. No workouts, no missed-day deductions, and no payment today. You'll pay {total} only once you're cleared and ready to begin.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
         agreePrivacyText: "Privacy Policy",
         payCta: "Pay",
+        payCtaPrepare: "Reserve my spot",
+        reservedTitle: "You're on the list.",
+        reservedBody: "No charge today. We'll email you when it's time to confirm your spot and pay, once you're cleared.",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         legalLinks: { terms: "/terms", privacy: "/privacy" }
       }
@@ -352,7 +356,8 @@ window.WALKA_MOMS = (function () {
     checkoutStarted: "moms_checkout_started",
     checkoutCompleted: "moms_checkout_completed",
     checkoutFailed: "moms_checkout_failed",
-    geoBlocked: "moms_geo_blocked"
+    geoBlocked: "moms_geo_blocked",
+    prepareReserved: "moms_prepare_reserved"
   };
 
   return {

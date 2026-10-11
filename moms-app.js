@@ -346,7 +346,7 @@
         var c = COPY.steps.checkout;
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + tone().checkoutIntro + '</p>' +
-          (prepareMode ? '<p class="q-note">' + fmtTemplate(c.prepareExplainer, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' : '') +
+          (prepareMode ? '<p class="q-note">' + fmtTemplate(c.prepareExplainer, { total: centsLabel(WM.TOTAL_CHARGE_CENTS) }) + '</p>' : '') +
           '<div class="summary">' +
             summaryRow(c.summaryGoalLabel, goalText) +
             summaryRow(c.summaryLengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
@@ -355,7 +355,7 @@
             summaryRow(c.summaryStakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
             summaryRow(c.summaryFeeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
             summaryRow(c.summaryMissLabel, prepareMode ? c.prepareMissValue : missValueLabel()) +
-            summaryRow(c.summaryTotalLabel, centsLabel(WM.TOTAL_CHARGE_CENTS)) +
+            summaryRow(c.summaryTotalLabel, prepareMode ? c.prepareTotalValue : centsLabel(WM.TOTAL_CHARGE_CENTS)) +
           '</div>' +
           stakeSummaryHTML(prepareMode) +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
@@ -364,11 +364,12 @@
             ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
-          (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
+          (!prepareMode && WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + (prepareMode ? c.payCtaPrepare : c.payCta) + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
+        var prepareMode = state.answers.clearance_status !== "yes";
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
 
@@ -383,6 +384,19 @@
 
         pay.addEventListener("click", function () {
           if (!validate()) return;
+
+          if (prepareMode) {
+            state.answers.checkout_status = "reserved";
+            saveState();
+            track(EVENTS.prepareReserved, { local_id: state.localId });
+            syncLead();
+            var c = COPY.steps.checkout;
+            screenEl.innerHTML = '<h2 class="q-title">' + c.reservedTitle + '</h2>' +
+              '<p class="q-body">' + c.reservedBody + '</p>';
+            backBtn.hidden = true;
+            return;
+          }
+
           var link = WM.COHORT_PAYMENT_LINK[WM.STRIPE_MODE];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
             err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";

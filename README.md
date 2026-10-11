@@ -136,11 +136,19 @@ All in `moms-copy.js`, cohort only, no tiers or choices shown:
 - `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
   charges ($49.99).
 
-**Prepare mode never risks the stake.** If `clearance_status !== "yes"`,
-there's no step goal to miss, so the commit/checkout copy and the
-`miss_cents` field written to Supabase both reflect "not tracked" rather
-than the $2 figure. The stake itself is still collected (it's the same
-Payment Link either way) and comes back in full at the end of the 4 weeks.
+**Prepare mode never charges anyone.** If `clearance_status !== "yes"`,
+there's no step goal to miss (the commit/checkout copy and the `miss_cents`
+field written to Supabase both reflect "not tracked" rather than the $2
+figure) and, as of 2026-10, **no Stripe checkout at all**: the "Pay" button
+is replaced with "Reserve my spot," which skips the Payment Link entirely,
+upserts the lead with `checkout_status: "reserved"` and the email/name
+they entered, and shows an on-page "you're on the list" confirmation.
+Follow-up (emailing them once they're cleared, to come back and actually
+pay) is manual for now, there's no automated re-engagement built here.
+Earlier versions of this flow charged the full stake upfront in prepare
+mode too ("reserving a spot" with a refundable stake); that's been
+replaced because asking for a real card charge before someone can even
+start wasn't the right call.
 
 **The cohort step auto-suggests a group from `weeks_postpartum`** (0–13
 weeks → 0–3mo, 13–26 → 3–6mo, otherwise 6–12mo) and flags it if the user
@@ -175,7 +183,9 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
 `moms_step_viewed`, `moms_step_completed`, `moms_dropoff`,
 `moms_clearance_answered`, `moms_motivation_chosen`, `moms_cohort_chosen`,
 `moms_checkout_viewed`, `moms_checkout_started`, `moms_checkout_completed`,
-`moms_checkout_failed`.
+`moms_checkout_failed`, `moms_geo_blocked`, `moms_prepare_reserved` (fires
+instead of `moms_checkout_started`/`completed` in prepare mode, since there's
+no Stripe handoff to track).
 
 ### Assumptions & open questions
 
@@ -276,17 +286,22 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       weekday -$2 from your stake), then a single closing note; no choices
       to make, just a Continue button.
 - [ ] Commit, clearance **not yet/not sure**: Miss a weekday row shows
-      "Not tracked yet" and the closing note says the stake comes back in
-      full, instead of the normal-mode note.
+      "Not tracked yet" and the closing note says there's no payment until
+      cleared, instead of the normal-mode note.
 - [ ] Checkout, clearance **yes**: summary shows stake ($39.99), entry fee
       ($10), "if you miss a weekday" (-$2 from your stake), and total today
       ($49.99); Pay button stays disabled until a valid email is entered
       and the terms checkbox is checked.
 - [ ] Checkout, clearance **not yet/not sure**: an explainer note appears
-      before the summary table ("you're reserving your spot... fully
-      refundable"), "if you miss a weekday" row shows "Not tracked yet"
-      instead of a dollar amount, and Supabase row's `miss_cents` is
-      `null`.
+      before the summary table ("you're reserving your spot... no payment
+      today"), "if you miss a weekday" row shows "Not tracked yet", and
+      "Total today" shows "Nothing today" instead of a dollar amount; the
+      button reads "Reserve my spot" instead of "Pay".
+- [ ] Clicking **Reserve my spot** (clearance not yet/not sure, valid email
+      + terms checked): no redirect to Stripe happens; the screen replaces
+      itself with "You're on the list" copy; `moms_prepare_reserved` fires
+      in PostHog; the Supabase row's `checkout_status` becomes `reserved`
+      and `miss_cents` stays `null`.
 - [ ] Checkout → **Pay** redirects to the single test-mode Stripe Payment
       Link, with `client_reference_id` and `prefilled_email` populated in
       the URL.

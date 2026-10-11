@@ -40,7 +40,7 @@ create table if not exists public.moms_leads (
   email text,
 
   last_step text,                        -- furthest step reached, the drop-off signal
-  checkout_status text not null default 'not_started' -- not_started | viewed | started | completed_unverified
+  checkout_status text not null default 'not_started' -- not_started | viewed | started | completed_unverified | reserved (prepare mode: no charge, email captured for later follow-up)
 );
 
 -- Running this file again against an already-created table (e.g. after the
