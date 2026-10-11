@@ -270,14 +270,14 @@ window.WALKA_MOMS = (function () {
         ]
       },
       cohort: {
-        title: "Pick your people",
+        title: "Your people",
         recapTitle: "What you're joining",
         recapItems: [
           "A small circle of women at a similar stage",
           "Daily encouragement from Walka's AI coach",
           "A 4-week structure, at your own pace"
         ],
-        mismatchNote: "Heads up: you told us {weeks} weeks postpartum, which usually fits a different group. You can still join this one if you'd rather.",
+        assignedLabel: "You'll be grouped with: {group}",
         groupsPregnant: [
           { value: "due_soon", label: "Due soon" }
         ],

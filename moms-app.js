@@ -116,10 +116,14 @@
       .catch(function (err) { console.warn("[moms-flow] supabase upsert failed", err); });
   }
 
-  function suggestedCohortFor(a) {
-    if (a.stage !== "postpartum") return null;
+  /* No longer user-pickable: the cohort step shows whichever of these the
+     visitor is auto-placed into, read-only. Postpartum without a weeks
+     answer (that field is optional) falls back to the earliest group
+     rather than leaving nothing assigned. */
+  function resolvedCohortFor(a) {
+    if (a.stage === "pregnant") return "due_soon";
     var weeks = Number(a.weeks_postpartum);
-    if (!weeks || isNaN(weeks)) return null;
+    if (!weeks || isNaN(weeks)) return "0_3m";
     if (weeks <= 13) return "0_3m";
     if (weeks <= 26) return "3_6m";
     return "6_12m";
@@ -292,32 +296,15 @@
     cohort: {
       render: function (a) {
         var c = COPY.steps.cohort;
-        var groups = a.stage === "pregnant" ? c.groupsPregnant : c.groupsPostpartum;
-        var suggested = suggestedCohortFor(a);
-        if (!a.cohort && suggested) a.cohort = suggested;
-        var opts = groups.map(function (o) {
-          return pillOption("cohort_value", o.value, o.label, a.cohort === o.value);
-        }).join("");
-        var mismatch = suggested && a.cohort && a.cohort !== suggested;
-        var mismatchHtml = mismatch
-          ? '<p class="q-note q-note--warn">' + fmtTemplate(c.mismatchNote, { weeks: a.weeks_postpartum }) + '</p>'
-          : "";
+        a.cohort = resolvedCohortFor(a);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<div class="recap"><p class="recap__title">' + c.recapTitle + '</p>' +
             '<ul class="recap__list">' + c.recapItems.map(function (i) { return '<li>' + i + '</li>'; }).join("") + '</ul>' +
           '</div>' +
-          '<div class="opts" id="cohortOpts">' + opts + '</div>' +
-          '<div id="cohortMismatch">' + mismatchHtml + '</div>';
+          '<p class="q-body"><strong>' + fmtTemplate(c.assignedLabel, { group: prettyCohort(a.cohort) }) + '</strong></p>';
       },
-      bind: function (root) {
-        root.querySelectorAll('#cohortOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.cohort = b.getAttribute("data-value");
-            renderStep(false);
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.cohort; },
+      bind: function () {},
+      canAdvance: function () { return true; },
       onLeave: function (a) { track(EVENTS.cohortChosen, { cohort: a.cohort }); }
     },
 

@@ -150,10 +150,12 @@ mode too ("reserving a spot" with a refundable stake); that's been
 replaced because asking for a real card charge before someone can even
 start wasn't the right call.
 
-**The cohort step auto-suggests a group from `weeks_postpartum`** (0–13
-weeks → 0–3mo, 13–26 → 3–6mo, otherwise 6–12mo) and flags it if the user
-picks a different one than what their own answer implies, rather than
-silently letting the two disagree.
+**The cohort step is no longer a choice** (it was, until 2026-10; see the
+manual test checklist for the old pick-and-mismatch-warning behavior this
+replaced). It auto-places from `weeks_postpartum`, read-only (0–13 weeks
+-> 0–3mo, 13–26 -> 3–6mo, otherwise 6–12mo; pregnant always lands in "Due
+soon"; postpartum with no weeks answer, that field is optional, falls
+back to 0–3mo rather than leaving the group unresolved).
 
 ### Data storage (Supabase)
 
@@ -274,13 +276,15 @@ no Stripe handoff to track).
 - [ ] Clearance: **not yet** or **not sure** → kind message shown, Goal step
       shows prepare-mode copy with no numeric goal, nothing exercise-related
       is pushed.
-- [ ] Stage **postpartum**, weeks postpartum **4** → Cohort step
-      auto-selects "0–3 months postpartum". Manually picking "6–12 months
-      postpartum" instead shows the mismatch note; it still lets you
-      continue.
-- [ ] Cohort: pregnant shows "Due soon"; postpartum shows the baby-age
-      groups; no solo option; a "What you're joining" recap (coach, circle,
-      pace) shows above the group picker.
+- [ ] Stage **postpartum**, weeks postpartum **4** → Cohort step shows
+      "You'll be grouped with: 0–3 months postpartum" as plain text, no
+      pickable options and no way to change it.
+- [ ] Stage **postpartum**, weeks postpartum left blank → Cohort step
+      still shows "0–3 months postpartum" (the no-weeks fallback), not a
+      blank or broken state.
+- [ ] Cohort: pregnant shows "You'll be grouped with: Due soon"; no solo
+      option; a "What you're joining" recap (coach, circle, pace) shows
+      above it; Continue is never disabled on this step.
 - [ ] Commit, clearance **yes**: shows the chosen cohort in the recap line,
       then a summary table (Length, Stake $39.99, Entry fee $10, Miss a
       weekday -$2 from your stake), then a single closing note; no choices
