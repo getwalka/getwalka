@@ -11,7 +11,7 @@ create table if not exists public.moms_leads (
   stage text,                            -- 'pregnant' | 'postpartum'
   weeks_postpartum int,
   due_date date,
-  delivery_type text,                    -- 'vaginal' | 'csection' | 'prefer_not_to_say'
+  delivery_type text,                    -- 'vaginal' | 'csection' | 'prefer_not_to_say'; no longer asked, kept for historical rows
 
   clearance_status text,                 -- 'yes' | 'not_yet' | 'not_sure'
   prepare_mode boolean,

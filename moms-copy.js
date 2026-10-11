@@ -185,13 +185,7 @@ window.WALKA_MOMS = (function () {
           { value: "postpartum", label: "Postpartum" }
         ],
         dueDateLabel: "Due date (optional)",
-        weeksLabel: "Weeks postpartum (optional)",
-        deliveryLabel: "Delivery type",
-        deliveryOptions: [
-          { value: "vaginal", label: "Vaginal" },
-          { value: "csection", label: "C-section" },
-          { value: "prefer_not_to_say", label: "Prefer not to say" }
-        ]
+        weeksLabel: "Weeks postpartum (optional)"
       },
       clearance: {
         title: "Cleared for exercise by your doctor or midwife?",

@@ -87,7 +87,6 @@
       stage: a.stage || null,
       weeks_postpartum: a.weeks_postpartum != null ? Number(a.weeks_postpartum) : null,
       due_date: a.due_date || null,
-      delivery_type: a.delivery_type || null,
       clearance_status: a.clearance_status || null,
       prepare_mode: a.clearance_status ? a.clearance_status !== "yes" : null,
       current_steps_bucket: a.current_steps_bucket || null,
@@ -446,8 +445,6 @@
     var html = "";
     if (a.stage === "postpartum") {
       html += '<label class="field"><span>' + s.weeksLabel + '</span><input type="number" min="0" max="104" id="weeksInput" value="' + escapeAttr(a.weeks_postpartum || "") + '"></label>';
-      html += '<p class="q-label">' + s.deliveryLabel + '</p><div class="opts" id="deliveryOpts">' +
-        s.deliveryOptions.map(function (o) { return pillOption("delivery", o.value, o.label, a.delivery_type === o.value); }).join("") + '</div>';
     } else if (a.stage === "pregnant") {
       html += '<label class="field"><span>' + s.dueDateLabel + '</span><input type="date" id="dueDateInput" value="' + escapeAttr(a.due_date || "") + '"></label>';
     }
@@ -459,12 +456,6 @@
     if (weeks) weeks.addEventListener("input", function () { state.answers.weeks_postpartum = weeks.value; });
     var due = root.querySelector("#dueDateInput");
     if (due) due.addEventListener("input", function () { state.answers.due_date = due.value; });
-    root.querySelectorAll("#deliveryOpts .pill").forEach(function (b) {
-      b.addEventListener("click", function () {
-        state.answers.delivery_type = b.getAttribute("data-value");
-        root.querySelectorAll("#deliveryOpts .pill").forEach(function (p) { p.classList.toggle("is-active", p === b); });
-      });
-    });
   }
 
   /* ---------------- flow control ---------------- */

@@ -192,9 +192,13 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
 - **The goal step is a flat choice, not a computed suggestion.** Cleared
   users pick 3,000 / 5,000 / 10,000 steps/day directly (`GOAL_OPTIONS` in
   `moms-copy.js`); there's no baseline/energy/delivery-type math behind it
-  anymore. `delivery_type` and `barriers` are still collected from the
-  baseline/stage steps for segmentation in Supabase, they just no longer
-  drive a computed number or appear as goal-screen copy.
+  anymore. The delivery-type question (vaginal/C-section/prefer not to
+  say) was dropped from the stage step entirely, since it no longer
+  affected anything the user could see. `barriers` is still collected
+  from the baseline step for segmentation in Supabase; it just no longer
+  drives a computed number or appears as goal-screen copy. The
+  `delivery_type` column stays in `moms_leads` for historical rows but
+  nothing writes to it going forward.
 
 ### Manual test checklist
 
