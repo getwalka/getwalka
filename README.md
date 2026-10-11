@@ -38,7 +38,7 @@ Files:
   containers).
 - `moms-copy.js`: **every** piece of copy and every tunable config value
   (feature flag key, Stripe link/mode, stake/fee/miss amounts, program
-  length, goal-suggestion math, tone copy for "princess"/"coach"). Edit
+  length, the fixed goal options, tone copy for "princess"/"coach"). Edit
   this file, not the others, to change wording or mechanics.
 - `moms-app.js`: the step engine (state machine, validation, resume,
   analytics, Supabase sync, Stripe handoff). Shouldn't contain user-facing
@@ -189,14 +189,12 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
   hasn't had a legal look yet; get one before taking real payments.
   `privacy.html` still has an unfilled EEA/UK data-transfer-mechanism
   placeholder, only matters if this flow reaches EU/UK users.
-- **Goal-suggestion math is a first guess**, not clinically validated:
-  baseline steps by self-reported bucket times an energy multiplier times
-  a delivery-type multiplier (C-section starts 20% lower, never higher),
-  clamped 1,000 to 15,000, rounded to the nearest 500. Tune in
-  `moms-copy.js`. The goal screen tells the user which of their own
-  answers it used, and the C-section/barrier notes only appear when
-  those answers apply, so `delivery_type` and `barriers` aren't collected
-  and then ignored.
+- **The goal step is a flat choice, not a computed suggestion.** Cleared
+  users pick 3,000 / 5,000 / 10,000 steps/day directly (`GOAL_OPTIONS` in
+  `moms-copy.js`); there's no baseline/energy/delivery-type math behind it
+  anymore. `delivery_type` and `barriers` are still collected from the
+  baseline/stage steps for segmentation in Supabase, they just no longer
+  drive a computed number or appear as goal-screen copy.
 
 ### Manual test checklist
 
@@ -204,25 +202,21 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       "not open yet" gate, no flow visible.
 - [ ] `/moms?preview=1` unlocks the flow on that device; `?preview=0`
       relocks it.
-- [ ] Landing page shows first, with the eyebrow/title/features/stake note,
-      before any onboarding question. "Let's begin" starts the step wizard.
-- [ ] Reload mid-flow (after starting the wizard) → skips the landing page
-      entirely and resumes straight at the saved step.
+- [ ] Landing page always shows first on load, even mid-flow, with no
+      "Save & exit" link in the header until the wizard actually starts.
+- [ ] Reload mid-flow (after starting the wizard) → landing page shows
+      again, and "Let's begin" resumes at the saved step with a "welcome
+      back" banner instead of restarting from Step 1.
 - [ ] Stage: pick **pregnant**, due-date field shows, no delivery
       type question.
 - [ ] Stage: pick **postpartum**, weeks-postpartum + delivery type fields
       show.
-- [ ] Clearance: **yes** → Goal step shows a suggested/adjustable step
-      number, plus a hint naming the baseline/energy answers it used.
-- [ ] Clearance: **yes** + delivery type **C-section** → suggested number
-      is lower than the same baseline/energy with vaginal delivery, and a
-      visible note says why.
-- [ ] Baseline: pick a barrier (e.g. "Baby's sleep") → Goal step shows a
-      note referencing it.
+- [ ] Clearance: **yes** → Goal step shows three pill choices (3,000 /
+      5,000 / 10,000 steps/day), none pre-selected; Continue stays disabled
+      until one is picked.
 - [ ] Clearance: **not yet** or **not sure** → kind message shown, Goal step
       shows prepare-mode copy with no numeric goal, nothing exercise-related
       is pushed.
-- [ ] Goal step: +/- buttons move by 500, clamp at 1,000 and 15,000.
 - [ ] Stage **postpartum**, weeks postpartum **4** → Cohort step
       auto-selects "0–3 months postpartum". Manually picking "6–12 months
       postpartum" instead shows the mismatch note; it still lets you

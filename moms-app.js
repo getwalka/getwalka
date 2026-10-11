@@ -93,7 +93,6 @@
       current_steps_bucket: a.current_steps_bucket || null,
       energy_level: a.energy_level || null,
       barriers: a.barriers || null,
-      suggested_goal: a.suggested_goal != null ? a.suggested_goal : null,
       adjusted_goal: a.adjusted_goal != null ? a.adjusted_goal : null,
       motivation_style: a.motivation_style || "princess",
       cohort: a.cohort || null,
@@ -110,22 +109,6 @@
     sbClient.from(WM.SUPABASE_TABLE).upsert(row, { onConflict: "local_id" })
       .then(function (res) { if (res.error) console.warn("[moms-flow] supabase upsert error", res.error); })
       .catch(function (err) { console.warn("[moms-flow] supabase upsert failed", err); });
-  }
-
-  /* ---------------- goal calc ---------------- */
-
-  function computeSuggestedGoal(answers) {
-    if (answers.clearance_status !== "yes") return WM.PREPARE_MODE_DEFAULT_GOAL;
-    var base = WM.BASELINE_STEPS_BY_BUCKET[answers.current_steps_bucket] || WM.BASELINE_STEPS_BY_BUCKET.not_sure;
-    var energyMult = WM.ENERGY_MULTIPLIER[answers.energy_level] || 1;
-    var deliveryMult = WM.DELIVERY_MULTIPLIER[answers.delivery_type] || 1;
-    var stepped = Math.round((base * energyMult * deliveryMult) / WM.GOAL_STEP_INCREMENT) * WM.GOAL_STEP_INCREMENT;
-    return Math.min(WM.GOAL_MAX, Math.max(WM.GOAL_MIN, stepped));
-  }
-
-  function labelFor(options, value) {
-    var match = options.filter(function (o) { return o.value === value; })[0];
-    return match ? match.label : "";
   }
 
   function suggestedCohortFor(a) {
@@ -255,43 +238,27 @@
           return '<h2 class="q-title">' + COPY.steps.goal.prepareModeTitle + '</h2>' +
             '<p class="q-body">' + tone().prepareModeNote + '</p>';
         }
-        if (a.suggested_goal == null) a.suggested_goal = computeSuggestedGoal(a);
-        if (a.adjusted_goal == null) a.adjusted_goal = a.suggested_goal;
         var g = COPY.steps.goal;
-        var basis = fmtTemplate(g.basisNote, {
-          steps: labelFor(COPY.steps.baseline.stepsOptions, a.current_steps_bucket),
-          energy: labelFor(COPY.steps.baseline.energyOptions, a.energy_level).toLowerCase()
-        });
-        var extraNotes = "";
-        if (a.delivery_type === "csection") extraNotes += '<p class="q-hint">' + g.csectionNote + '</p>';
-        if (a.barriers && a.barriers.length) {
-          extraNotes += '<p class="q-hint">' + fmtTemplate(g.barrierNote, {
-            barrier: labelFor(COPY.steps.baseline.barriersOptions, a.barriers[0]).toLowerCase()
-          }) + '</p>';
-        }
+        var opts = g.options.map(function (o) {
+          return pillOption("goal_value", o.value, o.label, a.adjusted_goal === o.value);
+        }).join("");
         return '<h2 class="q-title">' + g.title + '</h2>' +
           '<p class="q-body">' + tone().encourageGoal + '</p>' +
-          '<div class="goal-stepper">' +
-            '<button type="button" class="goal-btn" id="goalDown" aria-label="Decrease">−</button>' +
-            '<div class="goal-value"><span id="goalNum">' + a.adjusted_goal.toLocaleString() + '</span><span class="goal-unit">' + g.dailyLabel + '</span></div>' +
-            '<button type="button" class="goal-btn" id="goalUp" aria-label="Increase">+</button>' +
-          '</div>' +
-          '<p class="q-note">' + g.weeklyFrame + '</p>' +
-          '<p class="q-hint">' + basis + '</p>' +
-          extraNotes +
-          '<p class="q-hint">' + g.adjustHint + '</p>';
+          '<div class="opts" id="goalOpts">' + opts + '</div>' +
+          '<p class="q-note">' + g.weeklyFrame + '</p>';
       },
       bind: function (root) {
-        var down = root.querySelector("#goalDown"), up = root.querySelector("#goalUp"), num = root.querySelector("#goalNum");
-        if (!down) return;
-        function apply(delta) {
-          state.answers.adjusted_goal = Math.min(WM.GOAL_MAX, Math.max(WM.GOAL_MIN, (state.answers.adjusted_goal || 0) + delta));
-          num.textContent = state.answers.adjusted_goal.toLocaleString();
-        }
-        down.addEventListener("click", function () { apply(-WM.GOAL_STEP_INCREMENT); });
-        up.addEventListener("click", function () { apply(WM.GOAL_STEP_INCREMENT); });
+        var opts = root.querySelectorAll('#goalOpts .pill');
+        if (!opts.length) return;
+        opts.forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.adjusted_goal = Number(b.getAttribute("data-value"));
+            opts.forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            refreshContinue();
+          });
+        });
       },
-      canAdvance: function () { return true; }
+      canAdvance: function (a) { return a.clearance_status !== "yes" || !!a.adjusted_goal; }
     },
 
     motivation: {

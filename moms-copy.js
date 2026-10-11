@@ -93,24 +93,9 @@ window.WALKA_MOMS = (function () {
   var SUPABASE_TABLE = "moms_leads";
 
   /* ------------------------------------------------------------------ *
-   * 4. GOAL SUGGESTION
+   * 4. GOAL
    * ------------------------------------------------------------------ */
-  var BASELINE_STEPS_BY_BUCKET = {
-    under_2k: 1500,
-    "2k_5k": 3500,
-    "5k_8k": 6500,
-    "8k_plus": 9000,
-    not_sure: 3000
-  };
-  var ENERGY_MULTIPLIER = { low: 0.8, medium: 1.0, high: 1.15 };
-  /* Modest, clearly-flagged caution: a C-section default starts lower,
-     never higher. Not a clinical threshold, just an honest default that
-     doesn't ignore what was asked; the goal step tells the user why and
-     says to check with their doctor before raising it. */
-  var DELIVERY_MULTIPLIER = { vaginal: 1, csection: 0.8, prefer_not_to_say: 1 };
-  var GOAL_STEP_INCREMENT = 500;
-  var GOAL_MIN = 1000;
-  var GOAL_MAX = 15000;
+  var GOAL_OPTIONS = [3000, 5000, 10000];
   var PREPARE_MODE_DEFAULT_GOAL = null; // no numeric step goal until cleared
 
   /* ------------------------------------------------------------------ *
@@ -122,14 +107,14 @@ window.WALKA_MOMS = (function () {
     princess: {
       name: "Princess treatment",
       continue: "Continue",
-      encourageGoal: "Here's a gentle starting goal. You can adjust it.",
+      encourageGoal: "Pick a gentle starting goal.",
       prepareModeNote: "No pressure, no numbers yet. You're welcome here as you are.",
       checkoutIntro: "Here's your plan."
     },
     coach: {
       name: "Tough coach",
       continue: "Next",
-      encourageGoal: "Here's your starting number. Adjust if needed, but commit.",
+      encourageGoal: "Pick your starting number and commit.",
       prepareModeNote: "No goal yet. Get cleared first, then we go to work.",
       checkoutIntro: "Here's the deal. Lock it in."
     }
@@ -246,13 +231,13 @@ window.WALKA_MOMS = (function () {
       },
       goal: {
         title: "Your starting goal",
-        adjustHint: "Drag up or down. No wrong answer.",
-        dailyLabel: "Daily steps",
+        options: [
+          { value: 3000, label: "3,000 steps/day" },
+          { value: 5000, label: "5,000 steps/day" },
+          { value: 10000, label: "10,000 steps/day" }
+        ],
         weeklyFrame: "Aim for 5 good days a week, not 7.",
-        prepareModeTitle: "No step goal yet, and that's the plan.",
-        basisNote: "Based on your {steps} typical days and {energy} energy lately.",
-        csectionNote: "Starting a little lower since you mentioned a C-section. Check with your doctor before raising it.",
-        barrierNote: "Since {barrier} is the big one right now, remember: a short walk still counts."
+        prepareModeTitle: "No step goal yet, and that's the plan."
       },
       motivation: {
         title: "What kind of voice helps you most?",
@@ -363,12 +348,7 @@ window.WALKA_MOMS = (function () {
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,
-    BASELINE_STEPS_BY_BUCKET: BASELINE_STEPS_BY_BUCKET,
-    ENERGY_MULTIPLIER: ENERGY_MULTIPLIER,
-    DELIVERY_MULTIPLIER: DELIVERY_MULTIPLIER,
-    GOAL_STEP_INCREMENT: GOAL_STEP_INCREMENT,
-    GOAL_MIN: GOAL_MIN,
-    GOAL_MAX: GOAL_MAX,
+    GOAL_OPTIONS: GOAL_OPTIONS,
     PREPARE_MODE_DEFAULT_GOAL: PREPARE_MODE_DEFAULT_GOAL,
     TONE: TONE,
     COPY: COPY,
