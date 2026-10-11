@@ -592,7 +592,7 @@
               '<div class="ms3__body">' +
                 '<p class="ms3__step">Step ' + (i + 1) + '</p>' +
                 '<h3>' + s.title + '</h3>' +
-                '<p>' + s.desc + '</p>' +
+                '<p>' + fmtTemplate(s.desc, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' +
               '</div>' +
             '</div>';
           }).join("") +

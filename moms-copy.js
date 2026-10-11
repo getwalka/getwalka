@@ -56,21 +56,21 @@ window.WALKA_MOMS = (function () {
   var PROGRAM_LENGTH_WEEKS = 4;
 
   /* Total stake, returned in full if you finish without missing every day. */
-  var COHORT_STAKE_AMOUNT_CENTS = 6000; // $60 total: $15/week x 4 weeks
+  var COHORT_STAKE_AMOUNT_CENTS = 4000; // $40 total: $10/week x 4 weeks
 
   /* Platform revenue, not returned. One upfront charge, marketed as
-     "$4.99/week" but never billed weekly, that would make it a recurring
+     "~$2.50/week" but never billed weekly, that would make it a recurring
      subscription collected outside the App/Play Store, which this flow
      must not do. */
-  var ENTRY_FEE_CENTS = 2000; // $20 total ($4.99/week x 4, rounded)
+  var ENTRY_FEE_CENTS = 1000; // $10 total (~$2.50/week x 4, rounded)
 
   /* Applies from day 1: no grace period, no free "life happened" passes.
      Missing every day across the whole program forfeits exactly the full
-     stake (300 x 20 weekdays = 6000). Forfeited money goes into the pool
+     stake (200 x 20 weekdays = 4000). Forfeited money goes into the pool
      split among cohort members who finish, same mechanic as the main app. */
-  var MISS_AMOUNT_CENTS_PER_DAY = 300; // $3/day
+  var MISS_AMOUNT_CENTS_PER_DAY = 200; // $2/day
 
-  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $80, one charge
+  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $50, one charge
 
   var COHORT_PAYMENT_LINK = {
     test: "https://buy.stripe.com/test_REPLACE_ME_COHORT",
@@ -162,7 +162,7 @@ window.WALKA_MOMS = (function () {
           icon: "🚶‍♀️",
           photo: "images/feature-pace.jpg",
           title: "Walk together. Stay accountable.",
-          desc: "A $60 stake over 4 weeks. Finish, and it all comes back."
+          desc: "A {stake} stake over 4 weeks. Finish, and it all comes back."
         }
       ],
 

@@ -69,7 +69,7 @@ off to one Stripe-hosted **Payment Link**; we never touch card data
 ourselves.
 1. In the Stripe **test mode** dashboard, create **one one-time price**
    Payment Link, price = `TOTAL_CHARGE_CENTS` in `moms-copy.js` (stake +
-   entry fee, currently $80). Do not use a recurring/subscription price,
+   entry fee, currently $50). Do not use a recurring/subscription price,
    and do not create separate links for the stake and the fee, it's one
    checkout.
 2. In the Payment Link's settings, set "After payment" → redirect to your
@@ -87,25 +87,25 @@ Card test number: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 All in `moms-copy.js`, cohort only, no tiers or choices shown:
 - `PROGRAM_LENGTH_WEEKS`: 4 weeks.
-- `COHORT_STAKE_AMOUNT_CENTS`: $60 total stake ($15/week x 4), returned in
+- `COHORT_STAKE_AMOUNT_CENTS`: $40 total stake ($10/week x 4), returned in
   full if you don't miss every day.
-- `ENTRY_FEE_CENTS`: $20 total, platform revenue, not refundable. Marketed
-  as "$4.99/week" but charged as this one upfront amount, never billed
+- `ENTRY_FEE_CENTS`: $10 total, platform revenue, not refundable. Marketed
+  as "~$2.50/week" but charged as this one upfront amount, never billed
   weekly; a real weekly charge would make it a recurring subscription
   collected outside IAP, which this flow must not do, same invariant as
   the main app.
-- `MISS_AMOUNT_CENTS_PER_DAY`: $3, applies from day one. No grace period,
-  no free "life happened" passes, every missed day costs $3 (missing all
-  20 weekdays forfeits exactly the $60 stake). Money from missed days goes
+- `MISS_AMOUNT_CENTS_PER_DAY`: $2, applies from day one. No grace period,
+  no free "life happened" passes, every missed day costs $2 (missing all
+  20 weekdays forfeits exactly the $40 stake). Money from missed days goes
   into the pool split among cohort members who finish, same mechanic as
   the main app's weekly cohorts.
 - `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
-  charges ($80).
+  charges ($50).
 
 **Prepare mode never risks the stake.** If `clearance_status !== "yes"`,
 there's no step goal to miss, so the commit/checkout copy and the
 `miss_cents` field written to Supabase both reflect "not tracked" rather
-than the $3 figure. The stake itself is still collected (it's the same
+than the $2 figure. The stake itself is still collected (it's the same
 Payment Link either way) and comes back in full at the end of the 4 weeks.
 
 **The cohort step auto-suggests a group from `weeks_postpartum`** (0–13
@@ -226,21 +226,24 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       postpartum" instead shows the mismatch note; it still lets you
       continue.
 - [ ] Cohort: pregnant shows "Due soon"; postpartum shows the baby-age
-      groups; no solo option; walking-partner line is just a note, not a
-      selectable option; a "What you're joining" recap (coach, circle,
+      groups; no solo option; a "What you're joining" recap (coach, circle,
       pace) shows above the group picker.
 - [ ] Commit, clearance **yes**: shows the chosen cohort in the recap line,
-      $60 stake, "miss a weekday, lose $3" (not "every day"), $20 entry
-      fee, no choices to make, just a Continue button.
-- [ ] Commit, clearance **not yet/not sure**: shows the prepare-mode copy
-      instead ("nothing to miss"), no $3/day line.
-- [ ] Checkout, clearance **yes**: summary shows stake ($60), entry fee
-      ($20), "if you miss a weekday" ($3), and total today ($80); Pay
+      then a summary table (Length, Stake $40, Entry fee $10, Miss a
+      weekday $2), then a single closing note; no choices to make, just a
+      Continue button.
+- [ ] Commit, clearance **not yet/not sure**: Miss a weekday row shows
+      "Not tracked yet" and the closing note says the stake comes back in
+      full, instead of the normal-mode note.
+- [ ] Checkout, clearance **yes**: summary shows stake ($40), entry fee
+      ($10), "if you miss a weekday" ($2), and total today ($50); Pay
       button stays disabled until a valid email is entered and the terms
       checkbox is checked.
-- [ ] Checkout, clearance **not yet/not sure**: "if you miss a weekday"
-      row shows "Not tracked yet" instead of $3; Supabase row's
-      `miss_cents` is `null`.
+- [ ] Checkout, clearance **not yet/not sure**: an explainer note appears
+      before the summary table ("you're reserving your spot... fully
+      refundable"), "if you miss a weekday" row shows "Not tracked yet"
+      instead of a dollar amount, and Supabase row's `miss_cents` is
+      `null`.
 - [ ] Checkout → **Pay** redirects to the single test-mode Stripe Payment
       Link, with `client_reference_id` and `prefilled_email` populated in
       the URL.

@@ -27,9 +27,9 @@ create table if not exists public.moms_leads (
 
   cohort text,
 
-  stake_cents int,                       -- total stake, cohort-only, currently always 6000 ($60)
-  miss_cents int,                        -- amount lost per missed DAY (flat, no tiers), currently always 300 ($3)
-  entry_fee_cents int,                   -- platform fee, one-time, not refundable, currently always 2000 ($20)
+  stake_cents int,                       -- total stake, cohort-only, currently always 4000 ($40)
+  miss_cents int,                        -- amount lost per missed DAY (flat, no tiers), currently always 200 ($2)
+  entry_fee_cents int,                   -- platform fee, one-time, not refundable, currently always 1000 ($10)
   program_length_weeks int,              -- one-time payment, fixed-length challenge (not a subscription)
   grace_period_weeks int,                -- unused since the flat per-day mechanic replaced grace weeks; kept for old rows
   passes_total int,                      -- unused since the flat per-day mechanic replaced free passes; kept for old rows
