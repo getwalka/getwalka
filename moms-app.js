@@ -331,7 +331,7 @@
             summaryRow(c.lengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
             summaryRow(c.stakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
             summaryRow(c.feeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
-            summaryRow(c.missLabel, prepareMode ? c.prepareMissValue : centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
+            summaryRow(c.missLabel, prepareMode ? c.prepareMissValue : missValueLabel()) +
           '</div>' +
           '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
       },
@@ -354,7 +354,7 @@
             summaryRow(c.summaryToneLabel, WM.TONE[a.motivation_style || "princess"].name) +
             summaryRow(c.summaryStakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
             summaryRow(c.summaryFeeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
-            summaryRow(c.summaryMissLabel, prepareMode ? c.prepareMissValue : centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
+            summaryRow(c.summaryMissLabel, prepareMode ? c.prepareMissValue : missValueLabel()) +
             summaryRow(c.summaryTotalLabel, centsLabel(WM.TOTAL_CHARGE_CENTS)) +
           '</div>' +
           stakeSummaryHTML(prepareMode) +
@@ -423,6 +423,13 @@
 
   function centsLabel(cents) {
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
+  }
+
+  /* Reads as a deduction from the stake already being held, not a separate
+     charge due today, since it sits in the same summary table as Stake,
+     Entry fee, and Total today. */
+  function missValueLabel() {
+    return "−" + centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) + " from your stake";
   }
 
   function stakeSummaryHTML(prepareMode) {

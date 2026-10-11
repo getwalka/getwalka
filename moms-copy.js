@@ -74,8 +74,10 @@ window.WALKA_MOMS = (function () {
 
   var PROGRAM_LENGTH_WEEKS = 4;
 
-  /* Total stake, returned in full if you finish without missing every day. */
-  var COHORT_STAKE_AMOUNT_CENTS = 4000; // $40 total: $10/week x 4 weeks
+  /* Total stake, returned in full if you finish without missing every day.
+     $39.99, deliberately a cent under $40, same under-the-round-number
+     pattern as the main app's $19.99 entry (see CLAUDE.md). */
+  var COHORT_STAKE_AMOUNT_CENTS = 3999; // $39.99 total
 
   /* Platform revenue, not returned. One upfront charge, marketed as
      "~$2.50/week" but never billed weekly, that would make it a recurring
@@ -84,12 +86,14 @@ window.WALKA_MOMS = (function () {
   var ENTRY_FEE_CENTS = 1000; // $10 total (~$2.50/week x 4, rounded)
 
   /* Applies from day 1: no grace period, no free "life happened" passes.
-     Missing every day across the whole program forfeits exactly the full
-     stake (200 x 20 weekdays = 4000). Forfeited money goes into the pool
-     split among cohort members who finish, same mechanic as the main app. */
+     Missing every day across the whole program forfeits effectively the
+     full stake (200 x 20 weekdays = 4000, one cent over the $39.99 stake;
+     the mechanic caps forfeiture at the stake itself, same rounding gap as
+     the stake-vs-$40 cent above). Forfeited money goes into the pool split
+     among cohort members who finish, same mechanic as the main app. */
   var MISS_AMOUNT_CENTS_PER_DAY = 200; // $2/day
 
-  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $50, one charge
+  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $49.99, one charge
 
   var COHORT_PAYMENT_LINK = {
     test: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00",

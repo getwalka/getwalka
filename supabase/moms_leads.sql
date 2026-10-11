@@ -29,7 +29,7 @@ create table if not exists public.moms_leads (
 
   cohort text,
 
-  stake_cents int,                       -- total stake, cohort-only, currently always 4000 ($40)
+  stake_cents int,                       -- total stake, cohort-only, currently always 3999 ($39.99)
   miss_cents int,                        -- amount lost per missed DAY (flat, no tiers), currently always 200 ($2)
   entry_fee_cents int,                   -- platform fee, one-time, not refundable, currently always 1000 ($10)
   program_length_weeks int,              -- one-time payment, fixed-length challenge (not a subscription)

@@ -99,7 +99,7 @@ off to one Stripe-hosted **Payment Link**; we never touch card data
 ourselves.
 1. In the Stripe **test mode** dashboard, create **one one-time price**
    Payment Link, price = `TOTAL_CHARGE_CENTS` in `moms-copy.js` (stake +
-   entry fee, currently $50). Do not use a recurring/subscription price,
+   entry fee, currently $49.99). Do not use a recurring/subscription price,
    and do not create separate links for the stake and the fee, it's one
    checkout.
 2. In the Payment Link's settings, set "After payment" → redirect to your
@@ -117,8 +117,9 @@ Card test number: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 All in `moms-copy.js`, cohort only, no tiers or choices shown:
 - `PROGRAM_LENGTH_WEEKS`: 4 weeks.
-- `COHORT_STAKE_AMOUNT_CENTS`: $40 total stake ($10/week x 4), returned in
-  full if you don't miss every day.
+- `COHORT_STAKE_AMOUNT_CENTS`: $39.99 total stake, a cent under $40 on
+  purpose (same under-the-round-number pattern as the main app's $19.99
+  entry), returned in full if you don't miss every day.
 - `ENTRY_FEE_CENTS`: $10 total, platform revenue, not refundable. Marketed
   as "~$2.50/week" but charged as this one upfront amount, never billed
   weekly; a real weekly charge would make it a recurring subscription
@@ -126,11 +127,14 @@ All in `moms-copy.js`, cohort only, no tiers or choices shown:
   the main app.
 - `MISS_AMOUNT_CENTS_PER_DAY`: $2, applies from day one. No grace period,
   no free "life happened" passes, every missed day costs $2 (missing all
-  20 weekdays forfeits exactly the $40 stake). Money from missed days goes
-  into the pool split among cohort members who finish, same mechanic as
-  the main app's weekly cohorts.
+  20 weekdays forfeits effectively the full $39.99 stake, one cent over on
+  paper; the mechanic caps forfeiture at the stake itself). Money from
+  missed days goes into the pool split among cohort members who finish,
+  same mechanic as the main app's weekly cohorts. The checkout/commit
+  screens show this as "-$2 from your stake," not a bare "$2," so it
+  doesn't read as a separate charge due today.
 - `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
-  charges ($50).
+  charges ($49.99).
 
 **Prepare mode never risks the stake.** If `clearance_status !== "yes"`,
 there's no step goal to miss, so the commit/checkout copy and the
@@ -268,16 +272,16 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
       groups; no solo option; a "What you're joining" recap (coach, circle,
       pace) shows above the group picker.
 - [ ] Commit, clearance **yes**: shows the chosen cohort in the recap line,
-      then a summary table (Length, Stake $40, Entry fee $10, Miss a
-      weekday $2), then a single closing note; no choices to make, just a
-      Continue button.
+      then a summary table (Length, Stake $39.99, Entry fee $10, Miss a
+      weekday -$2 from your stake), then a single closing note; no choices
+      to make, just a Continue button.
 - [ ] Commit, clearance **not yet/not sure**: Miss a weekday row shows
       "Not tracked yet" and the closing note says the stake comes back in
       full, instead of the normal-mode note.
-- [ ] Checkout, clearance **yes**: summary shows stake ($40), entry fee
-      ($10), "if you miss a weekday" ($2), and total today ($50); Pay
-      button stays disabled until a valid email is entered and the terms
-      checkbox is checked.
+- [ ] Checkout, clearance **yes**: summary shows stake ($39.99), entry fee
+      ($10), "if you miss a weekday" (-$2 from your stake), and total today
+      ($49.99); Pay button stays disabled until a valid email is entered
+      and the terms checkbox is checked.
 - [ ] Checkout, clearance **not yet/not sure**: an explainer note appears
       before the summary table ("you're reserving your spot... fully
       refundable"), "if you miss a weekday" row shows "Not tracked yet"
