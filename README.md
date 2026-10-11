@@ -102,6 +102,17 @@ All in `moms-copy.js`, cohort only, no tiers or choices shown:
 - `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
   charges ($80).
 
+**Prepare mode never risks the stake.** If `clearance_status !== "yes"`,
+there's no step goal to miss, so the commit/checkout copy and the
+`miss_cents` field written to Supabase both reflect "not tracked" rather
+than the $3 figure. The stake itself is still collected (it's the same
+Payment Link either way) and comes back in full at the end of the 4 weeks.
+
+**The cohort step auto-suggests a group from `weeks_postpartum`** (0–13
+weeks → 0–3mo, 13–26 → 3–6mo, otherwise 6–12mo) and flags it if the user
+picks a different one than what their own answer implies, rather than
+silently letting the two disagree.
+
 ### Data storage (Supabase)
 
 Onboarding answers are upserted to Supabase after every step (so drop-offs
@@ -170,9 +181,13 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
   `privacy.html` still has an unfilled EEA/UK data-transfer-mechanism
   placeholder, only matters if this flow reaches EU/UK users.
 - **Goal-suggestion math is a first guess**, not clinically validated:
-  baseline steps by self-reported bucket times an energy multiplier,
+  baseline steps by self-reported bucket times an energy multiplier times
+  a delivery-type multiplier (C-section starts 20% lower, never higher),
   clamped 1,000 to 15,000, rounded to the nearest 500. Tune in
-  `moms-copy.js`.
+  `moms-copy.js`. The goal screen tells the user which of their own
+  answers it used, and the C-section/barrier notes only appear when
+  those answers apply, so `delivery_type` and `barriers` aren't collected
+  and then ignored.
 
 ### Manual test checklist
 
@@ -189,19 +204,36 @@ All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
 - [ ] Stage: pick **postpartum**, weeks-postpartum + delivery type fields
       show.
 - [ ] Clearance: **yes** → Goal step shows a suggested/adjustable step
-      number.
+      number, plus a hint naming the baseline/energy answers it used.
+- [ ] Clearance: **yes** + delivery type **C-section** → suggested number
+      is lower than the same baseline/energy with vaginal delivery, and a
+      visible note says why.
+- [ ] Baseline: pick a barrier (e.g. "Baby's sleep") → Goal step shows a
+      note referencing it.
 - [ ] Clearance: **not yet** or **not sure** → kind message shown, Goal step
       shows prepare-mode copy with no numeric goal, nothing exercise-related
       is pushed.
 - [ ] Goal step: +/- buttons move by 500, clamp at 1,000 and 15,000.
+- [ ] Stage **postpartum**, weeks postpartum **4** → Cohort step
+      auto-selects "0–3 months postpartum". Manually picking "6–12 months
+      postpartum" instead shows the mismatch note; it still lets you
+      continue.
 - [ ] Cohort: pregnant shows "Due soon"; postpartum shows the baby-age
       groups; no solo option; walking-partner line is just a note, not a
-      selectable option.
-- [ ] Commit: shows $60 stake, $3/day if you miss, $20 entry fee, no
-      choices to make, just a Continue button.
-- [ ] Checkout: summary shows stake ($60), entry fee ($20), miss amount
-      ($3), and total today ($80); Pay button stays disabled until a
-      valid email is entered and the terms checkbox is checked.
+      selectable option; a "What you're joining" recap (coach, circle,
+      pace) shows above the group picker.
+- [ ] Commit, clearance **yes**: shows the chosen cohort in the recap line,
+      $60 stake, "miss a weekday, lose $3" (not "every day"), $20 entry
+      fee, no choices to make, just a Continue button.
+- [ ] Commit, clearance **not yet/not sure**: shows the prepare-mode copy
+      instead ("nothing to miss"), no $3/day line.
+- [ ] Checkout, clearance **yes**: summary shows stake ($60), entry fee
+      ($20), "if you miss a weekday" ($3), and total today ($80); Pay
+      button stays disabled until a valid email is entered and the terms
+      checkbox is checked.
+- [ ] Checkout, clearance **not yet/not sure**: "if you miss a weekday"
+      row shows "Not tracked yet" instead of $3; Supabase row's
+      `miss_cents` is `null`.
 - [ ] Checkout → **Pay** redirects to the single test-mode Stripe Payment
       Link, with `client_reference_id` and `prefilled_email` populated in
       the URL.

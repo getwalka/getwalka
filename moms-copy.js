@@ -101,6 +101,11 @@ window.WALKA_MOMS = (function () {
     not_sure: 3000
   };
   var ENERGY_MULTIPLIER = { low: 0.8, medium: 1.0, high: 1.15 };
+  /* Modest, clearly-flagged caution: a C-section default starts lower,
+     never higher. Not a clinical threshold, just an honest default that
+     doesn't ignore what was asked; the goal step tells the user why and
+     says to check with their doctor before raising it. */
+  var DELIVERY_MULTIPLIER = { vaginal: 1, csection: 0.8, prefer_not_to_say: 1 };
   var GOAL_STEP_INCREMENT = 500;
   var GOAL_MIN = 1000;
   var GOAL_MAX = 15000;
@@ -178,8 +183,8 @@ window.WALKA_MOMS = (function () {
         {
           icon: "💬",
           photo: "images/feature-coach.jpg",
-          title: "An AI coach in your corner",
-          desc: "Daily encouragement and gentle check-ins from Walka's AI coach, built around how a new mum's days actually go."
+          title: "Your personal walking companion",
+          desc: "A supportive coach that checks in, celebrates your progress, and helps you stay consistent at your own pace."
         },
         {
           icon: "🫂",
@@ -285,7 +290,10 @@ window.WALKA_MOMS = (function () {
         adjustHint: "Drag up or down. No wrong answer.",
         dailyLabel: "Daily steps",
         weeklyFrame: "Aim for 5 good days a week, not 7.",
-        prepareModeTitle: "No step goal yet, and that's the plan."
+        prepareModeTitle: "No step goal yet, and that's the plan.",
+        basisNote: "Based on your {steps} typical days and {energy} energy lately.",
+        csectionNote: "Starting a little lower since you mentioned a C-section. Check with your doctor before raising it.",
+        barrierNote: "Since {barrier} is the big one right now, remember: a short walk still counts."
       },
       motivation: {
         title: "What kind of voice helps you most?",
@@ -296,7 +304,14 @@ window.WALKA_MOMS = (function () {
       },
       cohort: {
         title: "Pick your people",
+        recapTitle: "What you're joining",
+        recapItems: [
+          "A small circle of women at a similar stage",
+          "Daily encouragement from Walka's AI coach",
+          "A 4-week structure, at your own pace"
+        ],
         partnerNote: "Want a walking partner instead? You can ask once you're in.",
+        mismatchNote: "Heads up: you told us {weeks} weeks postpartum, which usually fits a different group. You can still join this one if you'd rather.",
         groupsPregnant: [
           { value: "due_soon", label: "Due soon" }
         ],
@@ -308,13 +323,16 @@ window.WALKA_MOMS = (function () {
       },
       commit: {
         title: "Your stake",
+        recapLine: "You're joining {cohort}: a small circle, daily support from your AI coach, four weeks, your pace.",
         lengthNote: "Your challenge runs {weeks} weeks.",
         stakeLine: "You're staking {stake}.",
-        missLine: "Miss a day, lose {miss}. No grace days, no free passes, every day counts from day one.",
-        poolLine: "Money from missed days goes to the cohort members who finish.",
+        missLine: "Miss a weekday, lose {miss}. Weekends are yours, no grace days, no free passes once the challenge starts.",
+        poolLine: "Money from missed weekdays goes to the cohort members who finish.",
         feeLine: "Plus a one-time {fee} entry fee, charged today, not refundable.",
-        summaryLine: "Miss a day, lose {miss}. Finish, keep your stake.",
-        summaryHint: "Every day counts from day one. No grace period, no free misses."
+        summaryLine: "Miss a weekday, lose {miss}. Finish, keep your stake.",
+        summaryHint: "Monday to Friday counts, weekends don't. No grace period, no free misses once you start.",
+        prepareMissLine: "No step goal yet, so there's nothing to miss, you can't be charged for a missed day in prepare mode.",
+        prepareNote: "Your full stake comes back at the end of the 4 weeks. Once you're cleared, switch in and the per-weekday stake starts from then."
       },
       checkout: {
         title: "Confirm",
@@ -326,8 +344,9 @@ window.WALKA_MOMS = (function () {
         summaryToneLabel: "Style",
         summaryStakeLabel: "Stake",
         summaryFeeLabel: "Entry fee",
-        summaryMissLabel: "If you miss a day",
+        summaryMissLabel: "If you miss a weekday",
         summaryTotalLabel: "Total today",
+        prepareMissValue: "Not tracked yet",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -387,6 +406,7 @@ window.WALKA_MOMS = (function () {
     SUPABASE_TABLE: SUPABASE_TABLE,
     BASELINE_STEPS_BY_BUCKET: BASELINE_STEPS_BY_BUCKET,
     ENERGY_MULTIPLIER: ENERGY_MULTIPLIER,
+    DELIVERY_MULTIPLIER: DELIVERY_MULTIPLIER,
     GOAL_STEP_INCREMENT: GOAL_STEP_INCREMENT,
     GOAL_MIN: GOAL_MIN,
     GOAL_MAX: GOAL_MAX,

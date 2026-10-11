@@ -98,7 +98,7 @@
       motivation_style: a.motivation_style || "princess",
       cohort: a.cohort || null,
       stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS,
-      miss_cents: WM.MISS_AMOUNT_CENTS_PER_DAY,
+      miss_cents: a.clearance_status === "yes" ? WM.MISS_AMOUNT_CENTS_PER_DAY : null,
       entry_fee_cents: WM.ENTRY_FEE_CENTS,
       program_length_weeks: WM.PROGRAM_LENGTH_WEEKS,
       email: a.email || null,
@@ -117,9 +117,24 @@
   function computeSuggestedGoal(answers) {
     if (answers.clearance_status !== "yes") return WM.PREPARE_MODE_DEFAULT_GOAL;
     var base = WM.BASELINE_STEPS_BY_BUCKET[answers.current_steps_bucket] || WM.BASELINE_STEPS_BY_BUCKET.not_sure;
-    var mult = WM.ENERGY_MULTIPLIER[answers.energy_level] || 1;
-    var stepped = Math.round((base * mult) / WM.GOAL_STEP_INCREMENT) * WM.GOAL_STEP_INCREMENT;
+    var energyMult = WM.ENERGY_MULTIPLIER[answers.energy_level] || 1;
+    var deliveryMult = WM.DELIVERY_MULTIPLIER[answers.delivery_type] || 1;
+    var stepped = Math.round((base * energyMult * deliveryMult) / WM.GOAL_STEP_INCREMENT) * WM.GOAL_STEP_INCREMENT;
     return Math.min(WM.GOAL_MAX, Math.max(WM.GOAL_MIN, stepped));
+  }
+
+  function labelFor(options, value) {
+    var match = options.filter(function (o) { return o.value === value; })[0];
+    return match ? match.label : "";
+  }
+
+  function suggestedCohortFor(a) {
+    if (a.stage !== "postpartum") return null;
+    var weeks = Number(a.weeks_postpartum);
+    if (!weeks || isNaN(weeks)) return null;
+    if (weeks <= 13) return "0_3m";
+    if (weeks <= 26) return "3_6m";
+    return "6_12m";
   }
 
   function tone() { return WM.TONE[state.answers.motivation_style || "princess"]; }
@@ -242,15 +257,29 @@
         }
         if (a.suggested_goal == null) a.suggested_goal = computeSuggestedGoal(a);
         if (a.adjusted_goal == null) a.adjusted_goal = a.suggested_goal;
-        return '<h2 class="q-title">' + COPY.steps.goal.title + '</h2>' +
+        var g = COPY.steps.goal;
+        var basis = fmtTemplate(g.basisNote, {
+          steps: labelFor(COPY.steps.baseline.stepsOptions, a.current_steps_bucket),
+          energy: labelFor(COPY.steps.baseline.energyOptions, a.energy_level).toLowerCase()
+        });
+        var extraNotes = "";
+        if (a.delivery_type === "csection") extraNotes += '<p class="q-hint">' + g.csectionNote + '</p>';
+        if (a.barriers && a.barriers.length) {
+          extraNotes += '<p class="q-hint">' + fmtTemplate(g.barrierNote, {
+            barrier: labelFor(COPY.steps.baseline.barriersOptions, a.barriers[0]).toLowerCase()
+          }) + '</p>';
+        }
+        return '<h2 class="q-title">' + g.title + '</h2>' +
           '<p class="q-body">' + tone().encourageGoal + '</p>' +
           '<div class="goal-stepper">' +
             '<button type="button" class="goal-btn" id="goalDown" aria-label="Decrease">−</button>' +
-            '<div class="goal-value"><span id="goalNum">' + a.adjusted_goal.toLocaleString() + '</span><span class="goal-unit">' + COPY.steps.goal.dailyLabel + '</span></div>' +
+            '<div class="goal-value"><span id="goalNum">' + a.adjusted_goal.toLocaleString() + '</span><span class="goal-unit">' + g.dailyLabel + '</span></div>' +
             '<button type="button" class="goal-btn" id="goalUp" aria-label="Increase">+</button>' +
           '</div>' +
-          '<p class="q-note">' + COPY.steps.goal.weeklyFrame + '</p>' +
-          '<p class="q-hint">' + COPY.steps.goal.adjustHint + '</p>';
+          '<p class="q-note">' + g.weeklyFrame + '</p>' +
+          '<p class="q-hint">' + basis + '</p>' +
+          extraNotes +
+          '<p class="q-hint">' + g.adjustHint + '</p>';
       },
       bind: function (root) {
         var down = root.querySelector("#goalDown"), up = root.querySelector("#goalUp"), num = root.querySelector("#goalNum");
@@ -290,20 +319,30 @@
 
     cohort: {
       render: function (a) {
-        var groups = a.stage === "pregnant" ? COPY.steps.cohort.groupsPregnant : COPY.steps.cohort.groupsPostpartum;
+        var c = COPY.steps.cohort;
+        var groups = a.stage === "pregnant" ? c.groupsPregnant : c.groupsPostpartum;
+        var suggested = suggestedCohortFor(a);
+        if (!a.cohort && suggested) a.cohort = suggested;
         var opts = groups.map(function (o) {
           return pillOption("cohort_value", o.value, o.label, a.cohort === o.value);
         }).join("");
-        return '<h2 class="q-title">' + COPY.steps.cohort.title + '</h2>' +
+        var mismatch = suggested && a.cohort && a.cohort !== suggested;
+        var mismatchHtml = mismatch
+          ? '<p class="q-note q-note--warn">' + fmtTemplate(c.mismatchNote, { weeks: a.weeks_postpartum }) + '</p>'
+          : "";
+        return '<h2 class="q-title">' + c.title + '</h2>' +
+          '<div class="recap"><p class="recap__title">' + c.recapTitle + '</p>' +
+            '<ul class="recap__list">' + c.recapItems.map(function (i) { return '<li>' + i + '</li>'; }).join("") + '</ul>' +
+          '</div>' +
           '<div class="opts" id="cohortOpts">' + opts + '</div>' +
-          '<p class="q-hint">' + COPY.steps.cohort.partnerNote + '</p>';
+          '<div id="cohortMismatch">' + mismatchHtml + '</div>' +
+          '<p class="q-hint">' + c.partnerNote + '</p>';
       },
       bind: function (root) {
         root.querySelectorAll('#cohortOpts .pill').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.cohort = b.getAttribute("data-value");
-            root.querySelectorAll('#cohortOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            renderStep(false);
           });
         });
       },
@@ -314,12 +353,20 @@
     commit: {
       render: function (a) {
         var c = COPY.steps.commit;
-        return '<h2 class="q-title">' + c.title + '</h2>' +
+        var prepareMode = a.clearance_status !== "yes";
+        var html = '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-note">' + fmtTemplate(c.recapLine, { cohort: prettyCohort(a.cohort) }) + '</p>' +
           '<p class="q-body">' + fmtTemplate(c.lengthNote, { weeks: WM.PROGRAM_LENGTH_WEEKS }) + '</p>' +
-          '<p class="q-body">' + fmtTemplate(c.stakeLine, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' +
-          '<p class="q-body">' + fmtTemplate(c.missLine, { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) }) + '</p>' +
-          '<p class="q-note">' + c.poolLine + '</p>' +
-          '<p class="q-hint">' + fmtTemplate(c.feeLine, { fee: centsLabel(WM.ENTRY_FEE_CENTS) }) + '</p>';
+          '<p class="q-body">' + fmtTemplate(c.stakeLine, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>';
+        if (prepareMode) {
+          html += '<p class="q-body">' + c.prepareMissLine + '</p>' +
+            '<p class="q-hint">' + c.prepareNote + '</p>';
+        } else {
+          html += '<p class="q-body">' + fmtTemplate(c.missLine, { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) }) + '</p>' +
+            '<p class="q-note">' + c.poolLine + '</p>';
+        }
+        html += '<p class="q-hint">' + fmtTemplate(c.feeLine, { fee: centsLabel(WM.ENTRY_FEE_CENTS) }) + '</p>';
+        return html;
       },
       bind: function () {},
       canAdvance: function () { return true; }
@@ -327,7 +374,8 @@
 
     checkout: {
       render: function (a) {
-        var goalText = a.clearance_status === "yes" && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode, no goal yet";
+        var prepareMode = a.clearance_status !== "yes";
+        var goalText = !prepareMode && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode, no goal yet";
         var c = COPY.steps.checkout;
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + tone().checkoutIntro + '</p>' +
@@ -338,10 +386,10 @@
             summaryRow(c.summaryToneLabel, WM.TONE[a.motivation_style || "princess"].name) +
             summaryRow(c.summaryStakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
             summaryRow(c.summaryFeeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
-            summaryRow(c.summaryMissLabel, centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
+            summaryRow(c.summaryMissLabel, prepareMode ? c.prepareMissValue : centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY)) +
             summaryRow(c.summaryTotalLabel, centsLabel(WM.TOTAL_CHARGE_CENTS)) +
           '</div>' +
-          stakeSummaryHTML() +
+          stakeSummaryHTML(prepareMode) +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
           '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
@@ -409,8 +457,11 @@
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  function stakeSummaryHTML() {
+  function stakeSummaryHTML(prepareMode) {
     var c = COPY.steps.commit;
+    if (prepareMode) {
+      return '<p class="q-hint">' + c.prepareNote + '</p>';
+    }
     var vars = { miss: centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) };
     return '<p class="q-note">' + fmtTemplate(c.summaryLine, vars) + '</p>' +
       '<p class="q-hint">' + c.summaryHint + '</p>';
@@ -631,22 +682,17 @@
       landingEl.hidden = true;
       mainEl.hidden = false;
       appEl.hidden = false;
+      if (state.stepIndex > 0) {
+        resumeBanner.hidden = false;
+        resumeBanner.textContent = COPY.resumeBanner;
+      }
       renderStep();
     });
   }
 
   function startFlow() {
     loadingEl.hidden = true;
-    if (state.onboardingStarted) {
-      appEl.hidden = false;
-      if (state.stepIndex > 0) {
-        resumeBanner.hidden = false;
-        resumeBanner.textContent = COPY.resumeBanner;
-      }
-      renderStep();
-    } else {
-      showLanding();
-    }
+    showLanding();
   }
 
   function initGate() {
