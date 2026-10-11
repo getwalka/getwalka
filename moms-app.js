@@ -298,7 +298,7 @@
         var c = COPY.steps.cohort;
         a.cohort = resolvedCohortFor(a);
         return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="recap"><p class="recap__title">' + c.recapTitle + '</p>' +
+          '<div class="recap">' +
             '<ul class="recap__list">' + c.recapItems.map(function (i) { return '<li>' + i + '</li>'; }).join("") + '</ul>' +
           '</div>' +
           '<p class="q-body"><strong>' + fmtTemplate(c.assignedLabel, { group: prettyCohort(a.cohort) }) + '</strong></p>';

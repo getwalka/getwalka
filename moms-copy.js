@@ -167,7 +167,7 @@ window.WALKA_MOMS = (function () {
 
     landing: {
       eyebrow: "For pregnancy & postpartum",
-      title: "Moving again, gently.",
+      title: "Walk and Talk with other mums.",
       tagline: "No weigh-ins. No bouncing back. Just your pace.",
       cta: "Let's begin",
       heroPhoto: "images/feature-pace.jpg",
@@ -185,13 +185,13 @@ window.WALKA_MOMS = (function () {
           icon: "🫂",
           photo: "images/feature-circle.jpg",
           title: "Meet your circle and coach",
-          desc: "Walk alongside others at a similar stage, with daily nudges from your AI coach."
+          desc: "Walk alongside others at a similar stage, with daily nudges from your coach."
         },
         {
           icon: "🚶‍♀️",
           photo: "images/feature-pace.jpg",
-          title: "Walk together. Stay accountable.",
-          desc: "A {stake} stake over 4 weeks. Finish, and it all comes back."
+          title: "Walk together(or solo). Stay accountable.",
+          desc: "A stake over 4 weeks. Complete your steps per week and it all comes back."
         }
       ],
 
@@ -270,12 +270,11 @@ window.WALKA_MOMS = (function () {
         ]
       },
       cohort: {
-        title: "Your people",
-        recapTitle: "What you're joining",
+        title: "What you're joining",
         recapItems: [
-          "A small circle of women at a similar stage",
-          "Daily encouragement from Walka's AI coach",
-          "A 4-week structure, at your own pace"
+          "Walking with other mums, and staying locked in on your goal",
+          "Daily encouragement from your personalized coach",
+          "Accountability and Community"
         ],
         assignedLabel: "You'll be grouped with: {group}",
         groupsPregnant: [
