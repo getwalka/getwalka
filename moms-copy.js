@@ -178,20 +178,20 @@ window.WALKA_MOMS = (function () {
         {
           icon: "💬",
           photo: "images/feature-coach.jpg",
-          title: "Find your starting point",
-          desc: "A few quick questions. No wrong answers."
+          title: "Tell us where you are",
+          desc: "A few questions about your routine, energy, and goals."
         },
         {
           icon: "🫂",
           photo: "images/feature-circle.jpg",
-          title: "Meet your circle and coach",
-          desc: "Walk alongside others at a similar stage, with daily nudges from your coach."
+          title: "Get your plan and your people",
+          desc: "Your personal walking coach and a circle of moms at a similar stage"
         },
         {
           icon: "🚶‍♀️",
           photo: "images/feature-pace.jpg",
-          title: "Walk together(or solo). Stay accountable.",
-          desc: "A stake over 4 weeks. Complete your steps per week and it all comes back."
+          title: "Walk at your own pace",
+          desc: "Build consistency through check-ins, encouragement, and challenges"
         }
       ],
 
@@ -217,11 +217,11 @@ window.WALKA_MOMS = (function () {
         weeksLabel: "Weeks postpartum (optional)"
       },
       clearance: {
-        title: "Are you cleared for exercise by your doctor or midwife?",
+        title: "Has your healthcare professional given you any guidance or restrictions about physical activity?",
         options: [
-          { value: "yes", label: "Yes" },
-          { value: "not_yet", label: "Not yet" },
-          { value: "not_sure", label: "Not sure" }
+          { value: "yes", label: "No restrictions" },
+          { value: "not_yet", label: "I have some restrictions" },
+          { value: "not_sure", label: "I'm not sure" }
         ],
         notClearedNote: "No problem. Join now in prepare mode, no step goals until you're cleared.",
         medicalReminder: "Not medical advice. Check with your doctor or midwife first."
