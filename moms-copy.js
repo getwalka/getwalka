@@ -254,6 +254,58 @@ window.WALKA_MOMS = (function () {
           { value: "other", label: "Something else" }
         ]
       },
+      insightActivity: {
+        pregnant: {
+          eyebrow: "A little pregnancy science",
+          title: "Your body is doing a lot right now. Walking still fits.",
+          body: [
+            "The CDC recommends about 150 minutes of moderate activity a week during pregnancy, and walking is one of the easiest ways to get there.",
+            "Go at whatever pace feels right today. Your plan adjusts with you."
+          ],
+          sourceLabel: "CDC, Physical Activity for Pregnant and Postpartum Women",
+          sourceUrl: "https://www.cdc.gov/physical-activity-basics/guidelines/healthy-pregnant-or-postpartum-women.html",
+          continueLabel: "Find my pace"
+        },
+        postpartum: {
+          eyebrow: "A little postpartum science",
+          title: "Your body has been through a lot. Start small.",
+          body: [
+            "Research shows that physical activity after childbirth can support emotional well-being and reduce symptoms of postpartum depression.",
+            "Even a short, comfortable walk can be a meaningful beginning, when you're ready."
+          ],
+          sourceLabel: "CDC, Physical Activity for Pregnant and Postpartum Women",
+          sourceUrl: "https://www.cdc.gov/physical-activity-basics/guidelines/healthy-pregnant-or-postpartum-women.html",
+          continueLabel: "Find my pace"
+        }
+      },
+
+      insightCommunity: {
+        pregnant: {
+          eyebrow: "The power of connection",
+          title: "Who's walking this with you?",
+          body: [
+            "Pregnancy can feel isolating too, even surrounded by people who love you.",
+            "A review of over 64,000 pregnant women found that low social support was linked to higher rates of depression and anxiety during pregnancy."
+          ],
+          callout: "You deserve a circle, too.",
+          sourceLabel: "Bedaso et al., Reproductive Health, Social Support and Mental Health Problems During Pregnancy",
+          sourceUrl: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8320195",
+          continueLabel: "Meet my circle"
+        },
+        postpartum: {
+          eyebrow: "The power of connection",
+          title: "Who's checking in on you?",
+          body: [
+            "The postpartum season can feel isolating, even when you're rarely alone.",
+            "Research links stronger social support with fewer depressive and anxiety symptoms in the months after birth."
+          ],
+          callout: "You deserve a circle, too.",
+          sourceLabel: "Schwab-Reese et al., Women & Health, Social Support and Postpartum Maternal Mental Health",
+          sourceUrl: "https://pmc.ncbi.nlm.nih.gov/articles/PMC6097234",
+          continueLabel: "Meet my circle"
+        }
+      },
+
       goal: {
         title: "Your starting goal",
         options: [

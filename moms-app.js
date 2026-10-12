@@ -12,7 +12,7 @@
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
   var STORAGE_KEY = "walka_moms_state_v1";
-  var STEP_IDS = ["stage", "clearance", "baseline", "goal", "motivation", "cohort", "planPreview", "checkout"];
+  var STEP_IDS = ["stage", "clearance", "baseline", "insightActivity", "goal", "motivation", "insightCommunity", "cohort", "planPreview", "checkout"];
 
   /* ---------------- utilities ---------------- */
 
@@ -241,6 +241,8 @@
       canAdvance: function (a) { return !!a.current_steps_bucket && !!a.energy_level; }
     },
 
+    insightActivity: makeInsightStep("insightActivity"),
+
     goal: {
       render: function (a) {
         if (a.clearance_status !== "yes") {
@@ -292,6 +294,8 @@
       },
       canAdvance: function (a) { return !!a.motivation_style; }
     },
+
+    insightCommunity: makeInsightStep("insightCommunity"),
 
     cohort: {
       render: function (a) {
@@ -413,6 +417,33 @@
     }
   };
 
+  /* ---------------- insight steps ---------------- */
+  /* Read-only "why this works" screens, one per stage (pregnant/postpartum),
+     inserted between relevant questions. No input required, so canAdvance
+     is always true; the shared continueBtn borrows each screen's own CTA
+     copy via continueLabel instead of the generic tone().continue. */
+
+  function insightCopyFor(a, key) {
+    var group = COPY.steps[key];
+    return group[a.stage] || group.postpartum;
+  }
+
+  function makeInsightStep(key) {
+    return {
+      render: function (a) {
+        var c = insightCopyFor(a, key);
+        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
+          '<h2 class="q-title">' + c.title + '</h2>' +
+          c.body.map(function (p) { return '<p class="q-body">' + p + '</p>'; }).join("") +
+          (c.callout ? '<div class="q-note"><strong>' + c.callout + '</strong></div>' : "") +
+          '<p class="q-source">Source: <a href="' + escapeAttr(c.sourceUrl) + '" target="_blank" rel="noopener">' + c.sourceLabel + '</a></p>';
+      },
+      bind: function () {},
+      canAdvance: function () { return true; },
+      continueLabel: function (a) { return insightCopyFor(a, key).continueLabel; }
+    };
+  }
+
   /* ---------------- small render helpers ---------------- */
 
   function pillOption(name, value, label, active, multi) {
@@ -483,7 +514,7 @@
     var isCheckout = id === "checkout";
     continueBtn.hidden = isCheckout;
     if (!isCheckout) {
-      continueBtn.textContent = tone().continue;
+      continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : tone().continue;
       refreshContinue();
     }
     if (trackView !== false) {
