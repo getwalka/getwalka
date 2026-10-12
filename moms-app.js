@@ -11,7 +11,10 @@
   var WM = window.WALKA_MOMS;
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
-  var STORAGE_KEY = "walka_moms_state_v1";
+  /* v2: bumped when the insight screens were inserted into STEP_IDS, since
+     a saved numeric stepIndex from before that change now points at a
+     different step and must not be resumed as if nothing moved. */
+  var STORAGE_KEY = "walka_moms_state_v2";
   var STEP_IDS = ["stage", "clearance", "baseline", "insightActivity", "goal", "motivation", "insightCommunity", "cohort", "planPreview", "checkout"];
 
   /* ---------------- utilities ---------------- */

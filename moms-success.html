@@ -54,7 +54,7 @@
 (function () {
   "use strict";
   var WM = window.WALKA_MOMS;
-  var STORAGE_KEY = "walka_moms_state_v1";
+  var STORAGE_KEY = "walka_moms_state_v2"; // kept in sync with moms-app.js
 
   function track(event, props) {
     try { if (window.posthog) posthog.capture(event, props || {}); } catch (e) {}
