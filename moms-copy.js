@@ -167,8 +167,8 @@ window.WALKA_MOMS = (function () {
 
     landing: {
       eyebrow: "For pregnancy & postpartum",
-      title: "Walk and Talk with other mums.",
-      tagline: "No weigh-ins. No bouncing back. Just your pace.",
+      title: "Find your rhythm again, one walk at a time.",
+      tagline: "A personalized walking plan, your own coach, and a community of moms who get it.",
       cta: "Let's begin",
       heroPhoto: "images/feature-pace.jpg",
 
