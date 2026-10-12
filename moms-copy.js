@@ -249,6 +249,8 @@ window.WALKA_MOMS = (function () {
           { value: "tiredness", label: "Tiredness" },
           { value: "motivation", label: "Motivation" },
           { value: "pain", label: "Pain" },
+          { value: "recovery", label: "Recovery" },
+          { value: "no_childcare", label: "No childcare" },
           { value: "other", label: "Something else" }
         ]
       },
