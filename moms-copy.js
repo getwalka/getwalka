@@ -195,7 +195,7 @@ window.WALKA_MOMS = (function () {
         }
       ],
 
-      cohortEyebrow: "Your people",
+      cohortEyebrow: "You don't have to do this alone",
       cohortTitle: "Walk with people who get it.",
       cohortBody: "Grouped by stage, so you're never the only one.",
       cohortGroups: [
@@ -288,16 +288,15 @@ window.WALKA_MOMS = (function () {
           { value: "6_12m", label: "6–12 months postpartum" }
         ]
       },
-      commit: {
-        title: "Your stake",
-        recapLine: "You're joining {cohort}.",
+      planPreview: {
+        title: "Your plan",
+        recapLine: "Here's what we've put together for you.",
+        goalLabel: "Daily goal",
+        prepareGoalValue: "No goal yet, prepare mode",
         lengthLabel: "Length",
-        stakeLabel: "Stake",
-        feeLabel: "Entry fee",
-        missLabel: "Miss a weekday",
-        prepareMissValue: "Not tracked yet",
-        noteLine: "Finish, keep your stake. Weekends don't count.",
-        prepareNote: "No payment until you're cleared. We'll email you when it's time to confirm your spot."
+        cohortLabel: "Your people",
+        toneLabel: "Coach style",
+        note: "Personalized to your stage, goal, and schedule."
       },
       checkout: {
         title: "Confirm",
@@ -314,6 +313,8 @@ window.WALKA_MOMS = (function () {
         prepareMissValue: "Not tracked yet",
         prepareTotalValue: "Nothing today",
         prepareExplainer: "You're reserving your spot, not starting a challenge yet. No workouts, no missed-day deductions, and no payment today. You'll pay {total} only once you're cleared and ready to begin.",
+        noteLine: "Finish, keep your stake. Weekends don't count.",
+        prepareNote: "No payment until you're cleared. We'll email you when it's time to confirm your spot.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",

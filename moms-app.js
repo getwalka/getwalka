@@ -12,7 +12,7 @@
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
   var STORAGE_KEY = "walka_moms_state_v1";
-  var STEP_IDS = ["stage", "clearance", "baseline", "goal", "motivation", "cohort", "commit", "checkout"];
+  var STEP_IDS = ["stage", "clearance", "baseline", "goal", "motivation", "cohort", "planPreview", "checkout"];
 
   /* ---------------- utilities ---------------- */
 
@@ -308,19 +308,20 @@
       onLeave: function (a) { track(EVENTS.cohortChosen, { cohort: a.cohort }); }
     },
 
-    commit: {
+    planPreview: {
       render: function (a) {
-        var c = COPY.steps.commit;
+        var c = COPY.steps.planPreview;
         var prepareMode = a.clearance_status !== "yes";
+        var goalText = !prepareMode && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : c.prepareGoalValue;
         return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-note">' + fmtTemplate(c.recapLine, { cohort: prettyCohort(a.cohort) }) + '</p>' +
+          '<p class="q-note">' + c.recapLine + '</p>' +
           '<div class="summary">' +
+            summaryRow(c.goalLabel, goalText) +
             summaryRow(c.lengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
-            summaryRow(c.stakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
-            summaryRow(c.feeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
-            summaryRow(c.missLabel, prepareMode ? c.prepareMissValue : missValueLabel()) +
+            summaryRow(c.cohortLabel, prettyCohort(a.cohort)) +
+            summaryRow(c.toneLabel, WM.TONE[a.motivation_style || "princess"].name) +
           '</div>' +
-          '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
+          '<p class="q-hint">' + c.note + '</p>';
       },
       bind: function () {},
       canAdvance: function () { return true; }
@@ -434,7 +435,7 @@
   }
 
   function stakeSummaryHTML(prepareMode) {
-    var c = COPY.steps.commit;
+    var c = COPY.steps.checkout;
     return '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
   }
 

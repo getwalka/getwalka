@@ -130,16 +130,17 @@ All in `moms-copy.js`, cohort only, no tiers or choices shown:
   20 weekdays forfeits effectively the full $39.99 stake, one cent over on
   paper; the mechanic caps forfeiture at the stake itself). Money from
   missed days goes into the pool split among cohort members who finish,
-  same mechanic as the main app's weekly cohorts. The checkout/commit
-  screens show this as "-$2 from your stake," not a bare "$2," so it
-  doesn't read as a separate charge due today.
+  same mechanic as the main app's weekly cohorts. The checkout screen
+  shows this as "-$2 from your stake," not a bare "$2," so it doesn't
+  read as a separate charge due today.
 - `TOTAL_CHARGE_CENTS`: stake + fee, what the single Payment Link actually
   charges ($49.99).
 
 **Prepare mode never charges anyone.** If `clearance_status !== "yes"`,
-there's no step goal to miss (the commit/checkout copy and the `miss_cents`
-field written to Supabase both reflect "not tracked" rather than the $2
-figure) and, as of 2026-10, **no Stripe checkout at all**: the "Pay" button
+there's no step goal to miss (the plan preview/checkout copy and the
+`miss_cents` field written to Supabase both reflect "not tracked"/"no goal
+yet" rather than the $2 figure) and, as of 2026-10, **no Stripe checkout at
+all**: the "Pay" button
 is replaced with "Reserve my spot," which skips the Payment Link entirely,
 upserts the lead with `checkout_status: "reserved"` and the email/name
 they entered, and shows an on-page "you're on the list" confirmation.
@@ -191,6 +192,30 @@ no Stripe handoff to track).
 
 ### Assumptions & open questions
 
+- **The checkout screen still charges the old stake/fee model, not the
+  coaching subscription.** As of 2026-10-11, the "Your stake" screen was
+  removed from the funnel (replaced by "Your plan," a no-dollar-figures
+  preview of goal/length/cohort/coach style) because its $39.99 stake +
+  $10 entry fee language conflicted with a stated $24.99/mo or $199.99/yr
+  coaching-and-community subscription offer. The checkout screen right
+  after it was explicitly out of scope for that change and **still shows
+  the same stake/fee/total breakdown and still charges the one-time
+  $49.99 via `COHORT_PAYMENT_LINK`**, now with no screen above it
+  explaining those numbers. This is a known gap, not an oversight: the
+  checkout rework depends on deciding how the subscription is actually
+  billed (see the architecture question below) before touching it.
+- **One-time Payment Links can't bill a subscription.** This repo's whole
+  payment approach (one Stripe Payment Link, no webhook, no backend) is
+  built for a single one-time charge; `COHORT_PAYMENT_LINK` must stay a
+  one-time price per the setup instructions above. Recurring billing
+  needs a way to track renewals/cancellations/failed payments, which
+  means either standing up a lightweight webhook-or-poll sync for this
+  static site (new build), or reusing the main app's existing Stripe
+  subscription infrastructure (`profiles.stripe_subscription_id` /
+  `subscription_status`, the `create-subscription` and
+  `sync-subscription-status` Edge Functions, `is_subscribed()`), which
+  currently assumes an authenticated `profiles` row this logged-out,
+  `local_id`-based funnel doesn't have. Not yet decided.
 - **Checkout completion is not server-verified.** Because there's no backend
   (by design, per the Payment Links choice), `moms_checkout_completed` and
   the Supabase `checkout_status: "completed_unverified"` fire when the
@@ -285,13 +310,11 @@ no Stripe handoff to track).
 - [ ] Cohort: pregnant shows "You'll be grouped with: Due soon"; no solo
       option; a "What you're joining" recap (coach, circle, pace) shows
       above it; Continue is never disabled on this step.
-- [ ] Commit, clearance **yes**: shows the chosen cohort in the recap line,
-      then a summary table (Length, Stake $39.99, Entry fee $10, Miss a
-      weekday -$2 from your stake), then a single closing note; no choices
-      to make, just a Continue button.
-- [ ] Commit, clearance **not yet/not sure**: Miss a weekday row shows
-      "Not tracked yet" and the closing note says there's no payment until
-      cleared, instead of the normal-mode note.
+- [ ] Plan preview, clearance **yes**: shows a summary table (Daily goal,
+      Length, Your people, Coach style), no dollar amounts anywhere on this
+      screen; Continue is never disabled.
+- [ ] Plan preview, clearance **not yet/not sure**: Daily goal row shows
+      "No goal yet, prepare mode" instead of a steps/day figure.
 - [ ] Checkout, clearance **yes**: summary shows stake ($39.99), entry fee
       ($10), "if you miss a weekday" (-$2 from your stake), and total today
       ($49.99); Pay button stays disabled until a valid email is entered
