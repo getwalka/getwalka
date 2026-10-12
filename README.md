@@ -204,18 +204,42 @@ no Stripe handoff to track).
   explaining those numbers. This is a known gap, not an oversight: the
   checkout rework depends on deciding how the subscription is actually
   billed (see the architecture question below) before touching it.
-- **One-time Payment Links can't bill a subscription.** This repo's whole
-  payment approach (one Stripe Payment Link, no webhook, no backend) is
-  built for a single one-time charge; `COHORT_PAYMENT_LINK` must stay a
-  one-time price per the setup instructions above. Recurring billing
-  needs a way to track renewals/cancellations/failed payments, which
-  means either standing up a lightweight webhook-or-poll sync for this
-  static site (new build), or reusing the main app's existing Stripe
-  subscription infrastructure (`profiles.stripe_subscription_id` /
-  `subscription_status`, the `create-subscription` and
-  `sync-subscription-status` Edge Functions, `is_subscribed()`), which
-  currently assumes an authenticated `profiles` row this logged-out,
-  `local_id`-based funnel doesn't have. Not yet decided.
+- **One-time Payment Links can't bill a subscription, by platform
+  default, but Payment Links do support recurring prices** (the "one-time
+  only" rule earlier in this file was specific to the stake model, not a
+  Stripe limitation): `COHORT_PAYMENT_LINK` can point at a recurring price
+  once the checkout screen itself is reworked for the subscription (not
+  yet done; see above). Stripe bills recurring charges automatically
+  regardless of what this repo tracks; what's missing without a webhook
+  is *our own* record of renewals/failures/cancellations.
+- **`link-moms-subscriber`** (Edge Function, in the main stepr repo's
+  `supabase/functions/`, not here) is the first piece of that: called
+  from `/moms-success` right after the Stripe redirect, same "replaces a
+  webhook, call it on return" pattern the main app's
+  `sync-subscription-status` already uses. Payment Links don't hand back
+  a customer/subscription id in the redirect URL, so it looks the Stripe
+  Customer up by the email already on the `moms_leads` row and writes
+  `stripe_customer_id` + `subscription_status` (mirrors Stripe's own
+  `subscription.status`) back onto that row. Public, unauthenticated
+  (the moms funnel never creates a Supabase session), gated only on
+  knowing the row's `local_id`, same trust model as every other write
+  here.
+- **Still not built: linking a `moms_leads` row to an actual app
+  account.** When someone downloads the app and signs up with the same
+  email, nothing yet copies `stripe_customer_id` onto their new
+  `profiles` row. That means extending `handle_new_user()`, the trigger
+  that creates a `profiles` row for every signup app-wide, so it's
+  deliberately held until there's a real recurring Payment Link and a
+  tested `link-moms-subscriber` run to reconcile against, given the blast
+  radius of a mistake there (every signup, not just moms subscribers).
+  Once that exists, the main app's own `sync-subscription-status`
+  (already built, called on cold start) picks up the real status from
+  Stripe with no further moms-specific code.
+- **No self-serve cancellation yet.** A recurring charge needs one;
+  enabling Stripe's hosted Customer Portal (Settings → Billing → Customer
+  portal → the no-code, shareable link option, fits this repo's
+  no-backend approach) and linking to it from `/moms-success` or a
+  confirmation email is the plan, not yet wired in.
 - **Checkout completion is not server-verified.** Because there's no backend
   (by design, per the Payment Links choice), `moms_checkout_completed` and
   the Supabase `checkout_status: "completed_unverified"` fire when the

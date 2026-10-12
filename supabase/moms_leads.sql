@@ -40,7 +40,10 @@ create table if not exists public.moms_leads (
   email text,
 
   last_step text,                        -- furthest step reached, the drop-off signal
-  checkout_status text not null default 'not_started' -- not_started | viewed | started | completed_unverified | reserved (prepare mode: no charge, email captured for later follow-up)
+  checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (prepare mode: no charge, email captured for later follow-up)
+
+  stripe_customer_id text,               -- set by link-moms-subscriber (Edge Function) after a Stripe Payment Link redirect, matched by email since Payment Links don't return a customer id in the URL
+  subscription_status text               -- mirrors Stripe's own subscription.status (active | trialing | past_due | canceled | incomplete | ...); null until link-moms-subscriber finds a subscription for this email
 );
 
 -- Running this file again against an already-created table (e.g. after the
@@ -48,6 +51,8 @@ create table if not exists public.moms_leads (
 -- existing rows or policies.
 alter table public.moms_leads add column if not exists entry_fee_cents int;
 alter table public.moms_leads add column if not exists country text;
+alter table public.moms_leads add column if not exists stripe_customer_id text;
+alter table public.moms_leads add column if not exists subscription_status text;
 
 create index if not exists moms_leads_checkout_status_idx on public.moms_leads (checkout_status);
 create index if not exists moms_leads_created_at_idx on public.moms_leads (created_at);

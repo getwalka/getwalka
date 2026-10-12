@@ -95,6 +95,13 @@
           checkout_status: "completed_unverified",
           updated_at: new Date().toISOString()
         }).eq("local_id", state.localId).then(function () {});
+
+        // Payment Links don't hand back a Stripe customer/subscription id
+        // in this redirect, so look it up server-side by email and mirror
+        // it onto the lead row. Best-effort: never blocks this page.
+        sb.functions.invoke("link-moms-subscriber", { body: { local_id: state.localId } })
+          .then(function () {})
+          .catch(function (e) { console.warn("[moms-success] link-moms-subscriber failed", e); });
       } catch (e) {}
     }
   } else {
