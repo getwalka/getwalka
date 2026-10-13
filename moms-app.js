@@ -429,7 +429,7 @@
         return '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
-          renderForumPreview(c.posts, c.illustrativeBadge);
+          renderCirclePreview(c);
       },
       bind: function () {},
       canAdvance: function () { return true; }
@@ -562,16 +562,53 @@
       '<p class="benefit-card__body">' + b.body + '</p></div></div>';
   }
 
+  var AVATAR_TINTS = ["sage", "lavender", "amber", "rose"];
+
+  function initials(name) {
+    return ((name || "").trim().charAt(0) || "?").toUpperCase();
+  }
+
+  function avatarHTML(name, index) {
+    return '<span class="circle-avatar circle-avatar--' + AVATAR_TINTS[index % AVATAR_TINTS.length] + '" aria-hidden="true">' + initials(name) + '</span>';
+  }
+
   /* Shared between the `trustPreview` step and the landing page's
      community section, so the "clearly labeled illustrative preview"
-     the brief asks for is one implementation, not two different mocks. */
-  function renderForumPreview(posts, badgeText) {
-    return '<div class="forum-preview">' +
-      '<span class="badge badge--illustrative">' + escapeAttr(badgeText) + '</span>' +
-      posts.map(function (p) {
-        return '<div class="forum-post"><p class="forum-post__author">' + escapeAttr(p.author) + '</p>' +
-          '<p class="forum-post__text">' + escapeAttr(p.text) + '</p></div>';
-      }).join("") +
+     the brief asks for is one implementation, not two different mocks.
+     opts.compact (landing page use) trims to 2 messages and drops the
+     challenge card / participation row, so the marketing page stays lean. */
+  function renderCirclePreview(data, opts) {
+    opts = opts || {};
+    var messages = opts.compact ? data.messages.slice(0, 2) : data.messages;
+
+    var avatarsHTML = messages.map(function (m, i) { return avatarHTML(m.name, i); }).join("");
+
+    var messagesHTML = messages.map(function (m, i) {
+      return '<div class="chat-message">' + avatarHTML(m.name, i) +
+        '<div class="chat-message__bubble">' +
+          '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span>' +
+          (m.time ? '<span class="chat-message__time">' + escapeAttr(m.time) + '</span>' : '') + '</div>' +
+          '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
+        '</div></div>';
+    }).join("");
+
+    var challengeHTML = (!opts.compact && data.challenge) ?
+      '<div class="challenge-card"><span class="challenge-card__icon" aria-hidden="true">' + data.challenge.icon + '</span>' +
+        '<div><p class="challenge-card__title">' + data.challenge.title + '</p>' +
+        '<p class="challenge-card__body">' + data.challenge.body + '</p></div></div>' : "";
+
+    var participationHTML = (!opts.compact && data.participation) ?
+      '<div class="participation-row">' +
+        data.participation.map(function (p) { return '<span class="participation-chip">' + escapeAttr(p) + '</span>'; }).join("") +
+      '</div>' : "";
+
+    return '<div class="circle-preview">' +
+      '<span class="badge badge--illustrative">' + escapeAttr(data.illustrativeBadge) + '</span>' +
+      '<div class="circle-preview__header">' +
+        '<span class="circle-preview__name">' + escapeAttr(data.circleName) + '</span>' +
+        '<span class="circle-preview__avatars">' + avatarsHTML + '</span>' +
+      '</div>' +
+      messagesHTML + challengeHTML + participationHTML +
       '</div>';
   }
 
@@ -761,7 +798,7 @@
       '</div></section>' +
 
       '<section class="mcohort"><div class="wrap cohort-layout">' +
-        '<div class="cohort-visual rv">' + renderForumPreview(COPY.steps.trustPreview.posts.slice(0, 2), COPY.steps.trustPreview.illustrativeBadge) + '</div>' +
+        '<div class="cohort-visual rv">' + renderCirclePreview(COPY.steps.trustPreview, { compact: true }) + '</div>' +
         '<div class="rv">' +
           '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
           '<h2>' + L.cohortTitle + '</h2>' +

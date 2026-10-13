@@ -298,7 +298,7 @@ window.WALKA_MOMS = (function () {
         title: "Some conversations are easier when you can just be yourself.",
         body: [
           "Our community is private to members and moderated throughout.",
-          "Share under your name, or post anonymously to the group when you'd rather not. Either way, only our moderators can ever see who's behind a post."
+          "Share under your name, or post anonymously to the group when you'd rather not."
         ]
       },
 
@@ -344,17 +344,27 @@ window.WALKA_MOMS = (function () {
         note: "This isn't a promise about results, just where we'd start with you."
       },
 
-      /* Screen 11, trust / community preview */
+      /* Screen 11, trust / community preview. Renders as a mocked circle
+         screen (header + chat + challenge card + participation row) via
+         renderCirclePreview() in moms-app.js, not a list of quote cards.
+         No member counts, response-time/engagement numbers, or real named
+         people anywhere in this data — illustrative only. */
       trustPreview: {
         eyebrow: "A peek inside",
         title: "What it actually feels like in here.",
-        intro: "A few examples of what members share, since words are easier than a feature list.",
-        illustrativeBadge: "Illustrative preview, not an actual member post",
-        posts: [
-          { author: "A member, 3 weeks postpartum", text: "Some days I walk for ten minutes and call it a win. This group actually gets that." },
-          { author: "A member, 34 weeks pregnant", text: "Posted anonymously about feeling touched out today. Had three replies before dinner." },
-          { author: "A member, 5 months postpartum", text: "Our little circle checks in most mornings. Some days that's the whole walk." }
-        ]
+        intro: "Here's a peek at what a circle actually looks like.",
+        illustrativeBadge: "Illustrative community preview",
+        circleName: "Early Days Circle",
+        messages: [
+          { name: "Jess", time: "this morning", text: "Only made it around the block today but I went. Ten minutes still counts." },
+          { name: "Maya", time: "this morning", text: "Needed to hear that. Rough night here too." },
+          { name: "Priya", time: "yesterday", text: "Posting this one anonymously, just a tired day. Glad this space is here." }
+        ],
+        challenge: {
+          icon: "🚶‍♀️", title: "This week's gentle challenge",
+          body: "A short walk most days, however that looks for you. No fixed step count, no leaderboard."
+        },
+        participation: ["Post", "Reply", "Just read, that counts too"]
       },
 
       /* Screen 12 */

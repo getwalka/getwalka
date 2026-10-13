@@ -162,10 +162,50 @@
   }
   .badge--illustrative{background:var(--amber-tint);color:#7A5A1F}
 
-  .forum-preview{margin:14px 0;display:flex;flex-direction:column;gap:10px}
-  .forum-post{background:var(--cream);border-radius:var(--r-inner);padding:14px 16px}
-  .forum-post__author{font-family:var(--display);font-weight:700;font-size:.8rem;color:var(--ink-soft);margin-bottom:4px}
-  .forum-post__text{font-size:.92rem;color:var(--ink)}
+  .circle-preview{
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);
+    padding:16px;margin:14px 0;
+  }
+  .circle-preview__header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line);
+  }
+  .circle-preview__name{font-family:var(--display);font-weight:700;font-size:.98rem}
+  .circle-preview__avatars{display:flex}
+
+  .circle-avatar{
+    width:28px;height:28px;border-radius:50%;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:700;font-size:.7rem;color:#fff;
+    border:2px solid var(--card);margin-left:-9px;
+  }
+  .circle-avatar:first-child{margin-left:0}
+  .circle-avatar--sage{background:var(--sage)}
+  .circle-avatar--lavender{background:var(--lavender-ink)}
+  .circle-avatar--amber{background:var(--amber)}
+  .circle-avatar--rose{background:var(--rose-ink)}
+
+  .chat-message{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+  .chat-message .circle-avatar{margin-left:0}
+  .chat-message__bubble{background:var(--cream);border-radius:var(--r-inner);padding:10px 14px;flex:1;min-width:0}
+  .chat-message__meta{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+  .chat-message__name{font-family:var(--display);font-weight:700;font-size:.82rem}
+  .chat-message__time{font-size:.72rem;color:var(--ink-soft)}
+  .chat-message__text{font-size:.9rem;color:var(--ink);line-height:1.4}
+
+  .challenge-card{
+    display:flex;align-items:center;gap:12px;
+    background:var(--sage-tint);border-radius:var(--r-inner);padding:12px 14px;margin:14px 0 10px;
+  }
+  .challenge-card__icon{font-size:1.3rem;flex:none}
+  .challenge-card__title{font-family:var(--display);font-weight:700;font-size:.86rem;color:var(--sage-deep);margin-bottom:2px}
+  .challenge-card__body{font-size:.84rem;color:var(--ink-soft);line-height:1.4}
+
+  .participation-row{display:flex;flex-wrap:wrap;gap:8px}
+  .participation-chip{
+    font-family:var(--display);font-weight:600;font-size:.74rem;color:var(--ink-soft);
+    background:var(--cream);border-radius:999px;padding:.32rem .75rem;
+  }
 
   .price-tag{
     font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
