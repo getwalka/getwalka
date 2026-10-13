@@ -1,9 +1,8 @@
 /* ==========================================================================
-   Walka: Postpartum Mums test flow, COPY + CONFIG
+   Walka Mom: onboarding flow, COPY + CONFIG
    Everything editable about this experiment lives in this one file:
-   wording, tone variants, commitment-mechanic settings, feature flag name,
-   and third-party keys/links. No other file should need to change to tune
-   the experiment.
+   wording, personalization data, feature flag name, and third-party
+   keys/links. No other file should need to change to tune the experiment.
    ========================================================================== */
 window.WALKA_MOMS = (function () {
 
@@ -24,10 +23,16 @@ window.WALKA_MOMS = (function () {
    *    FORCE_FLOW_ENABLED bypasses this gate for everyone, no PostHog
    *    flag or ?preview needed. Flip back to false (not delete the gate
    *    code) to go back to flag-gated access.
+   *
+   *    IMPORTANT before flipping this to false: confirm the PostHog flag
+   *    below actually exists and has an intended rollout % configured.
+   *    initGate() fails CLOSED (shows the gate screen to everyone) if
+   *    PostHog has no flag state, so flipping this off with an
+   *    unconfigured flag takes the page offline for all visitors.
    * ------------------------------------------------------------------ */
   var FEATURE_FLAG_KEY = "moms-postpartum-flow";
   var PREVIEW_STORAGE_KEY = "walka_moms_preview";
-  var FORCE_FLOW_ENABLED = true;
+  var FORCE_FLOW_ENABLED = false;
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
@@ -50,55 +55,52 @@ window.WALKA_MOMS = (function () {
   var GEO_ALLOWED_COUNTRIES = ["US", "CA"];
 
   /* ------------------------------------------------------------------ *
-   * 2. PAYMENTS: Stripe, TEST MODE by default
+   * 2. PAYMENTS: Stripe, recurring membership
    *
    *    This repo has no payment backend, so checkout uses one Stripe
-   *    Payment Link (hosted by Stripe; we never touch card data) for
-   *    the whole cohort plan below, price = TOTAL_CHARGE_CENTS.
-   *    Create it in the Stripe TEST MODE dashboard:
-   *      Products > + Add product > one-time price > Create payment link
+   *    Payment Link (hosted by Stripe; we never touch card data) for a
+   *    RECURRING price, PLAN_PRICE_CENTS / BILLING_INTERVAL below.
+   *    Create it in the Stripe dashboard:
+   *      Products > + Add product > recurring price > Create payment link
    *    Then under the link's settings, set "After payment" to redirect
    *    to your own URL:
    *      https://getwalka.com/moms-success
    *    (Stripe Payment Links don't support a separate "cancel" redirect;
    *    if someone abandons, they just use the browser back button.)
    *
-   *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" and
-   *    fill in the "live" link once you've created the equivalent
-   *    live-mode Payment Link.
+   *    TODO before going live with the new $39.99/mo price: the two URLs
+   *    in MEMBERSHIP_PAYMENT_LINK below still point at the OLD one-time
+   *    $49.99 (stake + entry fee) price from the retired cohort model.
+   *    Create new recurring-price Payment Links in the Stripe dashboard
+   *    (test and live) and swap these two URLs before rollout — this is a
+   *    manual dashboard step, nothing in this codebase can do it for you.
    *
-   *    Cohort only: solo is out of scope for this flow (hidden behind a
-   *    separate feature flag on mobile, not built here).
+   *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" once
+   *    the live-mode recurring Payment Link exists.
    * ------------------------------------------------------------------ */
-  var STRIPE_MODE = "live"; // "test" | "live"
+  /* "test" until the TODO above is done: MEMBERSHIP_PAYMENT_LINK.live still
+     points at the OLD one-time $49.99 product. Leaving this on "live"
+     would send anyone who reaches checkout (including via ?preview=1,
+     which isn't a secret) to a real charge for the wrong price under new
+     $39.99/month copy. Flip to "live" only after creating the recurring
+     Payment Links and swapping both URLs above. */
+  var STRIPE_MODE = "test"; // "test" | "live"
 
-  var PROGRAM_LENGTH_WEEKS = 4;
+  var PLAN_PRICE_CENTS = 3999; // $39.99/month
+  var BILLING_INTERVAL = "month";
 
-  /* Total stake, returned in full if you finish without missing every day.
-     $39.99, deliberately a cent under $40, same under-the-round-number
-     pattern as the main app's $19.99 entry (see CLAUDE.md). */
-  var COHORT_STAKE_AMOUNT_CENTS = 3999; // $39.99 total
-
-  /* Platform revenue, not returned. One upfront charge, marketed as
-     "~$2.50/week" but never billed weekly, that would make it a recurring
-     subscription collected outside the App/Play Store, which this flow
-     must not do. */
-  var ENTRY_FEE_CENTS = 1000; // $10 total (~$2.50/week x 4, rounded)
-
-  /* Applies from day 1: no grace period, no free "life happened" passes.
-     Missing every day across the whole program forfeits effectively the
-     full stake (200 x 20 weekdays = 4000, one cent over the $39.99 stake;
-     the mechanic caps forfeiture at the stake itself, same rounding gap as
-     the stake-vs-$40 cent above). Forfeited money goes into the pool split
-     among cohort members who finish, same mechanic as the main app. */
-  var MISS_AMOUNT_CENTS_PER_DAY = 200; // $2/day
-
-  var TOTAL_CHARGE_CENTS = COHORT_STAKE_AMOUNT_CENTS + ENTRY_FEE_CENTS; // $49.99, one charge
-
-  var COHORT_PAYMENT_LINK = {
-    test: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00",
-    live: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00"
+  var MEMBERSHIP_PAYMENT_LINK = {
+    test: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring-price link
+    live: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00"        // TODO: replace with a recurring-price link
   };
+
+  /* No-code cancellation, per the README's documented plan: Settings >
+     Billing > Customer portal > the shareable link option (asks the
+     member to verify their email, no login system needed on our side).
+     Empty until that's enabled in the Stripe dashboard and the link is
+     pasted in here — moms-success.html only shows the "manage membership"
+     link when this is non-empty, so there's never a dead link on the page. */
+  var CUSTOMER_PORTAL_URL = "";
 
   /* ------------------------------------------------------------------ *
    * 3. SUPABASE: stores onboarding answers + lead status
@@ -116,36 +118,18 @@ window.WALKA_MOMS = (function () {
   var SUPABASE_TABLE = "moms_leads";
 
   /* ------------------------------------------------------------------ *
-   * 4. GOAL
+   * 4. COPY. One consistent warm voice throughout (no tone picker) —
+   *    every onboarding/checkout string lives here, not hardcoded in
+   *    the page. Keep it warm, plainspoken, and short: no guilt, no
+   *    pressure, no weight-loss or "bounce back" language, no promises
+   *    of health outcomes.
    * ------------------------------------------------------------------ */
-  var GOAL_OPTIONS = [3000, 5000, 10000];
-  var PREPARE_MODE_DEFAULT_GOAL = null; // no numeric step goal until cleared
-
-  /* ------------------------------------------------------------------ *
-   * 5. COPY, by motivation style. "princess" is the default tone;
-   *    every onboarding/checkout string below should pull from here
-   *    rather than being hardcoded in the page. Keep it short.
-   * ------------------------------------------------------------------ */
-  var TONE = {
-    princess: {
-      name: "Princess treatment",
-      continue: "Continue",
-      encourageGoal: "Pick a gentle starting goal.",
-      prepareModeNote: "No pressure, no numbers yet. You're welcome here as you are.",
-      checkoutIntro: "Here's your plan."
-    },
-    coach: {
-      name: "Tough coach",
-      continue: "Next",
-      encourageGoal: "Pick your starting number and commit.",
-      prepareModeNote: "No goal yet. Get cleared first, then we go to work.",
-      checkoutIntro: "Here's the deal. Lock it in."
-    }
-  };
-
   var COPY = {
-    metaTitle: "Walka for new mums",
-    metaDescription: "A walking plan and accountability cohort for pregnancy and postpartum, at your pace.",
+    metaTitle: "Walka Mom",
+    metaDescription: "A gentle walking plan, a private community, and support made for pregnancy and postpartum, at your pace.",
+
+    continueLabel: "Continue",
+    skipLabel: "Skip for now",
 
     gate: {
       title: "This page isn't open yet.",
@@ -163,12 +147,14 @@ window.WALKA_MOMS = (function () {
 
     resumeBanner: "Welcome back. Picking up where you left off.",
 
-    disclaimer: "Not medical advice. Follow your doctor's or midwife's guidance.",
+    disclaimer: "Not medical advice, and this isn't a medical clearance. Always follow your doctor's or midwife's guidance.",
+
+    privacyNote: "Anything you share here is private to your Walka Mom account. You can skip any question you'd rather not answer.",
 
     landing: {
       eyebrow: "For pregnancy & postpartum",
       title: "Find your rhythm again, one walk at a time.",
-      tagline: "A personalized walking plan, your own coach, and a community of moms who get it.",
+      tagline: "Gentle walking challenges, honest conversations, and a private community of moms who understand what you're going through.",
       cta: "Let's begin",
       heroPhoto: "images/feature-pace.jpg",
 
@@ -178,20 +164,20 @@ window.WALKA_MOMS = (function () {
         {
           icon: "💬",
           photo: "images/feature-coach.jpg",
-          title: "Tell us where you are",
-          desc: "A few questions about your routine, energy, and goals."
+          title: "Tell us about you",
+          desc: "A few honest questions about this season, no judgment and nothing you have to answer."
         },
         {
           icon: "🫂",
           photo: "images/feature-circle.jpg",
-          title: "Get your plan and your people",
-          desc: "Your personal walking coach and a circle of moms at a similar stage"
+          title: "Find your people",
+          desc: "Small walking circles and a private community of moms who get it."
         },
         {
           icon: "🚶‍♀️",
           photo: "images/feature-pace.jpg",
-          title: "Walk at your own pace",
-          desc: "Build consistency through check-ins, encouragement, and challenges"
+          title: "Walk together, at your pace",
+          desc: "Gentle, flexible challenges shaped around your day, not a fixed step count."
         }
       ],
 
@@ -202,179 +188,188 @@ window.WALKA_MOMS = (function () {
         { caption: "Due soon" },
         { caption: "0–3 months postpartum" },
         { caption: "3–6 months postpartum" },
-        { caption: "6–12 months postpartum" }
+        { caption: "6–12 months postpartum" },
+        { caption: "1+ year postpartum" }
+      ]
+    },
+
+    /* Shared grouping data, used by resolvedCohortFor()/prettyCohort() in
+       moms-app.js to auto-place a member into a walking circle. Not its
+       own screen (the old "cohort" step was retired) — the assignment
+       surfaces as one line on the `results` step instead. */
+    cohort: {
+      assignedLabel: "You'll be walking with: {group}",
+      groupsPregnant: [
+        { value: "due_soon", label: "Due soon" }
+      ],
+      groupsPostpartum: [
+        { value: "0_3m", label: "0–3 months postpartum" },
+        { value: "3_6m", label: "3–6 months postpartum" },
+        { value: "6_12m", label: "6–12 months postpartum" },
+        { value: "12m_plus", label: "1+ year postpartum" }
       ]
     },
 
     steps: {
+      /* Screen 1 */
       stage: {
-        title: "Where are you right now?",
+        title: "Where are you in your motherhood journey?",
         options: [
-          { value: "pregnant", label: "Pregnant" },
-          { value: "postpartum", label: "Postpartum" }
+          { value: "pregnant", label: "Currently pregnant" },
+          { value: "postpartum_0_3", label: "0–3 months postpartum" },
+          { value: "postpartum_3_6", label: "3–6 months postpartum" },
+          { value: "postpartum_6_12", label: "6–12 months postpartum" },
+          { value: "postpartum_12_plus", label: "More than a year postpartum" }
         ],
         dueDateLabel: "Due date (optional)",
-        weeksLabel: "Weeks postpartum (optional)"
+        weeksLabel: "Weeks postpartum, if you know it (optional)"
       },
+
+      /* Screen 2, multi-select, skippable */
+      motivation: {
+        title: "What would you love a little more of in this season?",
+        hint: "Pick as many as you'd like.",
+        optional: true,
+        options: [
+          { value: "time_my_own", label: "Time that feels like my own" },
+          { value: "energy", label: "More energy for everyday life" },
+          { value: "reason_outside", label: "A reason to get outside" },
+          { value: "other_moms", label: "Other moms who understand" },
+          { value: "routine", label: "A routine I can stick to" },
+          { value: "encouragement", label: "A little encouragement" }
+        ]
+      },
+
+      /* Screen 3, multi-select, skippable */
+      barriers: {
+        title: "What's making it difficult to find time for yourself lately?",
+        hint: "Pick as many as apply.",
+        optional: true,
+        exclusiveValues: ["prefer_not_to_say"],
+        options: [
+          { value: "exhaustion", label: "Exhaustion" },
+          { value: "unpredictable_routine", label: "Unpredictable routine" },
+          { value: "limited_support", label: "Limited support" },
+          { value: "motivation", label: "Motivation" },
+          { value: "recovering_physically", label: "Recovering or adjusting physically" },
+          { value: "doing_okay", label: "I'm doing okay, just want a routine" },
+          { value: "prefer_not_to_say", label: "Prefer not to say" }
+        ]
+      },
+
+      /* Screen 4, interlude */
+      interludeCare: {
+        eyebrow: "A little reassurance",
+        title: "You deserve care, too.",
+        body: [
+          "Some days, a walk feels wonderful. Other days, rest is exactly what you need.",
+          "Your routine should have room for both."
+        ]
+      },
+
+      /* Screen 5, skippable */
+      connection: {
+        title: "How connected do you feel to other moms right now?",
+        optional: true,
+        options: [
+          { value: "strong_circle", label: "Strong circle" },
+          { value: "few_not_close", label: "A few, but not close" },
+          { value: "want_more", label: "Want to meet more" },
+          { value: "sometimes_alone", label: "Sometimes feel alone" },
+          { value: "mainly_walking", label: "Mainly here for walking" }
+        ]
+      },
+
+      /* Screen 6, skippable */
+      conversations: {
+        title: "Are there things about motherhood you wish you could talk about more openly?",
+        optional: true,
+        options: [
+          { value: "yes_always", label: "Yes, all the time" },
+          { value: "sometimes", label: "Sometimes" },
+          { value: "not_really", label: "Not really" },
+          { value: "prefer_read", label: "I'd rather read what others share" }
+        ]
+      },
+
+      /* Screen 7, interlude */
+      interludeCommunity: {
+        eyebrow: "A quieter kind of community",
+        title: "Some conversations are easier when you can just be yourself.",
+        body: [
+          "Our community is private to members and moderated throughout.",
+          "Share under your name, or post anonymously to the group when you'd rather not. Either way, only our moderators can ever see who's behind a post."
+        ]
+      },
+
+      /* Screen 8 */
+      baseline: {
+        title: "What does walking look like for you these days?",
+        options: [
+          { value: "walks_regularly", label: "I walk regularly" },
+          { value: "gets_out_when_can", label: "I get out when I can" },
+          { value: "no_routine_yet", label: "No routine yet" },
+          { value: "recovery_break", label: "Taking a recovery break" },
+          { value: "unsure_comfortable", label: "Unsure what's comfortable" }
+        ]
+      },
+
+      /* Screen 9, two parts: optional safety question, then routine preference */
       clearance: {
-        title: "Has your healthcare professional given you any guidance or restrictions about physical activity?",
+        title: "Has a clinician given you any guidance about activity right now?",
         options: [
           { value: "yes", label: "No restrictions" },
-          { value: "not_yet", label: "I have some restrictions" },
-          { value: "not_sure", label: "I'm not sure" }
+          { value: "not_yet", label: "Some restrictions" },
+          { value: "not_sure", label: "Not sure" },
+          { value: "prefer_not_to_say", label: "Prefer not to say" }
         ],
-        notClearedNote: "No problem. Join now in prepare mode, no step goals until you're cleared.",
-        medicalReminder: "Not medical advice. Check with your doctor or midwife first."
-      },
-      baseline: {
-        title: "Where are you starting from?",
-        stepsLabel: "Typical steps per day",
-        stepsOptions: [
-          { value: "under_2k", label: "Under 2,000" },
-          { value: "2k_5k", label: "2,000–5,000" },
-          { value: "5k_8k", label: "5,000–8,000" },
-          { value: "8k_plus", label: "8,000+" },
-          { value: "not_sure", label: "Not sure" }
-        ],
-        energyLabel: "Energy level lately",
-        energyOptions: [
-          { value: "low", label: "Low" },
-          { value: "medium", label: "Okay" },
-          { value: "high", label: "Good" }
-        ],
-        barriersLabel: "What gets in the way?",
-        barriersOptions: [
-          { value: "baby_sleep", label: "Baby's sleep" },
-          { value: "time", label: "Time" },
-          { value: "tiredness", label: "Tiredness" },
-          { value: "motivation", label: "Motivation" },
-          { value: "pain", label: "Pain" },
-          { value: "recovery", label: "Recovery" },
-          { value: "no_childcare", label: "No childcare" },
-          { value: "other", label: "Something else" }
+        notClearedNote: "Good to know. We'll keep things gentle and skip any fixed goals for now.",
+        medicalReminder: "This isn't medical advice or a medical clearance. Always follow your doctor's or midwife's guidance.",
+        routineTitle: "What would a good walking routine feel like for you?",
+        routineOptions: [
+          { value: "short_walks", label: "Short walks when possible" },
+          { value: "time_outside", label: "Time outside most days" },
+          { value: "flexible_goal", label: "A flexible weekly goal" },
+          { value: "gentle_challenges", label: "Gentle shared challenges" },
+          { value: "not_ready", label: "Not ready to set a goal" }
         ]
-      },
-      insightActivity: {
-        pregnant: {
-          eyebrow: "A little pregnancy science",
-          title: "Your body is doing a lot right now. Walking still fits.",
-          body: [
-            "The CDC recommends about 150 minutes of moderate activity a week during pregnancy, and walking is one of the easiest ways to get there.",
-            "Go at whatever pace feels right today. Your plan adjusts with you."
-          ],
-          sourceLabel: "CDC, Physical Activity for Pregnant and Postpartum Women",
-          sourceUrl: "https://www.cdc.gov/physical-activity-basics/guidelines/healthy-pregnant-or-postpartum-women.html",
-          continueLabel: "Find my pace"
-        },
-        postpartum: {
-          eyebrow: "A little postpartum science",
-          title: "Your body has been through a lot. Start small.",
-          body: [
-            "Research shows that physical activity after childbirth can support emotional well-being and reduce symptoms of postpartum depression.",
-            "Even a short, comfortable walk can be a meaningful beginning, when you're ready."
-          ],
-          sourceLabel: "CDC, Physical Activity for Pregnant and Postpartum Women",
-          sourceUrl: "https://www.cdc.gov/physical-activity-basics/guidelines/healthy-pregnant-or-postpartum-women.html",
-          continueLabel: "Find my pace"
-        }
       },
 
-      insightCommunity: {
-        pregnant: {
-          eyebrow: "The power of connection",
-          title: "Who's walking this with you?",
-          body: [
-            "Pregnancy can feel isolating too, even surrounded by people who love you.",
-            "A review of over 64,000 pregnant women found that low social support was linked to higher rates of depression and anxiety during pregnancy."
-          ],
-          callout: "You deserve a circle, too.",
-          sourceLabel: "Bedaso et al., Reproductive Health, Social Support and Mental Health Problems During Pregnancy",
-          sourceUrl: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8320195",
-          continueLabel: "Meet my circle"
-        },
-        postpartum: {
-          eyebrow: "The power of connection",
-          title: "Who's checking in on you?",
-          body: [
-            "The postpartum season can feel isolating, even when you're rarely alone.",
-            "Research links stronger social support with fewer depressive and anxiety symptoms in the months after birth."
-          ],
-          callout: "You deserve a circle, too.",
-          sourceLabel: "Schwab-Reese et al., Women & Health, Social Support and Postpartum Maternal Mental Health",
-          sourceUrl: "https://pmc.ncbi.nlm.nih.gov/articles/PMC6097234",
-          continueLabel: "Meet my circle"
-        }
+      /* Screen 10, personalized results */
+      results: {
+        eyebrow: "Made for you",
+        title: "A little space for you.",
+        intro: "Here's what we put together, based on what you shared.",
+        note: "This isn't a promise about results, just where we'd start with you.",
+        continueLabel: "See what's included"
       },
 
-      goal: {
-        title: "Your starting goal",
-        options: [
-          { value: 3000, label: "3,000 steps/day" },
-          { value: 5000, label: "5,000 steps/day" },
-          { value: 10000, label: "10,000 steps/day" }
-        ],
-        weeklyFrame: "Aim for 5 good days a week, not 7.",
-        prepareModeTitle: "No step goal yet, and that's the plan."
-      },
-      motivation: {
-        title: "What kind of voice helps you most?",
-        options: [
-          { value: "princess", label: "Princess treatment", desc: "Gentle and encouraging" },
-          { value: "coach", label: "Tough coach", desc: "Direct, no excuses" }
+      /* Screen 11, trust / community preview */
+      trustPreview: {
+        eyebrow: "A peek inside",
+        title: "What it actually feels like in here.",
+        intro: "A few examples of what members share, since words are easier than a feature list.",
+        illustrativeBadge: "Illustrative preview, not an actual member post",
+        posts: [
+          { author: "A member, 3 weeks postpartum", text: "Some days I walk for ten minutes and call it a win. This group actually gets that." },
+          { author: "A member, 34 weeks pregnant", text: "Posted anonymously about feeling touched out today. Had three replies before dinner." },
+          { author: "A member, 5 months postpartum", text: "Our little circle checks in most mornings. Some days that's the whole walk." }
         ]
       },
-      cohort: {
-        title: "What you're joining",
-        recapItems: [
-          "Walking with other mums, and staying locked in on your goal",
-          "Daily encouragement from your personalized coach",
-          "Accountability and Community"
-        ],
-        assignedLabel: "You'll be grouped with: {group}",
-        groupsPregnant: [
-          { value: "due_soon", label: "Due soon" }
-        ],
-        groupsPostpartum: [
-          { value: "0_3m", label: "0–3 months postpartum" },
-          { value: "3_6m", label: "3–6 months postpartum" },
-          { value: "6_12m", label: "6–12 months postpartum" }
-        ]
-      },
-      planPreview: {
-        title: "Your plan",
-        recapLine: "Here's what we've put together for you.",
-        goalLabel: "Daily goal",
-        prepareGoalValue: "No goal yet, prepare mode",
-        lengthLabel: "Length",
-        cohortLabel: "Your people",
-        toneLabel: "Coach style",
-        note: "Personalized to your stage, goal, and schedule."
-      },
+
+      /* Screen 12 */
       checkout: {
-        title: "Confirm",
+        title: "Your membership",
+        intro: "Here's what you're joining.",
+        includedLabel: "What's included",
         nameLabel: "First name",
         emailLabel: "Email",
-        summaryGoalLabel: "Goal",
-        summaryLengthLabel: "Challenge length",
-        summaryCohortLabel: "Cohort",
-        summaryToneLabel: "Style",
-        summaryStakeLabel: "Stake",
-        summaryFeeLabel: "Entry fee",
-        summaryMissLabel: "If you miss a weekday",
-        summaryTotalLabel: "Total today",
-        prepareMissValue: "Not tracked yet",
-        prepareTotalValue: "Nothing today",
-        prepareExplainer: "You're reserving your spot, not starting a challenge yet. No workouts, no missed-day deductions, and no payment today. You'll pay {total} only once you're cleared and ready to begin.",
-        noteLine: "Finish, keep your stake. Weekends don't count.",
-        prepareNote: "No payment until you're cleared. We'll email you when it's time to confirm your spot.",
+        billingNote: "Billed monthly. Cancel anytime, a link to manage or cancel your membership is in your confirmation email.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
         agreePrivacyText: "Privacy Policy",
-        payCta: "Pay",
-        payCtaPrepare: "Reserve my spot",
-        reservedTitle: "You're on the list.",
-        reservedBody: "No charge today. We'll email you when it's time to confirm your spot and pay, once you're cleared.",
+        payCta: "Start my membership",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         legalLinks: { terms: "/terms", privacy: "/privacy" }
       }
@@ -382,8 +377,8 @@ window.WALKA_MOMS = (function () {
 
     success: {
       title: "You're in.",
-      body: "Welcome to your cohort. We'll email your plan and next steps soon.",
-      note: "Check your inbox for details."
+      body: "Your Walka Mom membership is active. Open the Walka app to see your plan and your people.",
+      note: "A confirmation email is on its way, with a link to manage your membership anytime."
     },
 
     returnMissing: {
@@ -391,6 +386,57 @@ window.WALKA_MOMS = (function () {
       body: "Your payment went through. If anything looks off, email susanadelokiki@gmail.com and we'll sort it."
     }
   };
+
+  /* ------------------------------------------------------------------ *
+   * 5. PERSONALIZATION: benefit cards shown on the `results` step (and
+   *    reused on `checkout`'s "what's included" list), filtered and
+   *    ranked by computePersonalizedBenefits() in moms-app.js against
+   *    the member's actual answers. Declarative conditions only, no
+   *    functions here — the matching logic lives in moms-app.js.
+   *
+   *    Open gap: the brief's "wants reflection -> private diary" rule has
+   *    no literal matching option among the six `motivation` choices
+   *    above. private_diary's trigger below is a proxy (encouragement/
+   *    time-for-myself + prefers reading over posting) — worth a product
+   *    glance, not blocking.
+   * ------------------------------------------------------------------ */
+  var BENEFITS_CATALOG = [
+    {
+      id: "rest_path", icon: "🌙", title: "Room to rest, no pressure",
+      body: "If today calls for rest instead of a walk, that counts too. No streaks to protect, no goals you're not ready for.",
+      priority: 12, triggers: { recovering: true }
+    },
+    {
+      id: "walking_circles", icon: "🫂", title: "Small walking circles",
+      body: "A few other moms at a similar stage, walking alongside you at your pace.",
+      priority: 10,
+      triggers: { motivation_wants_any: ["other_moms", "routine"], connection_any: ["few_not_close", "want_more", "sometimes_alone"] }
+    },
+    {
+      id: "forums", icon: "💬", title: "A community that gets it",
+      body: "A larger, moderated space for honest conversations. Share as yourself, or anonymously to the group.",
+      priority: 9,
+      triggers: { motivation_wants_any: ["other_moms"], conversations_any: ["yes_always", "sometimes", "prefer_read"] }
+    },
+    {
+      id: "flexible_challenges", icon: "🚶‍♀️", title: "Flexible walking challenges",
+      body: "Gentle, shared goals that flex around your day, never a fixed step count.",
+      priority: 8,
+      triggers: { motivation_wants_any: ["time_my_own", "energy", "reason_outside", "routine"], activity_baseline_any: ["walks_regularly", "gets_out_when_can", "no_routine_yet"] },
+      excludeIf: { recovering: true }
+    },
+    {
+      id: "private_diary", icon: "📓", title: "A private mood diary",
+      body: "A quiet place just for you to note how you're really feeling. Visible only to you.",
+      priority: 7,
+      triggers: { motivation_wants_any: ["encouragement", "time_my_own"], conversations_any: ["prefer_read", "not_really"] }
+    },
+    {
+      id: "personalized_support", icon: "💛", title: "Support that adjusts to you",
+      body: "Encouragement and check-ins shaped around your stage and your pace.",
+      priority: 6, triggers: { always: true }
+    }
+  ];
 
   /* ------------------------------------------------------------------ *
    * 6. ANALYTICS EVENT NAMES: keep these in sync with anything you
@@ -404,14 +450,14 @@ window.WALKA_MOMS = (function () {
     stepCompleted: "moms_step_completed",
     dropoff: "moms_dropoff",
     clearanceAnswered: "moms_clearance_answered",
-    motivationChosen: "moms_motivation_chosen",
+    motivationAnswered: "moms_motivation_answered",
     cohortChosen: "moms_cohort_chosen",
+    resultsViewed: "moms_results_viewed",
     checkoutViewed: "moms_checkout_viewed",
     checkoutStarted: "moms_checkout_started",
     checkoutCompleted: "moms_checkout_completed",
     checkoutFailed: "moms_checkout_failed",
-    geoBlocked: "moms_geo_blocked",
-    prepareReserved: "moms_prepare_reserved"
+    geoBlocked: "moms_geo_blocked"
   };
 
   return {
@@ -421,19 +467,15 @@ window.WALKA_MOMS = (function () {
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
     GEO_ALLOWED_COUNTRIES: GEO_ALLOWED_COUNTRIES,
     STRIPE_MODE: STRIPE_MODE,
-    PROGRAM_LENGTH_WEEKS: PROGRAM_LENGTH_WEEKS,
-    COHORT_STAKE_AMOUNT_CENTS: COHORT_STAKE_AMOUNT_CENTS,
-    ENTRY_FEE_CENTS: ENTRY_FEE_CENTS,
-    MISS_AMOUNT_CENTS_PER_DAY: MISS_AMOUNT_CENTS_PER_DAY,
-    TOTAL_CHARGE_CENTS: TOTAL_CHARGE_CENTS,
-    COHORT_PAYMENT_LINK: COHORT_PAYMENT_LINK,
+    PLAN_PRICE_CENTS: PLAN_PRICE_CENTS,
+    BILLING_INTERVAL: BILLING_INTERVAL,
+    MEMBERSHIP_PAYMENT_LINK: MEMBERSHIP_PAYMENT_LINK,
+    CUSTOMER_PORTAL_URL: CUSTOMER_PORTAL_URL,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,
-    GOAL_OPTIONS: GOAL_OPTIONS,
-    PREPARE_MODE_DEFAULT_GOAL: PREPARE_MODE_DEFAULT_GOAL,
-    TONE: TONE,
     COPY: COPY,
+    BENEFITS_CATALOG: BENEFITS_CATALOG,
     EVENTS: EVENTS
   };
 })();

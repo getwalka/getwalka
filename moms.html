@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walka for new mums</title>
-<meta name="description" content="A walking plan and accountability cohort for pregnancy and postpartum, at your pace.">
+<title>Walka Mom</title>
+<meta name="description" content="A gentle walking plan, a private community, and support made for pregnancy and postpartum, at your pace.">
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
@@ -110,6 +110,14 @@
   .pill:hover{border-color:var(--sage)}
   .pill.is-active{background:var(--ink);color:#fff;border-color:var(--ink)}
 
+  .pill--multi{display:inline-flex;align-items:center;gap:8px}
+  .pill--multi .pill__check{
+    width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line);
+    display:inline-block;flex:none;
+  }
+  .pill--multi.is-active .pill__check{background:#fff;border-color:#fff;position:relative}
+  .pill--multi.is-active .pill__check::after{content:"✓";color:var(--ink);font-size:.7rem;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+
   .opts--cards{flex-direction:column;gap:12px}
   .card-opt{
     display:flex;flex-direction:column;gap:4px;text-align:left;
@@ -139,7 +147,33 @@
   .summary__row{display:flex;justify-content:space-between;font-size:.9rem;padding:6px 0}
   .summary__row span{color:var(--ink-soft)}
 
+  .benefits{display:flex;flex-direction:column;gap:12px;margin:16px 0}
+  .benefit-card{
+    display:flex;gap:14px;align-items:flex-start;
+    background:var(--cream);border-radius:var(--r-inner);padding:16px 18px;
+  }
+  .benefit-card__icon{font-size:1.4rem;line-height:1;flex:none}
+  .benefit-card__title{font-family:var(--display);font-weight:700;font-size:.96rem;margin-bottom:4px}
+  .benefit-card__body{color:var(--ink-soft);font-size:.88rem;line-height:1.45}
+
+  .badge{
+    display:inline-block;font-family:var(--display);font-weight:700;font-size:.72rem;
+    letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:.35rem .8rem;
+  }
+  .badge--illustrative{background:var(--amber-tint);color:#7A5A1F}
+
+  .forum-preview{margin:14px 0;display:flex;flex-direction:column;gap:10px}
+  .forum-post{background:var(--cream);border-radius:var(--r-inner);padding:14px 16px}
+  .forum-post__author{font-family:var(--display);font-weight:700;font-size:.8rem;color:var(--ink-soft);margin-bottom:4px}
+  .forum-post__text{font-size:.92rem;color:var(--ink)}
+
+  .price-tag{
+    font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
+    margin:10px 0 2px;
+  }
+
   .flownav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .flownav__right{display:flex;align-items:center;gap:18px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
     font-family:var(--display);font-weight:600;font-size:1rem;
@@ -213,7 +247,6 @@
   .cohort-layout{display:grid;grid-template-columns:.95fr 1.05fr;gap:40px;align-items:center;margin-top:8px}
   .cohort-layout>*{min-width:0}
   .cohort-visual{max-width:360px}
-  .cohort-visual svg{width:100%;height:auto;display:block}
   .cohort-chips{display:flex;flex-wrap:wrap;gap:10px}
   .cohort-chip{
     font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--ink);
@@ -270,7 +303,10 @@
       <div class="card" id="screen"></div>
       <div class="flownav">
         <button type="button" class="link" id="backBtn" hidden>Back</button>
-        <button type="button" class="btn btn--ink" id="continueBtn">Continue</button>
+        <div class="flownav__right">
+          <button type="button" class="link" id="skipBtn" hidden>Skip for now</button>
+          <button type="button" class="btn btn--ink" id="continueBtn">Continue</button>
+        </div>
       </div>
     </div>
   </div>

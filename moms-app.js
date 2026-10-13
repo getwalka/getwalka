@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Walka: Postpartum Mums test flow, ENGINE
+   Walka Mom: onboarding flow, ENGINE
    Step state machine, feature-flag gate, resume-from-localStorage,
    analytics events, Supabase sync, Stripe Payment Link handoff.
    All copy/config lives in moms-copy.js, this file should not contain
@@ -11,11 +11,18 @@
   var WM = window.WALKA_MOMS;
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
-  /* v2: bumped when the insight screens were inserted into STEP_IDS, since
-     a saved numeric stepIndex from before that change now points at a
-     different step and must not be resumed as if nothing moved. */
-  var STORAGE_KEY = "walka_moms_state_v2";
-  var STEP_IDS = ["stage", "clearance", "baseline", "insightActivity", "goal", "motivation", "insightCommunity", "cohort", "planPreview", "checkout"];
+  /* v3: bumped for the empathetic-funnel/membership redesign, which
+     replaced the step sequence wholesale (new steps inserted/removed/
+     reordered throughout, not just a couple added in the middle). A saved
+     numeric stepIndex from before this change would resume into a
+     completely different step than the one the visitor left, so stale
+     state must be discarded rather than resumed. moms-success.html reads
+     the same key and must be bumped in lockstep. */
+  var STORAGE_KEY = "walka_moms_state_v3";
+  var STEP_IDS = [
+    "stage", "motivation", "barriers", "interludeCare", "connection", "conversations",
+    "interludeCommunity", "baseline", "clearance", "results", "trustPreview", "checkout"
+  ];
 
   /* ---------------- utilities ---------------- */
 
@@ -94,20 +101,21 @@
       updated_at: new Date().toISOString(),
       country: a.country || null,
       stage: a.stage || null,
-      weeks_postpartum: a.weeks_postpartum != null ? Number(a.weeks_postpartum) : null,
+      motherhood_stage: a.motherhood_stage || null,
+      weeks_postpartum: (a.weeks_postpartum != null && a.weeks_postpartum !== "") ? Number(a.weeks_postpartum) : null,
       due_date: a.due_date || null,
       clearance_status: a.clearance_status || null,
       prepare_mode: a.clearance_status ? a.clearance_status !== "yes" : null,
-      current_steps_bucket: a.current_steps_bucket || null,
-      energy_level: a.energy_level || null,
-      barriers: a.barriers || null,
-      adjusted_goal: a.adjusted_goal != null ? a.adjusted_goal : null,
-      motivation_style: a.motivation_style || "princess",
+      routine_preference: a.routine_preference || null,
+      activity_baseline: a.activity_baseline || null,
+      barriers: (a.barriers && a.barriers.length) ? a.barriers : null,
+      motivation_wants: (a.motivation_wants && a.motivation_wants.length) ? a.motivation_wants : null,
+      motivation_style: null, // tone picker retired; see supabase/moms_leads.sql
+      connection: a.connection || null,
+      conversations_openness: a.conversations_openness || null,
       cohort: a.cohort || null,
-      stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS,
-      miss_cents: a.clearance_status === "yes" ? WM.MISS_AMOUNT_CENTS_PER_DAY : null,
-      entry_fee_cents: WM.ENTRY_FEE_CENTS,
-      program_length_weeks: WM.PROGRAM_LENGTH_WEEKS,
+      plan_price_cents: WM.PLAN_PRICE_CENTS,
+      billing_interval: WM.BILLING_INTERVAL,
       email: a.email || null,
       first_name: a.first_name || null,
       last_step: STEP_IDS[state.stepIndex] || null,
@@ -119,35 +127,73 @@
       .catch(function (err) { console.warn("[moms-flow] supabase upsert failed", err); });
   }
 
-  /* No longer user-pickable: the cohort step shows whichever of these the
-     visitor is auto-placed into, read-only. Postpartum without a weeks
-     answer (that field is optional) falls back to the earliest group
-     rather than leaving nothing assigned. */
+  /* Auto-placement into a small walking circle, read-only (no screen of
+     its own — the assignment surfaces as one line on the `results` step).
+     Falls back to the earliest postpartum group if motherhood_stage is
+     somehow unset, so placement never leaves a member unassigned. */
   function resolvedCohortFor(a) {
-    if (a.stage === "pregnant") return "due_soon";
-    var weeks = Number(a.weeks_postpartum);
-    if (!weeks || isNaN(weeks)) return "0_3m";
-    if (weeks <= 13) return "0_3m";
-    if (weeks <= 26) return "3_6m";
-    return "6_12m";
+    switch (a.motherhood_stage) {
+      case "pregnant": return "due_soon";
+      case "postpartum_0_3": return "0_3m";
+      case "postpartum_3_6": return "3_6m";
+      case "postpartum_6_12": return "6_12m";
+      case "postpartum_12_plus": return "12m_plus";
+      default: return "0_3m";
+    }
   }
 
-  function tone() { return WM.TONE[state.answers.motivation_style || "princess"]; }
+  /* Who gets a personalized benefit card on `results` (and the same list,
+     reused, on `checkout`'s "what's included"). Declarative conditions
+     live in moms-copy.js's BENEFITS_CATALOG; this just evaluates them.
+     Each specified trigger dimension is OR'd, not AND'd — a card matches
+     if ANY one of its conditions is satisfied, so skipping one optional
+     question never silently hides a card another answer already earned. */
+  function computePersonalizedBenefits(a) {
+    var recovering = a.activity_baseline === "recovery_break"
+      || a.clearance_status === "not_yet"
+      || a.routine_preference === "not_ready";
+    var wants = a.motivation_wants || [];
+    var connection = a.connection;
+    var conversations = a.conversations_openness;
+    var baseline = a.activity_baseline;
+
+    function matches(card) {
+      var t = card.triggers;
+      if (card.excludeIf && card.excludeIf.recovering && recovering) return false;
+      if (t.always) return true;
+      if (t.recovering) return recovering;
+      var conditions = [];
+      if (t.motivation_wants_any) conditions.push(t.motivation_wants_any.some(function (v) { return wants.indexOf(v) !== -1; }));
+      if (t.connection_any) conditions.push(t.connection_any.indexOf(connection) !== -1);
+      if (t.conversations_any) conditions.push(t.conversations_any.indexOf(conversations) !== -1);
+      if (t.activity_baseline_any) conditions.push(t.activity_baseline_any.indexOf(baseline) !== -1);
+      if (!conditions.length) return false;
+      return conditions.some(function (c) { return c; });
+    }
+
+    return WM.BENEFITS_CATALOG.filter(matches)
+      .sort(function (x, y) { return y.priority - x.priority; })
+      .slice(0, 4);
+  }
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
-     canAdvance() -> bool, onEnter() optional, onLeave() optional (validate+persist) */
+     canAdvance() -> bool, onEnter() optional, onLeave() optional
+     (validate+persist). A step may also set optional:true (shows a
+     "Skip for now" link that bypasses canAdvance) and continueLabel(a)
+     (overrides the shared continue button's default text). */
 
   var steps = {
 
+    /* Screen 1 */
     stage: {
       render: function (a) {
         var opts = COPY.steps.stage.options.map(function (o) {
-          return pillOption("stage_value", o.value, o.label, a.stage === o.value);
+          return pillOption("stage_value", o.value, o.label, a.motherhood_stage === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.stage.title + '</h2>' +
           '<div class="opts" id="stageOpts">' + opts + '</div>' +
@@ -156,7 +202,9 @@
       bind: function (root) {
         root.querySelectorAll('#stageOpts .pill').forEach(function (b) {
           b.addEventListener("click", function () {
-            state.answers.stage = b.getAttribute("data-value");
+            var v = b.getAttribute("data-value");
+            state.answers.motherhood_stage = v;
+            state.answers.stage = (v === "pregnant") ? "pregnant" : "postpartum";
             root.querySelectorAll('#stageOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             root.querySelector("#stageFollowup").innerHTML = stageFollowupHTML(state.answers);
             bindStageFollowup(root);
@@ -165,20 +213,133 @@
         });
         bindStageFollowup(root);
       },
-      canAdvance: function (a) { return !!a.stage; }
+      canAdvance: function (a) { return !!a.motherhood_stage; }
     },
 
+    /* Screen 2, multi-select, skippable */
+    motivation: {
+      optional: true,
+      render: function (a) {
+        var c = COPY.steps.motivation;
+        var opts = c.options.map(function (o) {
+          return pillOption("motivation_value", o.value, o.label, (a.motivation_wants || []).indexOf(o.value) !== -1, true);
+        }).join("");
+        return '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-hint">' + c.hint + '</p>' +
+          '<div class="opts" id="motivationOpts">' + opts + '</div>';
+      },
+      bind: function (root) { bindMultiSelect(root, "#motivationOpts", "motivation_wants", null); },
+      canAdvance: function (a) { return (a.motivation_wants || []).length > 0; },
+      onLeave: function (a) { track(EVENTS.motivationAnswered, { values: a.motivation_wants || [] }); }
+    },
+
+    /* Screen 3, multi-select, skippable */
+    barriers: {
+      optional: true,
+      render: function (a) {
+        var c = COPY.steps.barriers;
+        var opts = c.options.map(function (o) {
+          return pillOption("barrier_value", o.value, o.label, (a.barriers || []).indexOf(o.value) !== -1, true);
+        }).join("");
+        return '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-hint">' + c.hint + '</p>' +
+          '<div class="opts" id="barriersOpts">' + opts + '</div>';
+      },
+      bind: function (root) { bindMultiSelect(root, "#barriersOpts", "barriers", COPY.steps.barriers.exclusiveValues); },
+      canAdvance: function (a) { return (a.barriers || []).length > 0; }
+    },
+
+    /* Screen 4, interlude */
+    interludeCare: makeInsightStep("interludeCare"),
+
+    /* Screen 5, skippable */
+    connection: {
+      optional: true,
+      render: function (a) {
+        var opts = COPY.steps.connection.options.map(function (o) {
+          return pillOption("connection_value", o.value, o.label, a.connection === o.value);
+        }).join("");
+        return '<h2 class="q-title">' + COPY.steps.connection.title + '</h2>' +
+          '<div class="opts" id="connectionOpts">' + opts + '</div>';
+      },
+      bind: function (root) {
+        root.querySelectorAll('#connectionOpts .pill').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.connection = b.getAttribute("data-value");
+            root.querySelectorAll('#connectionOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            refreshContinue();
+          });
+        });
+      },
+      canAdvance: function (a) { return !!a.connection; }
+    },
+
+    /* Screen 6, skippable */
+    conversations: {
+      optional: true,
+      render: function (a) {
+        var opts = COPY.steps.conversations.options.map(function (o) {
+          return pillOption("conversations_value", o.value, o.label, a.conversations_openness === o.value);
+        }).join("");
+        return '<h2 class="q-title">' + COPY.steps.conversations.title + '</h2>' +
+          '<div class="opts" id="conversationsOpts">' + opts + '</div>';
+      },
+      bind: function (root) {
+        root.querySelectorAll('#conversationsOpts .pill').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.conversations_openness = b.getAttribute("data-value");
+            root.querySelectorAll('#conversationsOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            refreshContinue();
+          });
+        });
+      },
+      canAdvance: function (a) { return !!a.conversations_openness; }
+    },
+
+    /* Screen 7, interlude */
+    interludeCommunity: makeInsightStep("interludeCommunity"),
+
+    /* Screen 8 */
+    baseline: {
+      render: function (a) {
+        var opts = COPY.steps.baseline.options.map(function (o) {
+          return pillOption("baseline_value", o.value, o.label, a.activity_baseline === o.value);
+        }).join("");
+        return '<h2 class="q-title">' + COPY.steps.baseline.title + '</h2>' +
+          '<div class="opts" id="baselineOpts">' + opts + '</div>';
+      },
+      bind: function (root) {
+        root.querySelectorAll('#baselineOpts .pill').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.activity_baseline = b.getAttribute("data-value");
+            root.querySelectorAll('#baselineOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            refreshContinue();
+          });
+        });
+      },
+      canAdvance: function (a) { return !!a.activity_baseline; }
+    },
+
+    /* Screen 9: part A (optional, non-blocking safety question) + part B
+       (routine preference, required). Worded so it never reads as medical
+       clearance, per the brief. */
     clearance: {
       render: function (a) {
-        var opts = COPY.steps.clearance.options.map(function (o) {
+        var c = COPY.steps.clearance;
+        var opts = c.options.map(function (o) {
           return pillOption("clearance_value", o.value, o.label, a.clearance_status === o.value);
         }).join("");
         var note = (a.clearance_status && a.clearance_status !== "yes")
-          ? '<p class="q-note">' + COPY.steps.clearance.notClearedNote + '</p>' : "";
-        return '<h2 class="q-title">' + COPY.steps.clearance.title + '</h2>' +
+          ? '<p class="q-note">' + c.notClearedNote + '</p>' : "";
+        var routineOpts = c.routineOptions.map(function (o) {
+          return pillOption("routine_value", o.value, o.label, a.routine_preference === o.value);
+        }).join("");
+        return '<h2 class="q-title">' + c.title + '</h2>' +
           '<div class="opts" id="clearanceOpts">' + opts + '</div>' +
           '<div id="clearanceNote">' + note + '</div>' +
-          '<p class="q-disclaimer">' + COPY.steps.clearance.medicalReminder + '</p>';
+          '<p class="q-disclaimer">' + c.medicalReminder + '</p>' +
+          '<p class="q-label">' + c.routineTitle + '</p>' +
+          '<div class="opts" id="routineOpts">' + routineOpts + '</div>';
       },
       bind: function (root) {
         root.querySelectorAll('#clearanceOpts .pill').forEach(function (b) {
@@ -188,183 +349,79 @@
             root.querySelector("#clearanceNote").innerHTML = state.answers.clearance_status !== "yes"
               ? '<p class="q-note">' + COPY.steps.clearance.notClearedNote + '</p>' : "";
             track(EVENTS.clearanceAnswered, { value: state.answers.clearance_status });
+          });
+        });
+        root.querySelectorAll('#routineOpts .pill').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.routine_preference = b.getAttribute("data-value");
+            root.querySelectorAll('#routineOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
           });
         });
       },
-      canAdvance: function (a) { return !!a.clearance_status; }
+      canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    baseline: {
+    /* Screen 10, personalized results */
+    results: {
       render: function (a) {
-        var stepsOpts = COPY.steps.baseline.stepsOptions.map(function (o) {
-          return pillOption("steps_value", o.value, o.label, a.current_steps_bucket === o.value);
-        }).join("");
-        var energyOpts = COPY.steps.baseline.energyOptions.map(function (o) {
-          return pillOption("energy_value", o.value, o.label, a.energy_level === o.value);
-        }).join("");
-        var barrierOpts = COPY.steps.baseline.barriersOptions.map(function (o) {
-          var checked = (a.barriers || []).indexOf(o.value) !== -1;
-          return pillOption("barrier_value", o.value, o.label, checked, true);
-        }).join("");
-        return '<h2 class="q-title">' + COPY.steps.baseline.title + '</h2>' +
-          '<p class="q-label">' + COPY.steps.baseline.stepsLabel + '</p>' +
-          '<div class="opts" id="stepsOpts">' + stepsOpts + '</div>' +
-          '<p class="q-label">' + COPY.steps.baseline.energyLabel + '</p>' +
-          '<div class="opts" id="energyOpts">' + energyOpts + '</div>' +
-          '<p class="q-label">' + COPY.steps.baseline.barriersLabel + '</p>' +
-          '<div class="opts" id="barrierOpts">' + barrierOpts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#stepsOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.current_steps_bucket = b.getAttribute("data-value");
-            root.querySelectorAll('#stepsOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
-          });
-        });
-        root.querySelectorAll('#energyOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.energy_level = b.getAttribute("data-value");
-            root.querySelectorAll('#energyOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
-          });
-        });
-        root.querySelectorAll('#barrierOpts .pill').forEach(function (b) {
-          b.addEventListener("click", function () {
-            var v = b.getAttribute("data-value");
-            var list = state.answers.barriers || [];
-            var idx = list.indexOf(v);
-            if (idx === -1) list.push(v); else list.splice(idx, 1);
-            state.answers.barriers = list;
-            b.classList.toggle("is-active");
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.current_steps_bucket && !!a.energy_level; }
-    },
-
-    insightActivity: makeInsightStep("insightActivity"),
-
-    goal: {
-      render: function (a) {
-        if (a.clearance_status !== "yes") {
-          return '<h2 class="q-title">' + COPY.steps.goal.prepareModeTitle + '</h2>' +
-            '<p class="q-body">' + tone().prepareModeNote + '</p>';
-        }
-        var g = COPY.steps.goal;
-        var opts = g.options.map(function (o) {
-          return pillOption("goal_value", o.value, o.label, a.adjusted_goal === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + g.title + '</h2>' +
-          '<p class="q-body">' + tone().encourageGoal + '</p>' +
-          '<div class="opts" id="goalOpts">' + opts + '</div>' +
-          '<p class="q-note">' + g.weeklyFrame + '</p>';
-      },
-      bind: function (root) {
-        var opts = root.querySelectorAll('#goalOpts .pill');
-        if (!opts.length) return;
-        opts.forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.adjusted_goal = Number(b.getAttribute("data-value"));
-            opts.forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
-          });
-        });
-      },
-      canAdvance: function (a) { return a.clearance_status !== "yes" || !!a.adjusted_goal; }
-    },
-
-    motivation: {
-      render: function (a) {
-        var opts = COPY.steps.motivation.options.map(function (o) {
-          var active = (a.motivation_style || "princess") === o.value;
-          return '<button type="button" class="card-opt' + (active ? " is-active" : "") + '" data-value="' + o.value + '">' +
-            '<span class="card-opt__label">' + o.label + '</span><span class="card-opt__desc">' + o.desc + '</span></button>';
-        }).join("");
-        if (!a.motivation_style) a.motivation_style = "princess";
-        return '<h2 class="q-title">' + COPY.steps.motivation.title + '</h2>' +
-          '<div class="opts opts--cards" id="toneOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#toneOpts .card-opt').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.motivation_style = b.getAttribute("data-value");
-            root.querySelectorAll('#toneOpts .card-opt').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            track(EVENTS.motivationChosen, { value: state.answers.motivation_style });
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.motivation_style; }
-    },
-
-    insightCommunity: makeInsightStep("insightCommunity"),
-
-    cohort: {
-      render: function (a) {
-        var c = COPY.steps.cohort;
+        var c = COPY.steps.results;
         a.cohort = resolvedCohortFor(a);
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="recap">' +
-            '<ul class="recap__list">' + c.recapItems.map(function (i) { return '<li>' + i + '</li>'; }).join("") + '</ul>' +
-          '</div>' +
-          '<p class="q-body"><strong>' + fmtTemplate(c.assignedLabel, { group: prettyCohort(a.cohort) }) + '</strong></p>';
+        var benefits = computePersonalizedBenefits(a);
+        var groupLine = fmtTemplate(COPY.cohort.assignedLabel, { group: prettyCohort(a.cohort) });
+        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
+          '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + c.intro + '</p>' +
+          '<div class="benefits">' + benefits.map(benefitCardHTML).join("") + '</div>' +
+          '<p class="q-note">' + groupLine + '</p>' +
+          '<p class="q-hint">' + c.note + '</p>';
       },
       bind: function () {},
       canAdvance: function () { return true; },
-      onLeave: function (a) { track(EVENTS.cohortChosen, { cohort: a.cohort }); }
+      continueLabel: function () { return COPY.steps.results.continueLabel; },
+      onEnter: function (a) {
+        track(EVENTS.cohortChosen, { cohort: a.cohort });
+        track(EVENTS.resultsViewed, { benefit_ids: computePersonalizedBenefits(a).map(function (b) { return b.id; }) });
+      }
     },
 
-    planPreview: {
+    /* Screen 11, trust / community preview */
+    trustPreview: {
       render: function (a) {
-        var c = COPY.steps.planPreview;
-        var prepareMode = a.clearance_status !== "yes";
-        var goalText = !prepareMode && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : c.prepareGoalValue;
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-note">' + c.recapLine + '</p>' +
-          '<div class="summary">' +
-            summaryRow(c.goalLabel, goalText) +
-            summaryRow(c.lengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
-            summaryRow(c.cohortLabel, prettyCohort(a.cohort)) +
-            summaryRow(c.toneLabel, WM.TONE[a.motivation_style || "princess"].name) +
-          '</div>' +
-          '<p class="q-hint">' + c.note + '</p>';
+        var c = COPY.steps.trustPreview;
+        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
+          '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + c.intro + '</p>' +
+          renderForumPreview(c.posts, c.illustrativeBadge);
       },
       bind: function () {},
       canAdvance: function () { return true; }
     },
 
+    /* Screen 12 */
     checkout: {
       render: function (a) {
-        var prepareMode = a.clearance_status !== "yes";
-        var goalText = !prepareMode && a.adjusted_goal ? a.adjusted_goal.toLocaleString() + " steps/day" : "Prepare mode, no goal yet";
         var c = COPY.steps.checkout;
+        var benefits = computePersonalizedBenefits(a);
         return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + tone().checkoutIntro + '</p>' +
-          (prepareMode ? '<p class="q-note">' + fmtTemplate(c.prepareExplainer, { total: centsLabel(WM.TOTAL_CHARGE_CENTS) }) + '</p>' : '') +
-          '<div class="summary">' +
-            summaryRow(c.summaryGoalLabel, goalText) +
-            summaryRow(c.summaryLengthLabel, WM.PROGRAM_LENGTH_WEEKS + " weeks") +
-            summaryRow(c.summaryCohortLabel, prettyCohort(a.cohort)) +
-            summaryRow(c.summaryToneLabel, WM.TONE[a.motivation_style || "princess"].name) +
-            summaryRow(c.summaryStakeLabel, centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS)) +
-            summaryRow(c.summaryFeeLabel, centsLabel(WM.ENTRY_FEE_CENTS)) +
-            summaryRow(c.summaryMissLabel, prepareMode ? c.prepareMissValue : missValueLabel()) +
-            summaryRow(c.summaryTotalLabel, prepareMode ? c.prepareTotalValue : centsLabel(WM.TOTAL_CHARGE_CENTS)) +
-          '</div>' +
-          stakeSummaryHTML(prepareMode) +
+          '<p class="q-body">' + c.intro + '</p>' +
+          '<div class="price-tag">' + centsLabel(WM.PLAN_PRICE_CENTS) + '/' + WM.BILLING_INTERVAL + '</div>' +
+          '<p class="q-hint">' + c.billingNote + '</p>' +
+          '<p class="q-label">' + c.includedLabel + '</p>' +
+          '<div class="recap"><ul class="recap__list">' +
+            benefits.map(function (b) { return '<li>' + b.title + '</li>'; }).join("") +
+          '</ul></div>' +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
           '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
             ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
-          (!prepareMode && WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + (prepareMode ? c.payCtaPrepare : c.payCta) + '</button>' +
+          (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
-        var prepareMode = state.answers.clearance_status !== "yes";
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
 
@@ -380,19 +437,7 @@
         pay.addEventListener("click", function () {
           if (!validate()) return;
 
-          if (prepareMode) {
-            state.answers.checkout_status = "reserved";
-            saveState();
-            track(EVENTS.prepareReserved, { local_id: state.localId });
-            syncLead();
-            var c = COPY.steps.checkout;
-            screenEl.innerHTML = '<h2 class="q-title">' + c.reservedTitle + '</h2>' +
-              '<p class="q-body">' + c.reservedBody + '</p>';
-            backBtn.hidden = true;
-            return;
-          }
-
-          var link = WM.COHORT_PAYMENT_LINK[WM.STRIPE_MODE];
+          var link = WM.MEMBERSHIP_PAYMENT_LINK[WM.STRIPE_MODE];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
             err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";
             err.hidden = false;
@@ -401,9 +446,7 @@
           }
           state.answers.checkout_status = "started";
           saveState();
-          track(EVENTS.checkoutStarted, {
-            stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS, entry_fee_cents: WM.ENTRY_FEE_CENTS, local_id: state.localId
-          });
+          track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS });
           syncLead();
 
           var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
@@ -414,67 +457,90 @@
       canAdvance: function () { return false; }, // own pay button drives navigation
       onEnter: function (a) {
         if (a.checkout_status !== "started") a.checkout_status = "viewed";
-        track(EVENTS.checkoutViewed, { stake_cents: WM.COHORT_STAKE_AMOUNT_CENTS, entry_fee_cents: WM.ENTRY_FEE_CENTS });
+        track(EVENTS.checkoutViewed, { local_id: state.localId });
         syncLead();
       }
     }
   };
 
-  /* ---------------- insight steps ---------------- */
-  /* Read-only "why this works" screens, one per stage (pregnant/postpartum),
-     inserted between relevant questions. No input required, so canAdvance
-     is always true; the shared continueBtn borrows each screen's own CTA
-     copy via continueLabel instead of the generic tone().continue. */
-
-  function insightCopyFor(a, key) {
-    var group = COPY.steps[key];
-    return group[a.stage] || group.postpartum;
-  }
+  /* ---------------- interlude steps ---------------- */
+  /* Read-only "why this matters" screens, inserted between relevant
+     questions. No input required, so canAdvance is always true; the
+     shared continueBtn falls back to COPY.continueLabel since these
+     don't need their own CTA copy. */
 
   function makeInsightStep(key) {
     return {
-      render: function (a) {
-        var c = insightCopyFor(a, key);
+      render: function () {
+        var c = COPY.steps[key];
         return '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
-          c.body.map(function (p) { return '<p class="q-body">' + p + '</p>'; }).join("") +
-          (c.callout ? '<div class="q-note"><strong>' + c.callout + '</strong></div>' : "") +
-          '<p class="q-source">Source: <a href="' + escapeAttr(c.sourceUrl) + '" target="_blank" rel="noopener">' + c.sourceLabel + '</a></p>';
+          c.body.map(function (p) { return '<p class="q-body">' + p + '</p>'; }).join("");
       },
       bind: function () {},
-      canAdvance: function () { return true; },
-      continueLabel: function (a) { return insightCopyFor(a, key).continueLabel; }
+      canAdvance: function () { return true; }
     };
   }
 
   /* ---------------- small render helpers ---------------- */
 
   function pillOption(name, value, label, active, multi) {
-    return '<button type="button" class="pill' + (active ? " is-active" : "") + '" data-value="' + value + '" data-name="' + name + '">' + label + '</button>';
+    return '<button type="button" class="pill' + (multi ? " pill--multi" : "") + (active ? " is-active" : "") +
+      '" data-value="' + value + '" data-name="' + name + '">' +
+      (multi ? '<span class="pill__check" aria-hidden="true"></span>' : "") + label + '</button>';
   }
 
-  function summaryRow(label, value) {
-    return '<div class="summary__row"><span>' + label + '</span><b>' + value + '</b></div>';
+  /* Toggles array membership in state.answers[fieldName] on click. Any
+     value listed in exclusiveValues (e.g. "prefer_not_to_say") clears
+     every other pick when chosen, and is itself cleared the moment a
+     real option is picked. */
+  function bindMultiSelect(root, containerSelector, fieldName, exclusiveValues) {
+    root.querySelectorAll(containerSelector + " .pill").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-value");
+        var list = (state.answers[fieldName] || []).slice();
+        var isExclusive = exclusiveValues && exclusiveValues.indexOf(v) !== -1;
+        if (isExclusive) {
+          list = (list.indexOf(v) !== -1) ? [] : [v];
+        } else {
+          if (exclusiveValues) list = list.filter(function (x) { return exclusiveValues.indexOf(x) === -1; });
+          var idx = list.indexOf(v);
+          if (idx === -1) list.push(v); else list.splice(idx, 1);
+        }
+        state.answers[fieldName] = list;
+        root.querySelectorAll(containerSelector + " .pill").forEach(function (p) {
+          p.classList.toggle("is-active", list.indexOf(p.getAttribute("data-value")) !== -1);
+        });
+        refreshContinue();
+      });
+    });
+  }
+
+  function benefitCardHTML(b) {
+    return '<div class="benefit-card"><span class="benefit-card__icon" aria-hidden="true">' + b.icon + '</span>' +
+      '<div><h3 class="benefit-card__title">' + b.title + '</h3>' +
+      '<p class="benefit-card__body">' + b.body + '</p></div></div>';
+  }
+
+  /* Shared between the `trustPreview` step and the landing page's
+     community section, so the "clearly labeled illustrative preview"
+     the brief asks for is one implementation, not two different mocks. */
+  function renderForumPreview(posts, badgeText) {
+    return '<div class="forum-preview">' +
+      '<span class="badge badge--illustrative">' + escapeAttr(badgeText) + '</span>' +
+      posts.map(function (p) {
+        return '<div class="forum-post"><p class="forum-post__author">' + escapeAttr(p.author) + '</p>' +
+          '<p class="forum-post__text">' + escapeAttr(p.text) + '</p></div>';
+      }).join("") +
+      '</div>';
   }
 
   function centsLabel(cents) {
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  /* Reads as a deduction from the stake already being held, not a separate
-     charge due today, since it sits in the same summary table as Stake,
-     Entry fee, and Total today. */
-  function missValueLabel() {
-    return "−" + centsLabel(WM.MISS_AMOUNT_CENTS_PER_DAY) + " from your stake";
-  }
-
-  function stakeSummaryHTML(prepareMode) {
-    var c = COPY.steps.checkout;
-    return '<p class="q-hint">' + (prepareMode ? c.prepareNote : c.noteLine) + '</p>';
-  }
-
   function prettyCohort(value) {
-    var all = COPY.steps.cohort.groupsPregnant.concat(COPY.steps.cohort.groupsPostpartum);
+    var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
     var match = all.filter(function (o) { return o.value === value; })[0];
     return match ? match.label : value || "";
   }
@@ -516,8 +582,9 @@
     backBtn.hidden = state.stepIndex === 0;
     var isCheckout = id === "checkout";
     continueBtn.hidden = isCheckout;
+    skipBtn.hidden = isCheckout || !step.optional;
     if (!isCheckout) {
-      continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : tone().continue;
+      continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : COPY.continueLabel;
       refreshContinue();
     }
     if (trackView !== false) {
@@ -527,11 +594,14 @@
     saveState();
   }
 
-  function goNext() {
+  function goNext(force) {
     var id = currentStepId();
     var step = steps[id];
-    if (!step.canAdvance(state.answers)) return;
-    track(EVENTS.stepCompleted, { step: id, step_index: state.stepIndex });
+    var skipped = false;
+    if (!step.canAdvance(state.answers)) {
+      if (force && step.optional) { skipped = true; } else { return; }
+    }
+    track(EVENTS.stepCompleted, { step: id, step_index: state.stepIndex, skipped: skipped });
     if (step.onLeave) step.onLeave(state.answers);
     syncLead();
     if (state.stepIndex < STEP_IDS.length - 1) {
@@ -613,16 +683,6 @@
     els.forEach(function (e) { io.observe(e); });
   }
 
-  var COHORT_VISUAL_SVG =
-    '<svg viewBox="0 0 200 200" role="img" aria-label="Four women walking together in a circle">' +
-      '<circle cx="100" cy="100" r="74" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="6 10"/>' +
-      '<circle cx="100" cy="26" r="22" fill="var(--rose)"/>' +
-      '<circle cx="174" cy="100" r="22" fill="var(--lavender)"/>' +
-      '<circle cx="100" cy="174" r="22" fill="var(--amber)"/>' +
-      '<circle cx="26" cy="100" r="22" fill="var(--sage)"/>' +
-      '<text x="100" y="112" text-anchor="middle" font-size="36">🚶‍♀️</text>' +
-    '</svg>';
-
   function showLanding() {
     mainEl.hidden = true;
     landingEl.hidden = false;
@@ -659,7 +719,7 @@
               '<div class="ms3__body">' +
                 '<p class="ms3__step">Step ' + (i + 1) + '</p>' +
                 '<h3>' + s.title + '</h3>' +
-                '<p>' + fmtTemplate(s.desc, { stake: centsLabel(WM.COHORT_STAKE_AMOUNT_CENTS) }) + '</p>' +
+                '<p>' + s.desc + '</p>' +
               '</div>' +
             '</div>';
           }).join("") +
@@ -667,7 +727,7 @@
       '</div></section>' +
 
       '<section class="mcohort"><div class="wrap cohort-layout">' +
-        '<div class="cohort-visual rv">' + COHORT_VISUAL_SVG + '</div>' +
+        '<div class="cohort-visual rv">' + renderForumPreview(COPY.steps.trustPreview.posts.slice(0, 2), COPY.steps.trustPreview.illustrativeBadge) + '</div>' +
         '<div class="rv">' +
           '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
           '<h2>' + L.cohortTitle + '</h2>' +
@@ -736,6 +796,7 @@
     screenEl = document.getElementById("screen");
     continueBtn = document.getElementById("continueBtn");
     backBtn = document.getElementById("backBtn");
+    skipBtn = document.getElementById("skipBtn");
     progressFill = document.getElementById("progressFill");
     resumeBanner = document.getElementById("resumeBanner");
     gateEl = document.getElementById("gate");
@@ -745,7 +806,8 @@
     mainEl = document.getElementById("top");
     exitLink = document.getElementById("exitLink");
 
-    continueBtn.addEventListener("click", goNext);
+    continueBtn.addEventListener("click", function () { goNext(); });
+    skipBtn.addEventListener("click", function () { goNext(true); });
     backBtn.addEventListener("click", goBack);
 
     initGate();

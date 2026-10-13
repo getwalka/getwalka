@@ -10,49 +10,73 @@ create table if not exists public.moms_leads (
 
   country text,                          -- ISO country code from middleware.js's Vercel geo header; null if undetected
 
-  stage text,                            -- 'pregnant' | 'postpartum'
+  stage text,                            -- 'pregnant' | 'postpartum', derived from motherhood_stage
   weeks_postpartum int,
   due_date date,
   delivery_type text,                    -- 'vaginal' | 'csection' | 'prefer_not_to_say'; no longer asked, kept for historical rows
 
+  motherhood_stage text,                 -- 'pregnant' | 'postpartum_0_3' | 'postpartum_3_6' | 'postpartum_6_12' | 'postpartum_12_plus'
+
   clearance_status text,                 -- 'yes' | 'not_yet' | 'not_sure'
-  prepare_mode boolean,
+  prepare_mode boolean,                  -- no longer asked (the free no-charge checkout fork was retired); kept for historical rows
+  routine_preference text,               -- what a good walking routine would feel like; replaces the old fixed step-goal question
 
-  current_steps_bucket text,
-  energy_level text,                     -- 'low' | 'medium' | 'high'
-  barriers text[],
+  current_steps_bucket text,             -- no longer asked, kept for historical rows
+  energy_level text,                     -- no longer asked, kept for historical rows
+  activity_baseline text,                -- what walking looks like these days; replaces current_steps_bucket + energy_level
+  barriers text[],                       -- what's making it hard to find time for yourself; same column, vocabulary changed
 
-  suggested_goal int,
-  adjusted_goal int,
+  suggested_goal int,                    -- no longer asked, kept for historical rows
+  adjusted_goal int,                     -- no longer asked, kept for historical rows
 
-  motivation_style text default 'princess', -- 'princess' | 'coach'
+  motivation_style text,                 -- 'princess' | 'coach'; tone picker retired, no longer written, kept for historical rows
+  motivation_wants text[],               -- what she'd love more of this season (multi-select)
+  connection text,                       -- how connected she feels to other moms right now
+  conversations_openness text,           -- how openly she wishes she could talk about motherhood
 
   cohort text,
 
-  stake_cents int,                       -- total stake, cohort-only, currently always 3999 ($39.99)
-  miss_cents int,                        -- amount lost per missed DAY (flat, no tiers), currently always 200 ($2)
-  entry_fee_cents int,                   -- platform fee, one-time, not refundable, currently always 1000 ($10)
-  program_length_weeks int,              -- one-time payment, fixed-length challenge (not a subscription)
+  stake_cents int,                       -- no longer charged (membership replaced the stake/entry-fee cohort model); kept for historical rows
+  miss_cents int,                        -- no longer charged; kept for historical rows
+  entry_fee_cents int,                   -- no longer charged; kept for historical rows
+  program_length_weeks int,              -- no longer applicable (recurring membership, not a fixed-length challenge); kept for historical rows
   grace_period_weeks int,                -- unused since the flat per-day mechanic replaced grace weeks; kept for old rows
   passes_total int,                      -- unused since the flat per-day mechanic replaced free passes; kept for old rows
+
+  plan_price_cents int,                  -- recurring membership price, currently always 3999 ($39.99)
+  billing_interval text,                 -- 'month'
 
   first_name text,
   email text,
 
   last_step text,                        -- furthest step reached, the drop-off signal
-  checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (prepare mode: no charge, email captured for later follow-up)
+  checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (reserved is historical only: the no-charge fork was retired along with the stake model)
 
   stripe_customer_id text,               -- set by link-moms-subscriber (Edge Function) after a Stripe Payment Link redirect, matched by email since Payment Links don't return a customer id in the URL
   subscription_status text               -- mirrors Stripe's own subscription.status (active | trialing | past_due | canceled | incomplete | ...); null until link-moms-subscriber finds a subscription for this email
 );
 
--- Running this file again against an already-created table (e.g. after the
--- cohort-only/per-day-miss rewrite) adds the one new column without touching
--- existing rows or policies.
+-- Running this file again against an already-created table adds any new
+-- columns without touching existing rows or policies.
 alter table public.moms_leads add column if not exists entry_fee_cents int;
 alter table public.moms_leads add column if not exists country text;
 alter table public.moms_leads add column if not exists stripe_customer_id text;
 alter table public.moms_leads add column if not exists subscription_status text;
+
+-- Added for the empathetic-funnel/membership redesign (stake/cohort model
+-- retired in favor of a flat recurring price; see the column comments above).
+alter table public.moms_leads add column if not exists motherhood_stage text;
+alter table public.moms_leads add column if not exists activity_baseline text;
+alter table public.moms_leads add column if not exists motivation_wants text[];
+alter table public.moms_leads add column if not exists connection text;
+alter table public.moms_leads add column if not exists conversations_openness text;
+alter table public.moms_leads add column if not exists routine_preference text;
+alter table public.moms_leads add column if not exists plan_price_cents int;
+alter table public.moms_leads add column if not exists billing_interval text;
+
+-- The tone picker is retired and no longer writes this column; stop new rows
+-- from silently inheriting 'princess' as if it were a real answer.
+alter table public.moms_leads alter column motivation_style drop default;
 
 create index if not exists moms_leads_checkout_status_idx on public.moms_leads (checkout_status);
 create index if not exists moms_leads_created_at_idx on public.moms_leads (created_at);

@@ -37,6 +37,7 @@
   p{color:var(--ink-soft);margin-bottom:10px}
   .note{font-size:.85rem;margin-top:18px}
   a.home{display:inline-block;margin-top:20px;font-family:var(--display);font-weight:600;color:var(--sage);text-decoration:underline}
+  a.manage{display:block;margin-top:8px;font-family:var(--display);font-weight:600;font-size:.9rem;color:var(--ink-soft);text-decoration:underline}
 </style>
 </head>
 <body>
@@ -45,6 +46,7 @@
     <h1 id="title">You're in.</h1>
     <p id="body"></p>
     <p class="note" id="note"></p>
+    <a class="manage" id="manageLink" href="#" hidden>Manage or cancel my membership</a>
     <a class="home" href="/">Back to getwalka.com</a>
   </main>
 
@@ -54,7 +56,7 @@
 (function () {
   "use strict";
   var WM = window.WALKA_MOMS;
-  var STORAGE_KEY = "walka_moms_state_v2"; // kept in sync with moms-app.js
+  var STORAGE_KEY = "walka_moms_state_v3"; // kept in sync with moms-app.js
 
   function track(event, props) {
     try { if (window.posthog) posthog.capture(event, props || {}); } catch (e) {}
@@ -69,9 +71,15 @@
   var titleEl = document.getElementById("title");
   var bodyEl = document.getElementById("body");
   var noteEl = document.getElementById("note");
+  var manageLink = document.getElementById("manageLink");
 
   var params = new URLSearchParams(window.location.search);
   var hasSessionId = !!params.get("session_id");
+
+  if (WM.CUSTOMER_PORTAL_URL) {
+    manageLink.href = WM.CUSTOMER_PORTAL_URL;
+    manageLink.hidden = false;
+  }
 
   if (state && state.localId) {
     titleEl.textContent = WM.COPY.success.title;
@@ -83,8 +91,8 @@
 
     track(WM.EVENTS.checkoutCompleted, {
       local_id: state.localId,
-      stake_cents: state.answers.stake_cents,
-      miss_cents: state.answers.miss_cents,
+      plan_price_cents: WM.PLAN_PRICE_CENTS,
+      billing_interval: WM.BILLING_INTERVAL,
       has_session_id: hasSessionId
     });
 
