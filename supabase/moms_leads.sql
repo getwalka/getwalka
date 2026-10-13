@@ -11,7 +11,7 @@ create table if not exists public.moms_leads (
   country text,                          -- ISO country code from middleware.js's Vercel geo header; null if undetected
 
   stage text,                            -- 'pregnant' | 'postpartum', derived from motherhood_stage
-  weeks_postpartum int,
+  weeks_postpartum int,                  -- no longer asked, kept for historical rows
   due_date date,
   delivery_type text,                    -- 'vaginal' | 'csection' | 'prefer_not_to_say'; no longer asked, kept for historical rows
 

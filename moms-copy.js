@@ -221,8 +221,7 @@ window.WALKA_MOMS = (function () {
           { value: "postpartum_6_12", label: "6–12 months postpartum" },
           { value: "postpartum_12_plus", label: "More than a year postpartum" }
         ],
-        dueDateLabel: "Due date (optional)",
-        weeksLabel: "Weeks postpartum, if you know it (optional)"
+        dueDateLabel: "Due date (optional)"
       },
 
       /* Screen 2, multi-select, skippable */
@@ -335,12 +334,11 @@ window.WALKA_MOMS = (function () {
         ]
       },
 
-      /* Screen 10, personalized results. The intro sentence and the three
-         benefit cards are computed from RESULTS_COPY by resultsIntroSentence()/
-         resultsCards() in moms-app.js, not static strings here. */
+      /* Screen 10, personalized results. Title/subtext/hero/preview content
+         all comes from RESULTS_COPY via moms-app.js's results* functions,
+         not static strings here. */
       results: {
         eyebrow: "Made for you",
-        title: "A little space for you.",
         note: "This isn't a promise about results, just where we'd start with you."
       },
 
@@ -398,33 +396,62 @@ window.WALKA_MOMS = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 5. PERSONALIZATION: copy for the `results` step's three fixed benefit
-   *    cards, its intro sentence, and the optional secondary diary
-   *    mention, resolved deterministically against the member's actual
-   *    answers by resultsCircleCard()/resultsCommunityCard()/
-   *    resultsRoutineCard()/resultsDiaryCard()/resultsIntroSentence() in
-   *    moms-app.js. Plain lookups and if/else, no scoring, no inference
-   *    beyond "this answer maps to this line" — reused as-is on
-   *    `checkout`'s "what's included" list so both screens agree.
+   * 5. PERSONALIZATION: copy for the `results` step — a headline subtext,
+   *    a walking-circle hero, a community preview, a routine preview, and
+   *    an optional secondary diary mention — resolved deterministically
+   *    against the member's actual answers by resultsHeadlineSubtext()/
+   *    resultsCircleCard()/resultsRoutineCard()/resultsDiaryCard() in
+   *    moms-app.js. Plain lookups and if/else, no
+   *    scoring, no inference beyond "this answer maps to this line" —
+   *    card titles are reused as-is on `checkout`'s "what's included"
+   *    list so both screens agree.
    * ------------------------------------------------------------------ */
   var RESULTS_COPY = {
-    introDefault: "Here's what we've put together, based on what you shared.",
-    /* First match wins; order here IS the priority. */
-    introWantPriority: ["other_moms", "reason_outside", "routine", "time_my_own", "encouragement", "energy"],
-    introByWant: {
-      other_moms: "Since you're hoping for other moms who understand, here's what we've put together around that.",
-      reason_outside: "Since you're looking for a reason to get outside, here's what we've put together around that.",
-      routine: "Since you're looking for a routine you can stick to, here's what we've put together around that.",
-      time_my_own: "Since you're looking for a little time that's yours, here's what we've put together around that.",
-      encouragement: "Since a little encouragement goes a long way, here's what we've put together around that.",
-      energy: "Since you're looking for more energy day to day, here's what we've put together around that."
+    title: "You don't have to figure this out alone.",
+
+    subtextDefault: "Here's a preview of what your Walka experience could look like.",
+    /* First match wins; order here IS the priority. Each entry names which
+       answer field it reads, since motivation_wants and barriers are two
+       separate fields a reader shouldn't have to infer from the value
+       alone. */
+    subtextPriority: [
+      { field: "motivation_wants", value: "other_moms" },
+      { field: "barriers", value: "exhaustion" },
+      { field: "motivation_wants", value: "routine" },
+      { field: "motivation_wants", value: "reason_outside" },
+      { field: "barriers", value: "limited_support" },
+      { field: "barriers", value: "unpredictable_routine" },
+      { field: "motivation_wants", value: "time_my_own" },
+      { field: "motivation_wants", value: "encouragement" },
+      { field: "motivation_wants", value: "energy" },
+      { field: "barriers", value: "motivation" },
+      { field: "barriers", value: "recovering_physically" },
+      { field: "barriers", value: "doing_okay" }
+    ],
+    subtextByKey: {
+      "motivation_wants:other_moms": "You told us you'd love to meet moms who understand this season. Here's what your Walka experience could look like.",
+      "barriers:exhaustion": "You've got a lot on your plate. Your Walka experience is designed to make room for real life.",
+      "motivation_wants:routine": "You're looking for a little consistency. We'll help you find a rhythm that works for your life.",
+      "motivation_wants:reason_outside": "You're looking for a reason to get outside. Here's what your Walka experience could look like.",
+      "barriers:limited_support": "You've been doing a lot without much backup. This is a place to find some.",
+      "barriers:unpredictable_routine": "Your days don't always go as planned. Your Walka experience is built to flex with that.",
+      "motivation_wants:time_my_own": "You're looking for a little time that's yours. Here's what your Walka experience could look like.",
+      "motivation_wants:encouragement": "A little encouragement goes a long way. Here's what your Walka experience could look like.",
+      "motivation_wants:energy": "You're looking for more energy day to day. Here's what your Walka experience could look like.",
+      "barriers:motivation": "Some days the hardest part is just starting. Your Walka experience is designed to help with that.",
+      "barriers:recovering_physically": "You're recovering or adjusting physically right now. Your Walka experience is designed to meet you there, gently.",
+      "barriers:doing_okay": "You're doing okay and just want a routine. Here's what your Walka experience could look like."
     },
 
     circle: {
-      title: "Your walking circle", icon: "🫂",
-      /* Explains a potential future match by stage. Never phrase these as
-         an already-confirmed assignment (e.g. "you're walking with X") —
+      title: "Your walking circle",
+      explainer: "A small circle to walk, check in, and share the everyday moments with.",
+      genericChip: "Moms at a similar stage",
+      /* "Finding your circle: {label}", never a confirmed assignment —
          matching hasn't happened yet when this screen renders. */
+      chipPrefix: "Finding your circle: ",
+      /* Longer-form line kept for checkout's "what's included" list, which
+         just needs a sentence, not the hero's chip+explainer pair. */
       byStage: {
         pregnant: "You're currently pregnant, so when you're ready, we'll look to match you with others due around the same time.",
         postpartum_0_3: "You're in the early postpartum weeks, so we'll look to match you with others in a similar season.",
@@ -436,36 +463,38 @@ window.WALKA_MOMS = (function () {
       recoveringNote: "No pressure to keep pace with anyone, this is about company, not competition."
     },
 
-    community: {
-      title: "Your community experience", icon: "💬",
-      wantsOtherMoms: "You told us you'd love more moms who understand. Our community is built for exactly that, share as much or as little as feels right.",
-      disconnected: "There's room to feel more connected here, at whatever pace works for you.",
-      fallback: "A moderated space for honest conversations, whenever you want to take part.",
-      preferReadNote: "You can take part at your own pace, reading along counts too."
+    communityPreview: {
+      title: "Honest conversations",
+      illustrativeBadge: "Illustrative example, not actual member posts",
+      messages: [
+        { name: "Ava", text: "Anyone else counting getting outside today as a win?" },
+        { name: "Nora", text: "Absolutely. We made it around the block and I'm celebrating." },
+        { name: "Ava", text: "Some days that's more than enough." }
+      ]
     },
 
     routine: {
-      title: "Your gentle walking routine", icon: "🚶‍♀️",
-      /* Every line here is already goal-free by design (no step counts or
-         numeric targets), so "don't assign exercise targets to recovering/
-         uncertain/restricted members" holds for every branch, not just
-         not_ready. */
+      title: "Your pace, your way",
+      /* Every bullet set here is already goal-free by design (no step
+         counts or numeric targets), so "don't assign exercise targets to
+         recovering/uncertain/restricted members" holds for every branch,
+         not just not_ready. */
       byPreference: {
-        not_ready: "No pressure to set a goal yet. We'll check back in when you're ready, there's no clock on this.",
-        short_walks: "Short walks when you can grab them, nothing more structured than that.",
-        time_outside: "Time outside most days, however that looks for you, no fixed distance or pace.",
-        flexible_goal: "A flexible weekly goal that moves with your week, not a fixed daily number.",
-        gentle_challenges: "Gentle, shared challenges you can opt into when they fit, never mandatory."
+        not_ready: ["No pressure to set a goal yet", "We'll check back in when you're ready", "Rest days are always welcome"],
+        short_walks: ["Short walks when you can grab them", "Nothing more structured than that", "Rest days are welcome"],
+        time_outside: ["Time outside most days, however that looks", "No fixed distance or pace", "Rest days are welcome"],
+        flexible_goal: ["A flexible weekly goal, not a daily number", "Moves with your week", "Rest days are welcome"],
+        gentle_challenges: ["Gentle, shared challenges you can opt into", "Never mandatory", "Rest days are welcome"]
       },
-      fallback: "A walking routine that adjusts to your day, never a fixed step count.",
-      outsideNote: "You mentioned wanting more reason to get outside, we'll keep opportunities like that coming."
+      fallback: ["Short walks when you can", "Flexible weekly goals", "Rest days are welcome"],
+      outsideNote: "Extra encouragement to get outside, since that's what you're looking for"
     },
 
     /* Optional secondary feature: shown only when a specific answer
        actually points to it, never as a default filler card. */
     diary: {
-      title: "A private mood diary",
-      body: "A quiet place just for you to note how you're really feeling. Visible only to you."
+      title: "A little space just for you",
+      body: "Keep a private note of how you're feeling, whenever you want."
     },
 
     continueLabel: "See your community"

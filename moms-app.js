@@ -98,7 +98,6 @@
       country: a.country || null,
       stage: a.stage || null,
       motherhood_stage: a.motherhood_stage || null,
-      weeks_postpartum: (a.weeks_postpartum != null && a.weeks_postpartum !== "") ? Number(a.weeks_postpartum) : null,
       due_date: a.due_date || null,
       clearance_status: a.clearance_status || null,
       prepare_mode: a.clearance_status ? a.clearance_status !== "yes" : null,
@@ -138,48 +137,59 @@
     }
   }
 
-  /* `results` step personalization: three fixed cards (circle/community/
-     routine) plus an optional diary mention plus an intro sentence, each
-     resolved deterministically against the member's actual answers from
+  /* `results` step personalization: a headline subtext, a walking-circle
+     hero, a routine preview, and an optional diary mention, each resolved
+     deterministically against the member's actual answers from
      moms-copy.js's RESULTS_COPY. Plain lookups/if-else, no scoring —
-     every branch is traceable to one specific answer. Reused as-is by
-     `checkout`'s "what's included" list via resultsCards()/
-     resultsDiaryCard(), so both screens agree. */
+     every branch is traceable to one specific answer. Card titles are
+     reused as-is by `checkout`'s "what's included" list via resultsCards()/
+     resultsDiaryCard(), so both screens agree. The community preview
+     (example chat messages) is static/illustrative, not personalized —
+     the headline subtext above it already carries the "wants other moms"
+     signal, so a second personalized variant here would be redundant. */
 
   function isRecovering(a) {
     return a.routine_preference === "not_ready" || a.clearance_status === "not_yet";
   }
 
-  function resultsCircleCard(a) {
-    var c = WM.RESULTS_COPY.circle;
-    var body = c.byStage[a.motherhood_stage] || c.fallback;
-    var reason = c.byStage[a.motherhood_stage] ? ("stage:" + a.motherhood_stage) : "fallback";
-    if (isRecovering(a)) body += " " + c.recoveringNote;
-    return { title: c.title, icon: c.icon, body: body, reason: reason };
+  /* Reads the same grouping data COPY.cohort uses for resolvedCohortFor()'s
+     return codes, for display on the results hero's "Finding your
+     circle:" chip. */
+  function cohortLabel(value) {
+    var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
+    var match = all.filter(function (o) { return o.value === value; })[0];
+    return match ? match.label : "";
   }
 
-  function resultsCommunityCard(a) {
-    var c = WM.RESULTS_COPY.community;
+  function resultsHeadlineSubtext(a) {
+    var c = WM.RESULTS_COPY;
     var wants = a.motivation_wants || [];
-    var body, reason;
-    if (wants.indexOf("other_moms") !== -1) {
-      body = c.wantsOtherMoms; reason = "wants:other_moms";
-    } else if (["want_more", "sometimes_alone", "few_not_close"].indexOf(a.connection) !== -1) {
-      body = c.disconnected; reason = "connection:" + a.connection;
-    } else {
-      body = c.fallback; reason = "fallback";
+    var barriers = a.barriers || [];
+    for (var i = 0; i < c.subtextPriority.length; i++) {
+      var entry = c.subtextPriority[i];
+      var source = entry.field === "barriers" ? barriers : wants;
+      if (source.indexOf(entry.value) !== -1) return c.subtextByKey[entry.field + ":" + entry.value];
     }
-    if (a.conversations_openness === "prefer_read") body += " " + c.preferReadNote;
-    return { title: c.title, icon: c.icon, body: body, reason: reason };
+    return c.subtextDefault;
+  }
+
+  function resultsCircleCard(a) {
+    var c = WM.RESULTS_COPY.circle;
+    var label = cohortLabel(a.cohort);
+    var chip = label ? (c.chipPrefix + label) : c.genericChip;
+    var body = c.explainer;
+    if (isRecovering(a)) body += " " + c.recoveringNote;
+    var reason = (c.byStage[a.motherhood_stage]) ? ("stage:" + a.motherhood_stage) : "fallback";
+    return { title: c.title, chip: chip, body: body, reason: reason };
   }
 
   function resultsRoutineCard(a) {
     var c = WM.RESULTS_COPY.routine;
-    var body = c.byPreference[a.routine_preference] || c.fallback;
+    var bullets = (c.byPreference[a.routine_preference] || c.fallback).slice();
     var reason = c.byPreference[a.routine_preference] ? ("routine:" + a.routine_preference) : "fallback";
     var wants = a.motivation_wants || [];
-    if (wants.indexOf("reason_outside") !== -1 && a.routine_preference !== "not_ready") body += " " + c.outsideNote;
-    return { title: c.title, icon: c.icon, body: body, reason: reason };
+    if (wants.indexOf("reason_outside") !== -1 && a.routine_preference !== "not_ready") bullets.push(c.outsideNote);
+    return { title: c.title, bullets: bullets, reason: reason };
   }
 
   /* Optional secondary feature: returns null (render nothing) unless a
@@ -193,23 +203,16 @@
     return { title: c.title, body: c.body };
   }
 
-  function resultsIntroSentence(a) {
-    var c = WM.RESULTS_COPY;
-    var wants = a.motivation_wants || [];
-    for (var i = 0; i < c.introWantPriority.length; i++) {
-      var w = c.introWantPriority[i];
-      if (wants.indexOf(w) !== -1) return c.introByWant[w];
-    }
-    return c.introDefault;
-  }
-
+  /* checkout's "what's included" list just needs three titles; the middle
+     one (community) has no per-user variant to resolve, since the chat
+     preview it's based on is static/illustrative. */
   function resultsCards(a) {
-    return [resultsCircleCard(a), resultsCommunityCard(a), resultsRoutineCard(a)];
+    return [resultsCircleCard(a), { title: WM.RESULTS_COPY.communityPreview.title }, resultsRoutineCard(a)];
   }
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink, shellEl, flownavEl;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -393,30 +396,72 @@
       canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    /* Screen 10, personalized results */
+    /* Screen 10, personalized results — the richest screen in the funnel:
+       a walking-circle hero, an illustrative community chat preview, a
+       routine preview, and an optional diary strip. cardVariant is unset
+       (plain .card), but shellVariant/flownavVariant widen the shell and
+       tighten the CTA gap for this one step — see renderStep(). */
     results: {
+      shellVariant: "wide",
+      flownavVariant: "tight",
       render: function (a) {
         var c = COPY.steps.results;
+        var rc = WM.RESULTS_COPY;
         a.cohort = resolvedCohortFor(a); // still stored/synced for real matching later; not displayed as confirmed
-        var cards = resultsCards(a);
+        var circle = resultsCircleCard(a);
+        var routine = resultsRoutineCard(a);
         var diary = resultsDiaryCard(a);
-        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
-          '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + resultsIntroSentence(a) + '</p>' +
-          '<div class="benefits">' + cards.map(benefitCardHTML).join("") + '</div>' +
-          (diary ? '<div class="q-note"><strong>' + diary.title + '</strong><br>' + diary.body + '</div>' : '') +
-          '<p class="q-hint">' + c.note + '</p>';
+        var cp = rc.communityPreview;
+
+        return '<div class="stagger">' +
+          '<p class="eyebrow">' + c.eyebrow + '</p>' +
+          '<h2 class="q-title">' + rc.title + '</h2>' +
+          '<p class="q-body">' + resultsHeadlineSubtext(a) + '</p>' +
+
+          '<div class="circle-hero">' +
+            '<span class="circle-hero__blob" aria-hidden="true"></span>' +
+            '<span class="circle-hero__chip">' + escapeAttr(circle.chip) + '</span>' +
+            '<div class="circle-hero__avatars">' + heroAvatarsHTML() + '</div>' +
+            '<h3 class="circle-hero__title">' + circle.title + '</h3>' +
+            '<p class="circle-hero__body">' + circle.body + '</p>' +
+          '</div>' +
+
+          '<div class="results-grid">' +
+            '<div class="mini-chat">' +
+              '<span class="badge badge--illustrative">' + escapeAttr(cp.illustrativeBadge) + '</span>' +
+              '<h3 class="q-label" style="margin-top:12px">' + cp.title + '</h3>' +
+              cp.messages.map(function (m, i) {
+                return '<div class="chat-message">' + avatarHTML(m.name, i) +
+                  '<div class="chat-message__bubble">' +
+                    '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span></div>' +
+                    '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
+                  '</div></div>';
+              }).join("") +
+            '</div>' +
+
+            '<div class="routine-preview">' +
+              '<h3 class="q-label" style="margin-top:0">' + routine.title + '</h3>' +
+              '<div class="routine-preview__dots" aria-hidden="true">' + routineDotsHTML() + '</div>' +
+              '<ul class="routine-preview__list">' + routine.bullets.map(function (b) { return '<li>' + b + '</li>'; }).join("") + '</ul>' +
+            '</div>' +
+          '</div>' +
+
+          (diary ? '<div class="diary-strip"><span class="diary-strip__icon" aria-hidden="true">💛</span>' +
+            '<p><strong>' + diary.title + '</strong> ' + diary.body + '</p></div>' : '') +
+
+          '<p class="q-hint">' + c.note + '</p>' +
+        '</div>';
       },
       bind: function () {},
       canAdvance: function () { return true; },
       continueLabel: function () { return WM.RESULTS_COPY.continueLabel; },
       onEnter: function (a) {
         track(EVENTS.cohortChosen, { cohort: a.cohort });
-        var cards = resultsCards(a);
+        var circle = resultsCircleCard(a);
+        var routine = resultsRoutineCard(a);
         track(EVENTS.resultsViewed, {
-          circle_reason: cards[0].reason,
-          community_reason: cards[1].reason,
-          routine_reason: cards[2].reason,
+          circle_reason: circle.reason,
+          routine_reason: routine.reason,
           diary_shown: !!resultsDiaryCard(a)
         });
       }
@@ -596,12 +641,6 @@
     });
   }
 
-  function benefitCardHTML(b) {
-    return '<div class="benefit-card"><span class="benefit-card__icon" aria-hidden="true">' + b.icon + '</span>' +
-      '<div><h3 class="benefit-card__title">' + b.title + '</h3>' +
-      '<p class="benefit-card__body">' + b.body + '</p></div></div>';
-  }
-
   var AVATAR_TINTS = ["sage", "lavender", "amber", "rose"];
 
   function initials(name) {
@@ -610,6 +649,28 @@
 
   function avatarHTML(name, index) {
     return '<span class="circle-avatar circle-avatar--' + AVATAR_TINTS[index % AVATAR_TINTS.length] + '" aria-hidden="true">' + initials(name) + '</span>';
+  }
+
+  /* results step hero: unlabeled circles (no initials) — these represent
+     future circle members in the abstract, not specific named people, so
+     nothing is put inside one. Five falls within the brief's 4-6 range. */
+  function heroAvatarsHTML() {
+    var html = "";
+    for (var i = 0; i < 5; i++) {
+      html += '<span class="circle-hero__avatar circle-avatar--' + AVATAR_TINTS[i % AVATAR_TINTS.length] + '" aria-hidden="true"></span>';
+    }
+    return html;
+  }
+
+  /* Purely decorative "a flexible week" motif for the routine preview —
+     not a real tracked-activity visualization (no real activity data
+     exists pre-signup), so the pattern is fixed/illustrative, never
+     derived from anything resembling real data. */
+  function routineDotsHTML() {
+    var pattern = [true, false, true, true, false, true, true];
+    return pattern.map(function (filled) {
+      return '<span class="routine-preview__dot' + (filled ? " is-filled" : "") + '" aria-hidden="true"></span>';
+    }).join("");
   }
 
   /* Shared between the `trustPreview` step and the landing page's
@@ -657,20 +718,12 @@
   }
 
   function stageFollowupHTML(a) {
-    if (!a.stage) return "";
+    if (a.stage !== "pregnant") return "";
     var s = COPY.steps.stage;
-    var html = "";
-    if (a.stage === "postpartum") {
-      html += '<label class="field"><span>' + s.weeksLabel + '</span><input type="number" min="0" max="104" id="weeksInput" value="' + escapeAttr(a.weeks_postpartum || "") + '"></label>';
-    } else if (a.stage === "pregnant") {
-      html += '<label class="field"><span>' + s.dueDateLabel + '</span><input type="date" id="dueDateInput" value="' + escapeAttr(a.due_date || "") + '"></label>';
-    }
-    return html;
+    return '<label class="field"><span>' + s.dueDateLabel + '</span><input type="date" id="dueDateInput" value="' + escapeAttr(a.due_date || "") + '"></label>';
   }
 
   function bindStageFollowup(root) {
-    var weeks = root.querySelector("#weeksInput");
-    if (weeks) weeks.addEventListener("input", function () { state.answers.weeks_postpartum = weeks.value; });
     var due = root.querySelector("#dueDateInput");
     if (due) due.addEventListener("input", function () { state.answers.due_date = due.value; });
   }
@@ -692,6 +745,8 @@
     screenEl.className = "card" + (step.cardVariant ? " card--reassurance card--" + step.cardVariant : "");
     void screenEl.offsetWidth; // force reflow so the entrance animation restarts on every step
     screenEl.classList.add("card--enter");
+    shellEl.classList.toggle("shell--wide", step.shellVariant === "wide");
+    flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
     progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
@@ -925,6 +980,8 @@
     loadingEl = document.getElementById("loading");
     mainEl = document.getElementById("top");
     exitLink = document.getElementById("exitLink");
+    shellEl = document.querySelector(".shell");
+    flownavEl = document.querySelector(".flownav");
 
     continueBtn.addEventListener("click", function () { goNext(); });
     skipBtn.addEventListener("click", function () { goNext(true); });
