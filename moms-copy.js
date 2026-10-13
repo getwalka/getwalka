@@ -76,21 +76,15 @@ window.WALKA_MOMS = (function () {
    *    if someone abandons, they just use the browser back button.)
    *    That's 4 links total: {test,live} x {usd,cad}.
    *
-   *    TODO before going live: every URL in MEMBERSHIP_PAYMENT_LINK below
-   *    is either still the OLD one-time $49.99 (stake + entry fee) link
-   *    from the retired cohort model, or empty. Create the 4 recurring
-   *    Payment Links above and fill in all four slots — manual dashboard
-   *    step, nothing in this codebase can do it for you.
-   *
+   *    All 4 recurring Payment Links below now exist (filled in 2026-10).
    *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" once
-   *    both live-mode recurring Payment Links (usd and cad) exist.
+   *    the test links have been clicked through end to end (preview=1,
+   *    Stripe's 4242 4242 4242 4242 test card, confirm the redirect to
+   *    /moms-success and that link-moms-subscriber reconciles correctly).
    * ------------------------------------------------------------------ */
-  /* "test" until the TODO above is done: MEMBERSHIP_PAYMENT_LINK.live.usd
-     still points at the OLD one-time $49.99 product, and .live.cad is
-     empty. Leaving this on "live" would send anyone who reaches checkout
-     (including via ?preview=1, which isn't a secret) to a real charge for
-     the wrong price, or to a dead link for Canadian visitors. Flip to
-     "live" only after creating all four recurring Payment Links above. */
+  /* "test" until that end-to-end check above has actually been done.
+     Flipping to "live" before then risks sending a real visitor through
+     an unverified checkout path. */
   var STRIPE_MODE = "test"; // "test" | "live"
 
   var PLAN_PRICE_CENTS = 3999; // $39.99, same numeral in both currencies
@@ -98,12 +92,12 @@ window.WALKA_MOMS = (function () {
 
   var MEMBERSHIP_PAYMENT_LINK = {
     test: {
-      usd: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring USD price link
-      cad: "" // TODO: create a recurring CAD price + Payment Link (test mode)
+      usd: "https://buy.stripe.com/test_3cIaEY8UeeYP2Qlcg9dwc02",
+      cad: "https://buy.stripe.com/test_fZubJ28Ue5of3Upgwpdwc01"
     },
     live: {
-      usd: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring USD price link
-      cad: "" // TODO: create a recurring CAD price + Payment Link (live mode)
+      usd: "https://buy.stripe.com/3cIaEY8UeeYP2Qlcg9dwc02",
+      cad: "https://buy.stripe.com/fZubJ28Ue5of3Upgwpdwc01"
     }
   };
 
