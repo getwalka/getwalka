@@ -55,43 +55,56 @@ window.WALKA_MOMS = (function () {
   var GEO_ALLOWED_COUNTRIES = ["US", "CA"];
 
   /* ------------------------------------------------------------------ *
-   * 2. PAYMENTS: Stripe, recurring membership
+   * 2. PAYMENTS: Stripe, recurring membership, priced per currency
    *
-   *    This repo has no payment backend, so checkout uses one Stripe
-   *    Payment Link (hosted by Stripe; we never touch card data) for a
-   *    RECURRING price, PLAN_PRICE_CENTS / BILLING_INTERVAL below.
-   *    Create it in the Stripe dashboard:
-   *      Products > + Add product > recurring price > Create payment link
-   *    Then under the link's settings, set "After payment" to redirect
-   *    to your own URL:
+   *    This repo has no payment backend, so checkout uses a Stripe
+   *    Payment Link (hosted by Stripe; we never touch card data) per
+   *    RECURRING price. Same numeral, two currencies: $39.99 USD for US
+   *    visitors, $39.99 CAD for Canadian visitors (not a currency
+   *    conversion of one price into the other — two separate Stripe
+   *    Prices, each literally 3999 minor units in its own currency).
+   *    getwalka only ever serves US/CA (see GEO_ALLOWED_COUNTRIES below),
+   *    so those are the only two currencies this needs.
+   *
+   *    For EACH currency, in the Stripe dashboard:
+   *      Products > (existing "Walka Mom Membership" product, or create
+   *      it) > + Add another price > Recurring, Monthly, pick the
+   *      currency, 39.99 > Create payment link
+   *    On each link's settings, set "After payment" to redirect to:
    *      https://getwalka.com/moms-success
    *    (Stripe Payment Links don't support a separate "cancel" redirect;
    *    if someone abandons, they just use the browser back button.)
+   *    That's 4 links total: {test,live} x {usd,cad}.
    *
-   *    TODO before going live with the new $39.99/mo price: the two URLs
-   *    in MEMBERSHIP_PAYMENT_LINK below still point at the OLD one-time
-   *    $49.99 (stake + entry fee) price from the retired cohort model.
-   *    Create new recurring-price Payment Links in the Stripe dashboard
-   *    (test and live) and swap these two URLs before rollout — this is a
-   *    manual dashboard step, nothing in this codebase can do it for you.
+   *    TODO before going live: every URL in MEMBERSHIP_PAYMENT_LINK below
+   *    is either still the OLD one-time $49.99 (stake + entry fee) link
+   *    from the retired cohort model, or empty. Create the 4 recurring
+   *    Payment Links above and fill in all four slots — manual dashboard
+   *    step, nothing in this codebase can do it for you.
    *
    *    TEST -> LIVE is a single change: swap STRIPE_MODE to "live" once
-   *    the live-mode recurring Payment Link exists.
+   *    both live-mode recurring Payment Links (usd and cad) exist.
    * ------------------------------------------------------------------ */
-  /* "test" until the TODO above is done: MEMBERSHIP_PAYMENT_LINK.live still
-     points at the OLD one-time $49.99 product. Leaving this on "live"
-     would send anyone who reaches checkout (including via ?preview=1,
-     which isn't a secret) to a real charge for the wrong price under new
-     $39.99/month copy. Flip to "live" only after creating the recurring
-     Payment Links and swapping both URLs above. */
+  /* "test" until the TODO above is done: MEMBERSHIP_PAYMENT_LINK.live.usd
+     still points at the OLD one-time $49.99 product, and .live.cad is
+     empty. Leaving this on "live" would send anyone who reaches checkout
+     (including via ?preview=1, which isn't a secret) to a real charge for
+     the wrong price, or to a dead link for Canadian visitors. Flip to
+     "live" only after creating all four recurring Payment Links above. */
   var STRIPE_MODE = "test"; // "test" | "live"
 
-  var PLAN_PRICE_CENTS = 3999; // $39.99/month
+  var PLAN_PRICE_CENTS = 3999; // $39.99, same numeral in both currencies
   var BILLING_INTERVAL = "month";
 
   var MEMBERSHIP_PAYMENT_LINK = {
-    test: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring-price link
-    live: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00"        // TODO: replace with a recurring-price link
+    test: {
+      usd: "https://buy.stripe.com/test_4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring USD price link
+      cad: "" // TODO: create a recurring CAD price + Payment Link (test mode)
+    },
+    live: {
+      usd: "https://buy.stripe.com/4gM3cw7Qa5offD74NHdwc00", // TODO: replace with a recurring USD price link
+      cad: "" // TODO: create a recurring CAD price + Payment Link (live mode)
+    }
   };
 
   /* No-code cancellation, per the README's documented plan: Settings >

@@ -111,6 +111,7 @@
       cohort: a.cohort || null,
       plan_price_cents: WM.PLAN_PRICE_CENTS,
       billing_interval: WM.BILLING_INTERVAL,
+      billing_currency: checkoutCurrency(a),
       email: a.email || null,
       first_name: a.first_name || null,
       last_step: STEP_IDS[state.stepIndex] || null,
@@ -484,13 +485,14 @@
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
+        var currency = checkoutCurrency(a);
         var cards = resultsCards(a);
         var diary = resultsDiaryCard(a);
         var includedTitles = cards.map(function (b) { return b.title; });
         if (diary) includedTitles.push(diary.title);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
-          '<div class="price-tag">' + centsLabel(WM.PLAN_PRICE_CENTS) + '/' + WM.BILLING_INTERVAL + '</div>' +
+          '<div class="price-tag">' + centsLabel(WM.PLAN_PRICE_CENTS) + ' ' + currency.toUpperCase() + '/' + WM.BILLING_INTERVAL + '</div>' +
           '<p class="q-hint">' + c.billingNote + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
@@ -522,16 +524,18 @@
         pay.addEventListener("click", function () {
           if (!validate()) return;
 
-          var link = WM.MEMBERSHIP_PAYMENT_LINK[WM.STRIPE_MODE];
+          var currency = checkoutCurrency(state.answers);
+          var link = WM.MEMBERSHIP_PAYMENT_LINK[WM.STRIPE_MODE][currency];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
             err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";
             err.hidden = false;
-            track(EVENTS.checkoutFailed, { reason: "missing_payment_link" });
+            track(EVENTS.checkoutFailed, { reason: "missing_payment_link", currency: currency });
             return;
           }
           state.answers.checkout_status = "started";
+          state.answers.billing_currency = currency;
           saveState();
-          track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS });
+          track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
           syncLead();
 
           var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
@@ -840,6 +844,15 @@
     return WM.GEO_ALLOWED_COUNTRIES.indexOf(country) === -1;
   }
 
+  /* Same $39.99 numeral, charged in the visitor's own currency — not a
+     converted equivalent, two separate Stripe prices. getwalka only ever
+     serves US/CA (geoBlocked() above), so usd/cad are the only two cases;
+     anything else (unknown country, local dev with no geo cookie) falls
+     back to usd rather than leaving checkout without a price. */
+  function checkoutCurrency(a) {
+    return a.country === "CA" ? "cad" : "usd";
+  }
+
   function observeReveals(root) {
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     var els = root.querySelectorAll(".rv");
@@ -937,9 +950,17 @@
   }
 
   function initGate() {
+    /* Always resolves + records state.answers.country as a side effect
+       (used for checkout currency and analytics), even in preview mode —
+       only the BLOCKING behavior below is skipped for preview, same as
+       the feature-flag gate. Without this, a QA tester using ?preview=1
+       would never see CAD pricing regardless of their real location,
+       since country would stay unset. */
+    var blocked = geoBlocked();
+
     if (previewOverrideActive()) { startFlow(); return; }
 
-    if (geoBlocked()) {
+    if (blocked) {
       track(EVENTS.geoBlocked, { country: state.answers.country });
       syncLead({ last_step: "geo_blocked" });
       showGeoGate();

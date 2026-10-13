@@ -43,8 +43,9 @@ create table if not exists public.moms_leads (
   grace_period_weeks int,                -- unused since the flat per-day mechanic replaced grace weeks; kept for old rows
   passes_total int,                      -- unused since the flat per-day mechanic replaced free passes; kept for old rows
 
-  plan_price_cents int,                  -- recurring membership price, currently always 3999 ($39.99)
+  plan_price_cents int,                  -- recurring membership price, currently always 3999 (same numeral in both currencies)
   billing_interval text,                 -- 'month'
+  billing_currency text,                 -- 'usd' | 'cad', resolved from country (US visitors pay USD, CA visitors pay CAD)
 
   first_name text,
   email text,
@@ -73,6 +74,7 @@ alter table public.moms_leads add column if not exists conversations_openness te
 alter table public.moms_leads add column if not exists routine_preference text;
 alter table public.moms_leads add column if not exists plan_price_cents int;
 alter table public.moms_leads add column if not exists billing_interval text;
+alter table public.moms_leads add column if not exists billing_currency text;
 
 -- The tone picker is retired and no longer writes this column; stop new rows
 -- from silently inheriting 'princess' as if it were a real answer.
