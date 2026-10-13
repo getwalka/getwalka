@@ -210,6 +210,65 @@ window.WALKA_MOMS = (function () {
       ]
     },
 
+    /* Short inline acknowledgment shown the moment an answer is picked on
+       the 7 "kept" emotional/logistics questions, keyed by step id then
+       option value. Not a diagnosis of how she feels, just a gentle
+       reflection of what she picked, so onboarding reads as a response
+       rather than a form. Deliberately no entry for "prefer_not_to_say"
+       anywhere below, and none for routine_preference (part B of
+       `clearance`) — respecting a skipped/declined answer means saying
+       nothing about it, not inventing a reaction to it. */
+    acknowledgments: {
+      stage: {
+        pregnant: "Good to know. We'll keep things gentle as your due date gets closer.",
+        postpartum_0_3: "Early days. We'll go at your pace.",
+        postpartum_3_6: "Got it. We'll shape this around where you are.",
+        postpartum_6_12: "Noted. We'll build around your pace, not a calendar.",
+        postpartum_12_plus: "Good to know. It's never too late to find your rhythm."
+      },
+      motivation: {
+        time_my_own: "A little time that's just yours, that's worth protecting.",
+        energy: "Even small walks can shift how the day feels.",
+        reason_outside: "Sometimes having people to walk alongside makes getting started easier.",
+        other_moms: "There's a whole circle of moms who'd love to meet you.",
+        routine: "A routine can be as gentle as you need it to be.",
+        encouragement: "We can be in your corner for that."
+      },
+      barriers: {
+        exhaustion: "That's real, and it's okay to start small.",
+        unpredictable_routine: "We'll keep this flexible, not fixed to a schedule.",
+        limited_support: "That's exactly what a circle like this is for.",
+        motivation: "Some days the hardest part is just starting. We can help with that.",
+        recovering_physically: "Your comfort and recovery come first.",
+        doing_okay: "Good to hear. We'll help you keep it that way."
+      },
+      connection: {
+        strong_circle: "That's a great thing to have.",
+        few_not_close: "There's room to go deeper with the right people.",
+        want_more: "There's room for more connection.",
+        sometimes_alone: "You're not the only one who feels that way sometimes.",
+        mainly_walking: "That's plenty. The walking is the point."
+      },
+      conversations: {
+        yes_always: "There's a community here for exactly that.",
+        sometimes: "No pressure, the space is there when you want it.",
+        not_really: "That's okay. Walking can be enough on its own.",
+        prefer_read: "You can be part of the circle without sharing before you're ready."
+      },
+      baseline: {
+        walks_regularly: "Good foundation. We'll build on it.",
+        gets_out_when_can: "That counts, every bit of it.",
+        no_routine_yet: "That's exactly where this can help.",
+        recovery_break: "Your comfort and recovery come first.",
+        unsure_comfortable: "We'll help you find what feels right."
+      },
+      clearance: {
+        yes: "Good to know.",
+        not_yet: "Noted, we'll keep things gentle and skip any fixed goals.",
+        not_sure: "No problem, we'll take it slow either way."
+      }
+    },
+
     steps: {
       /* Screen 1 */
       stage: {

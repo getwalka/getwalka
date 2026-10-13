@@ -197,7 +197,8 @@
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.stage.title + '</h2>' +
           '<div class="opts" id="stageOpts">' + opts + '</div>' +
-          '<div id="stageFollowup">' + stageFollowupHTML(a) + '</div>';
+          '<div id="stageFollowup">' + stageFollowupHTML(a) + '</div>' +
+          ackHTML("stage", a.motherhood_stage);
       },
       bind: function (root) {
         root.querySelectorAll('#stageOpts .pill').forEach(function (b) {
@@ -209,6 +210,7 @@
             root.querySelector("#stageFollowup").innerHTML = stageFollowupHTML(state.answers);
             bindStageFollowup(root);
             refreshContinue();
+            updateAck(root, "stage", v);
           });
         });
         bindStageFollowup(root);
@@ -226,9 +228,14 @@
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="opts" id="motivationOpts">' + opts + '</div>';
+          '<div class="opts" id="motivationOpts">' + opts + '</div>' +
+          ackHTML("motivation", lastOf(a.motivation_wants));
       },
-      bind: function (root) { bindMultiSelect(root, "#motivationOpts", "motivation_wants", null); },
+      bind: function (root) {
+        bindMultiSelect(root, "#motivationOpts", "motivation_wants", null, function (v, selected) {
+          updateAck(root, "motivation", selected ? v : null);
+        });
+      },
       canAdvance: function (a) { return (a.motivation_wants || []).length > 0; },
       onLeave: function (a) { track(EVENTS.motivationAnswered, { values: a.motivation_wants || [] }); }
     },
@@ -243,9 +250,14 @@
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="opts" id="barriersOpts">' + opts + '</div>';
+          '<div class="opts" id="barriersOpts">' + opts + '</div>' +
+          ackHTML("barriers", lastOf(a.barriers));
       },
-      bind: function (root) { bindMultiSelect(root, "#barriersOpts", "barriers", COPY.steps.barriers.exclusiveValues); },
+      bind: function (root) {
+        bindMultiSelect(root, "#barriersOpts", "barriers", COPY.steps.barriers.exclusiveValues, function (v, selected) {
+          updateAck(root, "barriers", selected ? v : null);
+        });
+      },
       canAdvance: function (a) { return (a.barriers || []).length > 0; }
     },
 
@@ -260,7 +272,8 @@
           return pillOption("connection_value", o.value, o.label, a.connection === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.connection.title + '</h2>' +
-          '<div class="opts" id="connectionOpts">' + opts + '</div>';
+          '<div class="opts" id="connectionOpts">' + opts + '</div>' +
+          ackHTML("connection", a.connection);
       },
       bind: function (root) {
         root.querySelectorAll('#connectionOpts .pill').forEach(function (b) {
@@ -268,6 +281,7 @@
             state.answers.connection = b.getAttribute("data-value");
             root.querySelectorAll('#connectionOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
+            updateAck(root, "connection", state.answers.connection);
           });
         });
       },
@@ -282,7 +296,8 @@
           return pillOption("conversations_value", o.value, o.label, a.conversations_openness === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.conversations.title + '</h2>' +
-          '<div class="opts" id="conversationsOpts">' + opts + '</div>';
+          '<div class="opts" id="conversationsOpts">' + opts + '</div>' +
+          ackHTML("conversations", a.conversations_openness);
       },
       bind: function (root) {
         root.querySelectorAll('#conversationsOpts .pill').forEach(function (b) {
@@ -290,6 +305,7 @@
             state.answers.conversations_openness = b.getAttribute("data-value");
             root.querySelectorAll('#conversationsOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
+            updateAck(root, "conversations", state.answers.conversations_openness);
           });
         });
       },
@@ -306,7 +322,8 @@
           return pillOption("baseline_value", o.value, o.label, a.activity_baseline === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.baseline.title + '</h2>' +
-          '<div class="opts" id="baselineOpts">' + opts + '</div>';
+          '<div class="opts" id="baselineOpts">' + opts + '</div>' +
+          ackHTML("baseline", a.activity_baseline);
       },
       bind: function (root) {
         root.querySelectorAll('#baselineOpts .pill').forEach(function (b) {
@@ -314,6 +331,7 @@
             state.answers.activity_baseline = b.getAttribute("data-value");
             root.querySelectorAll('#baselineOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
+            updateAck(root, "baseline", state.answers.activity_baseline);
           });
         });
       },
@@ -337,6 +355,7 @@
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<div class="opts" id="clearanceOpts">' + opts + '</div>' +
           '<div id="clearanceNote">' + note + '</div>' +
+          ackHTML("clearance", a.clearance_status) +
           '<p class="q-disclaimer">' + c.medicalReminder + '</p>' +
           '<p class="q-label">' + c.routineTitle + '</p>' +
           '<div class="opts" id="routineOpts">' + routineOpts + '</div>';
@@ -349,6 +368,7 @@
             root.querySelector("#clearanceNote").innerHTML = state.answers.clearance_status !== "yes"
               ? '<p class="q-note">' + COPY.steps.clearance.notClearedNote + '</p>' : "";
             track(EVENTS.clearanceAnswered, { value: state.answers.clearance_status });
+            updateAck(root, "clearance", state.answers.clearance_status);
           });
         });
         root.querySelectorAll('#routineOpts .pill').forEach(function (b) {
@@ -493,27 +513,63 @@
   /* Toggles array membership in state.answers[fieldName] on click. Any
      value listed in exclusiveValues (e.g. "prefer_not_to_say") clears
      every other pick when chosen, and is itself cleared the moment a
-     real option is picked. */
-  function bindMultiSelect(root, containerSelector, fieldName, exclusiveValues) {
+     real option is picked. onPick(value, selected), if given, fires after
+     each click so the caller can react to just the one option that
+     changed (used to drive the inline acknowledgment line). */
+  function bindMultiSelect(root, containerSelector, fieldName, exclusiveValues, onPick) {
     root.querySelectorAll(containerSelector + " .pill").forEach(function (b) {
       b.addEventListener("click", function () {
         var v = b.getAttribute("data-value");
         var list = (state.answers[fieldName] || []).slice();
         var isExclusive = exclusiveValues && exclusiveValues.indexOf(v) !== -1;
+        var selected;
         if (isExclusive) {
-          list = (list.indexOf(v) !== -1) ? [] : [v];
+          if (list.indexOf(v) !== -1) { list = []; selected = false; }
+          else { list = [v]; selected = true; }
         } else {
           if (exclusiveValues) list = list.filter(function (x) { return exclusiveValues.indexOf(x) === -1; });
           var idx = list.indexOf(v);
-          if (idx === -1) list.push(v); else list.splice(idx, 1);
+          if (idx === -1) { list.push(v); selected = true; } else { list.splice(idx, 1); selected = false; }
         }
         state.answers[fieldName] = list;
         root.querySelectorAll(containerSelector + " .pill").forEach(function (p) {
           p.classList.toggle("is-active", list.indexOf(p.getAttribute("data-value")) !== -1);
         });
         refreshContinue();
+        if (onPick) onPick(v, selected);
       });
     });
+  }
+
+  /* Inline acknowledgment line (the "feels like a conversation" layer):
+     a short, non-diagnostic reflection of whichever answer was just
+     picked on one of the emotional/logistics questions. No entry in
+     COPY.acknowledgments[stepId] (declined/skipped answers, routine
+     preference) means nothing renders — silence, not an invented
+     reaction. */
+  function ackText(stepId, value) {
+    var map = COPY.acknowledgments[stepId];
+    return (map && value && map[value]) || null;
+  }
+
+  function ackHTML(stepId, value) {
+    var text = ackText(stepId, value);
+    return '<p class="q-ack" id="ackLine"' + (text ? '' : ' hidden') + '>' + (text || '') + '</p>';
+  }
+
+  function updateAck(root, stepId, value) {
+    var el = root.querySelector("#ackLine");
+    if (!el) return;
+    var text = ackText(stepId, value);
+    el.textContent = text || "";
+    el.hidden = !text;
+  }
+
+  /* For a multi-select's initial render (fresh view or back-navigation):
+     reflects the most recently added pick, as a reasonable stand-in for
+     "whatever was just clicked" when there's no live click to react to. */
+  function lastOf(list) {
+    return (list && list.length) ? list[list.length - 1] : null;
   }
 
   function benefitCardHTML(b) {
