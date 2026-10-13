@@ -193,12 +193,12 @@ window.WALKA_MOMS = (function () {
       ]
     },
 
-    /* Shared grouping data, used by resolvedCohortFor()/prettyCohort() in
-       moms-app.js to auto-place a member into a walking circle. Not its
-       own screen (the old "cohort" step was retired) — the assignment
-       surfaces as one line on the `results` step instead. */
+    /* Reference data for resolvedCohortFor()'s return codes in
+       moms-app.js. Not its own screen (the old "cohort" step was
+       retired), and not rendered anywhere as a confirmed assignment —
+       see RESULTS_COPY.circle below for how the `results` step talks
+       about matching (potential, not yet confirmed). */
     cohort: {
-      assignedLabel: "You'll be walking with: {group}",
       groupsPregnant: [
         { value: "due_soon", label: "Due soon" }
       ],
@@ -335,13 +335,13 @@ window.WALKA_MOMS = (function () {
         ]
       },
 
-      /* Screen 10, personalized results */
+      /* Screen 10, personalized results. The intro sentence and the three
+         benefit cards are computed from RESULTS_COPY by resultsIntroSentence()/
+         resultsCards() in moms-app.js, not static strings here. */
       results: {
         eyebrow: "Made for you",
         title: "A little space for you.",
-        intro: "Here's what we put together, based on what you shared.",
-        note: "This isn't a promise about results, just where we'd start with you.",
-        continueLabel: "See what's included"
+        note: "This isn't a promise about results, just where we'd start with you."
       },
 
       /* Screen 11, trust / community preview */
@@ -388,55 +388,78 @@ window.WALKA_MOMS = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 5. PERSONALIZATION: benefit cards shown on the `results` step (and
-   *    reused on `checkout`'s "what's included" list), filtered and
-   *    ranked by computePersonalizedBenefits() in moms-app.js against
-   *    the member's actual answers. Declarative conditions only, no
-   *    functions here — the matching logic lives in moms-app.js.
-   *
-   *    Open gap: the brief's "wants reflection -> private diary" rule has
-   *    no literal matching option among the six `motivation` choices
-   *    above. private_diary's trigger below is a proxy (encouragement/
-   *    time-for-myself + prefers reading over posting) — worth a product
-   *    glance, not blocking.
+   * 5. PERSONALIZATION: copy for the `results` step's three fixed benefit
+   *    cards, its intro sentence, and the optional secondary diary
+   *    mention, resolved deterministically against the member's actual
+   *    answers by resultsCircleCard()/resultsCommunityCard()/
+   *    resultsRoutineCard()/resultsDiaryCard()/resultsIntroSentence() in
+   *    moms-app.js. Plain lookups and if/else, no scoring, no inference
+   *    beyond "this answer maps to this line" — reused as-is on
+   *    `checkout`'s "what's included" list so both screens agree.
    * ------------------------------------------------------------------ */
-  var BENEFITS_CATALOG = [
-    {
-      id: "rest_path", icon: "🌙", title: "Room to rest, no pressure",
-      body: "If today calls for rest instead of a walk, that counts too. No streaks to protect, no goals you're not ready for.",
-      priority: 12, triggers: { recovering: true }
+  var RESULTS_COPY = {
+    introDefault: "Here's what we've put together, based on what you shared.",
+    /* First match wins; order here IS the priority. */
+    introWantPriority: ["other_moms", "reason_outside", "routine", "time_my_own", "encouragement", "energy"],
+    introByWant: {
+      other_moms: "Since you're hoping for other moms who understand, here's what we've put together around that.",
+      reason_outside: "Since you're looking for a reason to get outside, here's what we've put together around that.",
+      routine: "Since you're looking for a routine you can stick to, here's what we've put together around that.",
+      time_my_own: "Since you're looking for a little time that's yours, here's what we've put together around that.",
+      encouragement: "Since a little encouragement goes a long way, here's what we've put together around that.",
+      energy: "Since you're looking for more energy day to day, here's what we've put together around that."
     },
-    {
-      id: "walking_circles", icon: "🫂", title: "Small walking circles",
-      body: "A few other moms at a similar stage, walking alongside you at your pace.",
-      priority: 10,
-      triggers: { motivation_wants_any: ["other_moms", "routine"], connection_any: ["few_not_close", "want_more", "sometimes_alone"] }
+
+    circle: {
+      title: "Your walking circle", icon: "🫂",
+      /* Explains a potential future match by stage. Never phrase these as
+         an already-confirmed assignment (e.g. "you're walking with X") —
+         matching hasn't happened yet when this screen renders. */
+      byStage: {
+        pregnant: "You're currently pregnant, so when you're ready, we'll look to match you with others due around the same time.",
+        postpartum_0_3: "You're in the early postpartum weeks, so we'll look to match you with others in a similar season.",
+        postpartum_3_6: "Based on where you are postpartum, we'll look to match you with others a few months in, too.",
+        postpartum_6_12: "Based on where you are postpartum, we'll look to match you with others further along in recovery.",
+        postpartum_12_plus: "However long it's been, we'll look to match you with others further out from birth too."
+      },
+      fallback: "We'll look to match you with a small circle of moms as you get started.",
+      recoveringNote: "No pressure to keep pace with anyone, this is about company, not competition."
     },
-    {
-      id: "forums", icon: "💬", title: "A community that gets it",
-      body: "A larger, moderated space for honest conversations. Share as yourself, or anonymously to the group.",
-      priority: 9,
-      triggers: { motivation_wants_any: ["other_moms"], conversations_any: ["yes_always", "sometimes", "prefer_read"] }
+
+    community: {
+      title: "Your community experience", icon: "💬",
+      wantsOtherMoms: "You told us you'd love more moms who understand. Our community is built for exactly that, share as much or as little as feels right.",
+      disconnected: "There's room to feel more connected here, at whatever pace works for you.",
+      fallback: "A moderated space for honest conversations, whenever you want to take part.",
+      preferReadNote: "You can take part at your own pace, reading along counts too."
     },
-    {
-      id: "flexible_challenges", icon: "🚶‍♀️", title: "Flexible walking challenges",
-      body: "Gentle, shared goals that flex around your day, never a fixed step count.",
-      priority: 8,
-      triggers: { motivation_wants_any: ["time_my_own", "energy", "reason_outside", "routine"], activity_baseline_any: ["walks_regularly", "gets_out_when_can", "no_routine_yet"] },
-      excludeIf: { recovering: true }
+
+    routine: {
+      title: "Your gentle walking routine", icon: "🚶‍♀️",
+      /* Every line here is already goal-free by design (no step counts or
+         numeric targets), so "don't assign exercise targets to recovering/
+         uncertain/restricted members" holds for every branch, not just
+         not_ready. */
+      byPreference: {
+        not_ready: "No pressure to set a goal yet. We'll check back in when you're ready, there's no clock on this.",
+        short_walks: "Short walks when you can grab them, nothing more structured than that.",
+        time_outside: "Time outside most days, however that looks for you, no fixed distance or pace.",
+        flexible_goal: "A flexible weekly goal that moves with your week, not a fixed daily number.",
+        gentle_challenges: "Gentle, shared challenges you can opt into when they fit, never mandatory."
+      },
+      fallback: "A walking routine that adjusts to your day, never a fixed step count.",
+      outsideNote: "You mentioned wanting more reason to get outside, we'll keep opportunities like that coming."
     },
-    {
-      id: "private_diary", icon: "📓", title: "A private mood diary",
-      body: "A quiet place just for you to note how you're really feeling. Visible only to you.",
-      priority: 7,
-      triggers: { motivation_wants_any: ["encouragement", "time_my_own"], conversations_any: ["prefer_read", "not_really"] }
+
+    /* Optional secondary feature: shown only when a specific answer
+       actually points to it, never as a default filler card. */
+    diary: {
+      title: "A private mood diary",
+      body: "A quiet place just for you to note how you're really feeling. Visible only to you."
     },
-    {
-      id: "personalized_support", icon: "💛", title: "Support that adjusts to you",
-      body: "Encouragement and check-ins shaped around your stage and your pace.",
-      priority: 6, triggers: { always: true }
-    }
-  ];
+
+    continueLabel: "See your community"
+  };
 
   /* ------------------------------------------------------------------ *
    * 6. ANALYTICS EVENT NAMES: keep these in sync with anything you
@@ -475,7 +498,7 @@ window.WALKA_MOMS = (function () {
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,
     COPY: COPY,
-    BENEFITS_CATALOG: BENEFITS_CATALOG,
+    RESULTS_COPY: RESULTS_COPY,
     EVENTS: EVENTS
   };
 })();

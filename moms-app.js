@@ -56,10 +56,6 @@
     });
   }
 
-  function fmtTemplate(str, vars) {
-    return str.replace(/\{(\w+)\}/g, function (_, k) { return vars[k] != null ? vars[k] : ""; });
-  }
-
   function getCookie(name) {
     var match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
     return match ? decodeURIComponent(match[1]) : "";
@@ -142,38 +138,73 @@
     }
   }
 
-  /* Who gets a personalized benefit card on `results` (and the same list,
-     reused, on `checkout`'s "what's included"). Declarative conditions
-     live in moms-copy.js's BENEFITS_CATALOG; this just evaluates them.
-     Each specified trigger dimension is OR'd, not AND'd — a card matches
-     if ANY one of its conditions is satisfied, so skipping one optional
-     question never silently hides a card another answer already earned. */
-  function computePersonalizedBenefits(a) {
-    var recovering = a.activity_baseline === "recovery_break"
-      || a.clearance_status === "not_yet"
-      || a.routine_preference === "not_ready";
+  /* `results` step personalization: three fixed cards (circle/community/
+     routine) plus an optional diary mention plus an intro sentence, each
+     resolved deterministically against the member's actual answers from
+     moms-copy.js's RESULTS_COPY. Plain lookups/if-else, no scoring —
+     every branch is traceable to one specific answer. Reused as-is by
+     `checkout`'s "what's included" list via resultsCards()/
+     resultsDiaryCard(), so both screens agree. */
+
+  function isRecovering(a) {
+    return a.routine_preference === "not_ready" || a.clearance_status === "not_yet";
+  }
+
+  function resultsCircleCard(a) {
+    var c = WM.RESULTS_COPY.circle;
+    var body = c.byStage[a.motherhood_stage] || c.fallback;
+    var reason = c.byStage[a.motherhood_stage] ? ("stage:" + a.motherhood_stage) : "fallback";
+    if (isRecovering(a)) body += " " + c.recoveringNote;
+    return { title: c.title, icon: c.icon, body: body, reason: reason };
+  }
+
+  function resultsCommunityCard(a) {
+    var c = WM.RESULTS_COPY.community;
     var wants = a.motivation_wants || [];
-    var connection = a.connection;
-    var conversations = a.conversations_openness;
-    var baseline = a.activity_baseline;
-
-    function matches(card) {
-      var t = card.triggers;
-      if (card.excludeIf && card.excludeIf.recovering && recovering) return false;
-      if (t.always) return true;
-      if (t.recovering) return recovering;
-      var conditions = [];
-      if (t.motivation_wants_any) conditions.push(t.motivation_wants_any.some(function (v) { return wants.indexOf(v) !== -1; }));
-      if (t.connection_any) conditions.push(t.connection_any.indexOf(connection) !== -1);
-      if (t.conversations_any) conditions.push(t.conversations_any.indexOf(conversations) !== -1);
-      if (t.activity_baseline_any) conditions.push(t.activity_baseline_any.indexOf(baseline) !== -1);
-      if (!conditions.length) return false;
-      return conditions.some(function (c) { return c; });
+    var body, reason;
+    if (wants.indexOf("other_moms") !== -1) {
+      body = c.wantsOtherMoms; reason = "wants:other_moms";
+    } else if (["want_more", "sometimes_alone", "few_not_close"].indexOf(a.connection) !== -1) {
+      body = c.disconnected; reason = "connection:" + a.connection;
+    } else {
+      body = c.fallback; reason = "fallback";
     }
+    if (a.conversations_openness === "prefer_read") body += " " + c.preferReadNote;
+    return { title: c.title, icon: c.icon, body: body, reason: reason };
+  }
 
-    return WM.BENEFITS_CATALOG.filter(matches)
-      .sort(function (x, y) { return y.priority - x.priority; })
-      .slice(0, 4);
+  function resultsRoutineCard(a) {
+    var c = WM.RESULTS_COPY.routine;
+    var body = c.byPreference[a.routine_preference] || c.fallback;
+    var reason = c.byPreference[a.routine_preference] ? ("routine:" + a.routine_preference) : "fallback";
+    var wants = a.motivation_wants || [];
+    if (wants.indexOf("reason_outside") !== -1 && a.routine_preference !== "not_ready") body += " " + c.outsideNote;
+    return { title: c.title, icon: c.icon, body: body, reason: reason };
+  }
+
+  /* Optional secondary feature: returns null (render nothing) unless a
+     specific answer actually points to it. Never a default filler. */
+  function resultsDiaryCard(a) {
+    var wants = a.motivation_wants || [];
+    var show = wants.indexOf("encouragement") !== -1 || wants.indexOf("time_my_own") !== -1
+      || a.conversations_openness === "prefer_read" || a.conversations_openness === "not_really";
+    if (!show) return null;
+    var c = WM.RESULTS_COPY.diary;
+    return { title: c.title, body: c.body };
+  }
+
+  function resultsIntroSentence(a) {
+    var c = WM.RESULTS_COPY;
+    var wants = a.motivation_wants || [];
+    for (var i = 0; i < c.introWantPriority.length; i++) {
+      var w = c.introWantPriority[i];
+      if (wants.indexOf(w) !== -1) return c.introByWant[w];
+    }
+    return c.introDefault;
+  }
+
+  function resultsCards(a) {
+    return [resultsCircleCard(a), resultsCommunityCard(a), resultsRoutineCard(a)];
   }
 
   /* ---------------- DOM refs ---------------- */
@@ -366,22 +397,28 @@
     results: {
       render: function (a) {
         var c = COPY.steps.results;
-        a.cohort = resolvedCohortFor(a);
-        var benefits = computePersonalizedBenefits(a);
-        var groupLine = fmtTemplate(COPY.cohort.assignedLabel, { group: prettyCohort(a.cohort) });
+        a.cohort = resolvedCohortFor(a); // still stored/synced for real matching later; not displayed as confirmed
+        var cards = resultsCards(a);
+        var diary = resultsDiaryCard(a);
         return '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.intro + '</p>' +
-          '<div class="benefits">' + benefits.map(benefitCardHTML).join("") + '</div>' +
-          '<p class="q-note">' + groupLine + '</p>' +
+          '<p class="q-body">' + resultsIntroSentence(a) + '</p>' +
+          '<div class="benefits">' + cards.map(benefitCardHTML).join("") + '</div>' +
+          (diary ? '<div class="q-note"><strong>' + diary.title + '</strong><br>' + diary.body + '</div>' : '') +
           '<p class="q-hint">' + c.note + '</p>';
       },
       bind: function () {},
       canAdvance: function () { return true; },
-      continueLabel: function () { return COPY.steps.results.continueLabel; },
+      continueLabel: function () { return WM.RESULTS_COPY.continueLabel; },
       onEnter: function (a) {
         track(EVENTS.cohortChosen, { cohort: a.cohort });
-        track(EVENTS.resultsViewed, { benefit_ids: computePersonalizedBenefits(a).map(function (b) { return b.id; }) });
+        var cards = resultsCards(a);
+        track(EVENTS.resultsViewed, {
+          circle_reason: cards[0].reason,
+          community_reason: cards[1].reason,
+          routine_reason: cards[2].reason,
+          diary_shown: !!resultsDiaryCard(a)
+        });
       }
     },
 
@@ -402,14 +439,17 @@
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
-        var benefits = computePersonalizedBenefits(a);
+        var cards = resultsCards(a);
+        var diary = resultsDiaryCard(a);
+        var includedTitles = cards.map(function (b) { return b.title; });
+        if (diary) includedTitles.push(diary.title);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="price-tag">' + centsLabel(WM.PLAN_PRICE_CENTS) + '/' + WM.BILLING_INTERVAL + '</div>' +
           '<p class="q-hint">' + c.billingNote + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
-            benefits.map(function (b) { return '<li>' + b.title + '</li>'; }).join("") +
+            includedTitles.map(function (t) { return '<li>' + t + '</li>'; }).join("") +
           '</ul></div>' +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
@@ -537,12 +577,6 @@
 
   function centsLabel(cents) {
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
-  }
-
-  function prettyCohort(value) {
-    var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
-    var match = all.filter(function (o) { return o.value === value; })[0];
-    return match ? match.label : value || "";
   }
 
   function stageFollowupHTML(a) {
