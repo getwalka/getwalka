@@ -209,7 +209,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -227,16 +227,16 @@
           return pillOption("stage_value", o.value, o.label, a.motherhood_stage === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.stage.title + '</h2>' +
-          '<div class="opts" id="stageOpts">' + opts + '</div>' +
+          '<div class="answer-grid" id="stageOpts">' + opts + '</div>' +
           '<div id="stageFollowup">' + stageFollowupHTML(a) + '</div>';
       },
       bind: function (root) {
-        root.querySelectorAll('#stageOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#stageOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             var v = b.getAttribute("data-value");
             state.answers.motherhood_stage = v;
             state.answers.stage = (v === "pregnant") ? "pregnant" : "postpartum";
-            root.querySelectorAll('#stageOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#stageOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             root.querySelector("#stageFollowup").innerHTML = stageFollowupHTML(state.answers);
             bindStageFollowup(root);
             refreshContinue();
@@ -257,7 +257,7 @@
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="opts" id="motivationOpts">' + opts + '</div>';
+          '<div class="answer-grid" id="motivationOpts">' + opts + '</div>';
       },
       bind: function (root) { bindMultiSelect(root, "#motivationOpts", "motivation_wants", null); },
       canAdvance: function (a) { return (a.motivation_wants || []).length > 0; },
@@ -274,14 +274,14 @@
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="opts" id="barriersOpts">' + opts + '</div>';
+          '<div class="answer-grid" id="barriersOpts">' + opts + '</div>';
       },
       bind: function (root) { bindMultiSelect(root, "#barriersOpts", "barriers", COPY.steps.barriers.exclusiveValues); },
       canAdvance: function (a) { return (a.barriers || []).length > 0; }
     },
 
     /* Screen 4, interlude */
-    interludeCare: makeInsightStep("interludeCare"),
+    interludeCare: makeInsightStep("interludeCare", "care"),
 
     /* Screen 5, skippable */
     connection: {
@@ -291,13 +291,13 @@
           return pillOption("connection_value", o.value, o.label, a.connection === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.connection.title + '</h2>' +
-          '<div class="opts" id="connectionOpts">' + opts + '</div>';
+          '<div class="answer-grid" id="connectionOpts">' + opts + '</div>';
       },
       bind: function (root) {
-        root.querySelectorAll('#connectionOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#connectionOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.connection = b.getAttribute("data-value");
-            root.querySelectorAll('#connectionOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#connectionOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
           });
         });
@@ -313,13 +313,13 @@
           return pillOption("conversations_value", o.value, o.label, a.conversations_openness === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.conversations.title + '</h2>' +
-          '<div class="opts" id="conversationsOpts">' + opts + '</div>';
+          '<div class="answer-grid" id="conversationsOpts">' + opts + '</div>';
       },
       bind: function (root) {
-        root.querySelectorAll('#conversationsOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#conversationsOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.conversations_openness = b.getAttribute("data-value");
-            root.querySelectorAll('#conversationsOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#conversationsOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
           });
         });
@@ -328,7 +328,7 @@
     },
 
     /* Screen 7, interlude */
-    interludeCommunity: makeInsightStep("interludeCommunity"),
+    interludeCommunity: makeInsightStep("interludeCommunity", "community"),
 
     /* Screen 8 */
     baseline: {
@@ -337,13 +337,13 @@
           return pillOption("baseline_value", o.value, o.label, a.activity_baseline === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.baseline.title + '</h2>' +
-          '<div class="opts" id="baselineOpts">' + opts + '</div>';
+          '<div class="answer-grid" id="baselineOpts">' + opts + '</div>';
       },
       bind: function (root) {
-        root.querySelectorAll('#baselineOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#baselineOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.activity_baseline = b.getAttribute("data-value");
-            root.querySelectorAll('#baselineOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#baselineOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
           });
         });
@@ -366,26 +366,26 @@
           return pillOption("routine_value", o.value, o.label, a.routine_preference === o.value);
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="opts" id="clearanceOpts">' + opts + '</div>' +
+          '<div class="answer-grid" id="clearanceOpts">' + opts + '</div>' +
           '<div id="clearanceNote">' + note + '</div>' +
           '<p class="q-disclaimer">' + c.medicalReminder + '</p>' +
           '<p class="q-label">' + c.routineTitle + '</p>' +
-          '<div class="opts" id="routineOpts">' + routineOpts + '</div>';
+          '<div class="answer-grid" id="routineOpts">' + routineOpts + '</div>';
       },
       bind: function (root) {
-        root.querySelectorAll('#clearanceOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#clearanceOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.clearance_status = b.getAttribute("data-value");
-            root.querySelectorAll('#clearanceOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#clearanceOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             root.querySelector("#clearanceNote").innerHTML = state.answers.clearance_status !== "yes"
               ? '<p class="q-note">' + COPY.steps.clearance.notClearedNote + '</p>' : "";
             track(EVENTS.clearanceAnswered, { value: state.answers.clearance_status });
           });
         });
-        root.querySelectorAll('#routineOpts .pill').forEach(function (b) {
+        root.querySelectorAll('#routineOpts .answer-card').forEach(function (b) {
           b.addEventListener("click", function () {
             state.answers.routine_preference = b.getAttribute("data-value");
-            root.querySelectorAll('#routineOpts .pill').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+            root.querySelectorAll('#routineOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
             refreshContinue();
           });
         });
@@ -509,29 +509,44 @@
      shared continueBtn falls back to COPY.continueLabel since these
      don't need their own CTA copy. */
 
-  /* Small decorative SVGs, deliberately only for the two interludes — every
-     other screen already has either interactive pills or real visual
-     content (benefit-card icons, the circle preview, the price tag), so
-     adding art there would be redundant, not a fix for repetition. Kept
-     abstract/geometric and limited to 2-3 existing palette colors each,
-     no gradients. */
+  /* Larger, more composed original SVGs for the two reassurance screens —
+     deliberately only these two (every other screen already has either
+     interactive answer cards or real visual content: benefit-card icons,
+     the circle preview, the price tag), so more art elsewhere would be
+     redundant, not a fix for repetition. Still abstract/geometric, built
+     only from existing palette variables, no gradients. Each card's own
+     background is a solid tint (set via cardVariant below), so the
+     illustration's backdrop shape uses --card (white) at partial opacity
+     to read as a soft halo rather than disappearing into a matching fill. */
   var INTERLUDE_ART = {
     interludeCare:
-      '<svg viewBox="0 0 96 96" width="72" height="72" role="img" aria-hidden="true">' +
-        '<circle cx="48" cy="48" r="40" fill="var(--sage-tint)"/>' +
-        '<path d="M26 54c6-14 20-22 34-16" stroke="var(--sage)" stroke-width="4" stroke-linecap="round" fill="none"/>' +
-        '<circle cx="62" cy="32" r="5" fill="var(--sage)"/>' +
+      '<svg viewBox="0 0 160 160" width="140" height="140" role="img" aria-hidden="true">' +
+        '<circle cx="80" cy="80" r="68" fill="var(--card)" opacity=".55"/>' +
+        '<path d="M40 92c10-28 40-44 68-32" stroke="var(--sage)" stroke-width="5" stroke-linecap="round" fill="none"/>' +
+        '<path d="M48 112c14-16 40-24 62-14" stroke="var(--sage-deep)" stroke-width="3" stroke-linecap="round" fill="none" opacity=".5"/>' +
+        '<circle cx="112" cy="54" r="9" fill="var(--sage)"/>' +
+        '<circle cx="54" cy="56" r="5" fill="var(--sage-deep)" opacity=".6"/>' +
       '</svg>',
     interludeCommunity:
-      '<svg viewBox="0 0 96 96" width="72" height="72" role="img" aria-hidden="true">' +
-        '<circle cx="48" cy="28" r="15" fill="var(--rose-tint)" stroke="var(--rose-ink)" stroke-width="2"/>' +
-        '<circle cx="28" cy="58" r="15" fill="var(--lavender)" stroke="var(--lavender-ink)" stroke-width="2"/>' +
-        '<circle cx="68" cy="58" r="15" fill="var(--sage-tint)" stroke="var(--sage)" stroke-width="2"/>' +
+      '<svg viewBox="0 0 160 160" width="140" height="140" role="img" aria-hidden="true">' +
+        '<circle cx="80" cy="80" r="68" fill="var(--card)" opacity=".4"/>' +
+        '<circle cx="80" cy="46" r="24" fill="var(--rose-tint)" stroke="var(--rose-ink)" stroke-width="2.5"/>' +
+        '<circle cx="46" cy="98" r="24" fill="var(--lavender)" stroke="var(--lavender-ink)" stroke-width="2.5"/>' +
+        '<circle cx="114" cy="98" r="24" fill="var(--sage-tint)" stroke="var(--sage)" stroke-width="2.5"/>' +
       '</svg>'
   };
 
-  function makeInsightStep(key) {
+  /* cardVariant tells renderStep() which .card--* modifier to apply to the
+     shared #screen element (its class is reset fresh on every render, see
+     renderStep() below) — the step's own render() only returns inner
+     markup, it can't set classes on its own container. Passed explicitly
+     by each call site rather than looked up, since makeInsightStep() is
+     invoked while the `steps` object literal is still being built — a
+     lookup table assigned later in this file wouldn't exist yet at that
+     point (var hoisting only hoists the declaration, not the assignment). */
+  function makeInsightStep(key, cardVariant) {
     return {
+      cardVariant: cardVariant,
       render: function () {
         var c = COPY.steps[key];
         var art = INTERLUDE_ART[key];
@@ -548,9 +563,11 @@
   /* ---------------- small render helpers ---------------- */
 
   function pillOption(name, value, label, active, multi) {
-    return '<button type="button" class="pill' + (multi ? " pill--multi" : "") + (active ? " is-active" : "") +
+    return '<button type="button" class="answer-card' + (multi ? " answer-card--multi" : "") + (active ? " is-active" : "") +
       '" data-value="' + value + '" data-name="' + name + '">' +
-      (multi ? '<span class="pill__check" aria-hidden="true"></span>' : "") + label + '</button>';
+      '<span class="answer-card__label">' + label + '</span>' +
+      '<span class="answer-card__indicator" aria-hidden="true"></span>' +
+      '</button>';
   }
 
   /* Toggles array membership in state.answers[fieldName] on click. Any
@@ -558,7 +575,7 @@
      every other pick when chosen, and is itself cleared the moment a
      real option is picked. */
   function bindMultiSelect(root, containerSelector, fieldName, exclusiveValues) {
-    root.querySelectorAll(containerSelector + " .pill").forEach(function (b) {
+    root.querySelectorAll(containerSelector + " .answer-card").forEach(function (b) {
       b.addEventListener("click", function () {
         var v = b.getAttribute("data-value");
         var list = (state.answers[fieldName] || []).slice();
@@ -571,7 +588,7 @@
           if (idx === -1) list.push(v); else list.splice(idx, 1);
         }
         state.answers[fieldName] = list;
-        root.querySelectorAll(containerSelector + " .pill").forEach(function (p) {
+        root.querySelectorAll(containerSelector + " .answer-card").forEach(function (p) {
           p.classList.toggle("is-active", list.indexOf(p.getAttribute("data-value")) !== -1);
         });
         refreshContinue();
@@ -672,6 +689,9 @@
     var step = steps[id];
     screenEl.innerHTML = step.render(state.answers);
     step.bind(screenEl);
+    screenEl.className = "card" + (step.cardVariant ? " card--reassurance card--" + step.cardVariant : "");
+    void screenEl.offsetWidth; // force reflow so the entrance animation restarts on every step
+    screenEl.classList.add("card--enter");
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
     progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
@@ -701,6 +721,7 @@
     syncLead();
     if (state.stepIndex < STEP_IDS.length - 1) {
       state.stepIndex++;
+      resumeBanner.hidden = true;
       renderStep();
     }
   }
@@ -708,6 +729,7 @@
   function goBack() {
     if (state.stepIndex > 0) {
       state.stepIndex--;
+      resumeBanner.hidden = true;
       renderStep();
     }
   }
@@ -848,7 +870,7 @@
       exitLink.hidden = false;
       if (state.stepIndex > 0) {
         resumeBanner.hidden = false;
-        resumeBanner.textContent = COPY.resumeBanner;
+        resumeBannerText.textContent = COPY.resumeBanner;
       }
       renderStep();
     });
@@ -895,6 +917,8 @@
     progressFill = document.getElementById("progressFill");
     progressLabel = document.getElementById("progressLabel");
     resumeBanner = document.getElementById("resumeBanner");
+    resumeBannerText = document.getElementById("resumeBannerText");
+    resumeBannerDismiss = document.getElementById("resumeBannerDismiss");
     gateEl = document.getElementById("gate");
     landingEl = document.getElementById("landing");
     appEl = document.getElementById("app");
@@ -905,6 +929,7 @@
     continueBtn.addEventListener("click", function () { goNext(); });
     skipBtn.addEventListener("click", function () { goNext(true); });
     backBtn.addEventListener("click", goBack);
+    resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
 
     initGate();
   });

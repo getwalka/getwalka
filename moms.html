@@ -67,30 +67,49 @@
   .exit{font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--ink-soft);text-decoration:none}
   .exit:hover{color:var(--ink)}
 
-  main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 20px 0}
-  .shell{max-width:440px;width:100%;flex:1;display:flex;flex-direction:column}
-  @media (min-width: 900px){
-    .shell{max-width:560px}
+  main{
+    min-height:calc(100vh - 64px);display:flex;flex-direction:column;
+    justify-content:center;align-items:center;
+    padding:40px 20px calc(40px + env(safe-area-inset-bottom, 0px));
   }
+  .shell{max-width:680px;width:100%}
 
-  #app{flex:1;display:flex;flex-direction:column;width:100%}
-
-  .progress__label{font-family:var(--display);font-weight:600;font-size:.8rem;color:var(--ink-soft);margin-bottom:8px}
-  .progress{height:8px;border-radius:99px;background:var(--cream-deep);overflow:hidden;margin-bottom:22px}
+  .progress__label{
+    font-family:var(--display);font-weight:600;font-size:.74rem;color:var(--ink-soft);
+    letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;
+  }
+  .progress{height:6px;border-radius:99px;background:var(--cream-deep);overflow:hidden;margin-bottom:26px}
   .progress__fill{height:100%;width:0;background:var(--sage);border-radius:99px;transition:width .4s ease}
 
   .resume-banner{
-    background:var(--lavender);color:var(--lavender-ink);font-weight:700;font-size:.85rem;
-    border-radius:var(--r-inner);padding:10px 16px;margin-bottom:18px;text-align:center;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--lavender);color:var(--lavender-ink);font-weight:600;font-size:.82rem;
+    border-radius:999px;padding:8px 10px 8px 16px;margin-bottom:16px;
+  }
+  .resume-banner__dismiss{
+    flex:none;width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;
+    background:rgba(255,255,255,.5);color:var(--lavender-ink);font-size:.85rem;line-height:1;
   }
 
   .card{
     background:var(--card);border-radius:var(--r-card);
     box-shadow:0 24px 60px -24px rgba(43,46,74,.25);
-    padding:32px 26px;margin-bottom:18px;
+    padding:36px 32px;margin-bottom:18px;
   }
+  .card--reassurance{
+    text-align:center;padding:44px 32px;
+  }
+  .card--reassurance .q-title{font-size:1.9rem;margin:4px 0 16px}
+  .card--reassurance .q-body{font-size:1.05rem;max-width:34rem;margin-left:auto;margin-right:auto}
+  .card--reassurance .eyebrow{text-align:center}
+  .card--care{background:var(--sage-tint)}
+  .card--community{background:var(--rose-tint)}
 
-  .interlude-illustration{display:flex;justify-content:center;margin-bottom:16px}
+  @keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .card--enter{animation:cardIn .35s ease}
+  @media (prefers-reduced-motion:reduce){ .card--enter{animation:none} }
+
+  .interlude-illustration{display:flex;justify-content:center;margin-bottom:20px}
 
   .eyebrow{font-family:var(--body);font-weight:700;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:block}
   .q-title{font-family:var(--display);font-weight:700;font-size:1.55rem;letter-spacing:-.01em;line-height:1.2;margin-bottom:14px}
@@ -109,33 +128,36 @@
   .q-source a{color:var(--sage-deep)}
   .q-error{color:#B3443A;font-size:.85rem;margin-top:10px;font-weight:600}
 
-  .opts{display:flex;flex-wrap:wrap;gap:10px}
-  .pill{
+  .answer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media (max-width:420px){
+    .answer-grid{grid-template-columns:1fr}
+  }
+  .answer-card{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    min-height:52px;width:100%;text-align:left;
     font-family:var(--display);font-weight:600;font-size:.92rem;color:var(--ink);
-    background:var(--cream);border:1.5px solid var(--line);border-radius:999px;
-    padding:.6rem 1.1rem;cursor:pointer;transition:all .15s ease;
-  }
-  .pill:hover{border-color:var(--sage)}
-  .pill.is-active{background:var(--ink);color:#fff;border-color:var(--ink)}
-
-  .pill--multi{display:inline-flex;align-items:center;gap:8px}
-  .pill--multi .pill__check{
-    width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line);
-    display:inline-block;flex:none;
-  }
-  .pill--multi.is-active .pill__check{background:#fff;border-color:#fff;position:relative}
-  .pill--multi.is-active .pill__check::after{content:"✓";color:var(--ink);font-size:.7rem;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-
-  .opts--cards{flex-direction:column;gap:12px}
-  .card-opt{
-    display:flex;flex-direction:column;gap:4px;text-align:left;
     background:var(--cream);border:1.5px solid var(--line);border-radius:var(--r-inner);
-    padding:16px 18px;cursor:pointer;transition:all .15s ease;
+    padding:.7rem 1rem;cursor:pointer;
+    transition:background .15s ease,border-color .15s ease,transform .1s ease;
   }
-  .card-opt:hover{border-color:var(--sage)}
-  .card-opt.is-active{background:var(--sage-tint);border-color:var(--sage)}
-  .card-opt__label{font-family:var(--display);font-weight:700;font-size:1rem}
-  .card-opt__desc{color:var(--ink-soft);font-size:.86rem;line-height:1.45}
+  .answer-card__label{line-height:1.3}
+  .answer-card:hover{border-color:var(--sage)}
+  .answer-card:active{transform:scale(.97)}
+  .answer-card.is-active{background:var(--sage-tint);border-color:var(--sage)}
+
+  .answer-card__indicator{
+    width:18px;height:18px;border-radius:50%;flex:none;position:relative;
+    border:1.5px solid var(--line);background:#fff;
+  }
+  .answer-card.is-active .answer-card__indicator{border-color:var(--sage)}
+  .answer-card.is-active .answer-card__indicator::after{
+    content:"";position:absolute;inset:4px;border-radius:50%;background:var(--sage);
+  }
+  .answer-card--multi .answer-card__indicator{border-radius:5px}
+  .answer-card--multi.is-active .answer-card__indicator::after{
+    content:"✓";inset:0;background:none;color:var(--sage-deep);
+    font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
 
   .field{display:block;margin-top:16px}
   .field span{display:block;font-family:var(--display);font-weight:700;font-size:.88rem;margin-bottom:6px}
@@ -220,11 +242,7 @@
     margin:10px 0 2px;
   }
 
-  .flownav{
-    display:flex;align-items:center;justify-content:space-between;gap:16px;
-    margin-top:auto;position:sticky;bottom:0;z-index:10;
-    background:var(--cream);padding:14px 0 20px;
-  }
+  .flownav{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:28px}
   .flownav__right{display:flex;align-items:center;gap:18px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
@@ -326,6 +344,10 @@
   @media (max-width:480px){
     .card{padding:26px 20px}
     .q-title{font-size:1.35rem}
+    .card--reassurance{padding:32px 22px}
+    .card--reassurance .q-title{font-size:1.5rem}
+    .interlude-illustration svg{width:96px;height:96px}
+    .answer-card{font-size:.88rem;padding:.65rem .85rem}
   }
 </style>
 </head>
@@ -352,7 +374,10 @@
     <div id="app" hidden>
       <p class="progress__label" id="progressLabel"></p>
       <div class="progress"><div class="progress__fill" id="progressFill"></div></div>
-      <div class="resume-banner" id="resumeBanner" hidden></div>
+      <div class="resume-banner" id="resumeBanner" hidden>
+        <span id="resumeBannerText"></span>
+        <button type="button" class="resume-banner__dismiss" id="resumeBannerDismiss" aria-label="Dismiss">&times;</button>
+      </div>
       <div class="card" id="screen"></div>
       <div class="flownav">
         <button type="button" class="link" id="backBtn" hidden>Back</button>
