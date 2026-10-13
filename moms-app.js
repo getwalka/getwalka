@@ -209,7 +209,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -509,11 +509,34 @@
      shared continueBtn falls back to COPY.continueLabel since these
      don't need their own CTA copy. */
 
+  /* Small decorative SVGs, deliberately only for the two interludes — every
+     other screen already has either interactive pills or real visual
+     content (benefit-card icons, the circle preview, the price tag), so
+     adding art there would be redundant, not a fix for repetition. Kept
+     abstract/geometric and limited to 2-3 existing palette colors each,
+     no gradients. */
+  var INTERLUDE_ART = {
+    interludeCare:
+      '<svg viewBox="0 0 96 96" width="72" height="72" role="img" aria-hidden="true">' +
+        '<circle cx="48" cy="48" r="40" fill="var(--sage-tint)"/>' +
+        '<path d="M26 54c6-14 20-22 34-16" stroke="var(--sage)" stroke-width="4" stroke-linecap="round" fill="none"/>' +
+        '<circle cx="62" cy="32" r="5" fill="var(--sage)"/>' +
+      '</svg>',
+    interludeCommunity:
+      '<svg viewBox="0 0 96 96" width="72" height="72" role="img" aria-hidden="true">' +
+        '<circle cx="48" cy="28" r="15" fill="var(--rose-tint)" stroke="var(--rose-ink)" stroke-width="2"/>' +
+        '<circle cx="28" cy="58" r="15" fill="var(--lavender)" stroke="var(--lavender-ink)" stroke-width="2"/>' +
+        '<circle cx="68" cy="58" r="15" fill="var(--sage-tint)" stroke="var(--sage)" stroke-width="2"/>' +
+      '</svg>'
+  };
+
   function makeInsightStep(key) {
     return {
       render: function () {
         var c = COPY.steps[key];
-        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
+        var art = INTERLUDE_ART[key];
+        return (art ? '<div class="interlude-illustration">' + art + '</div>' : "") +
+          '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
           c.body.map(function (p) { return '<p class="q-body">' + p + '</p>'; }).join("");
       },
@@ -650,6 +673,7 @@
     screenEl.innerHTML = step.render(state.answers);
     step.bind(screenEl);
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
+    progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
     var isCheckout = id === "checkout";
     continueBtn.hidden = isCheckout;
@@ -869,6 +893,7 @@
     backBtn = document.getElementById("backBtn");
     skipBtn = document.getElementById("skipBtn");
     progressFill = document.getElementById("progressFill");
+    progressLabel = document.getElementById("progressLabel");
     resumeBanner = document.getElementById("resumeBanner");
     gateEl = document.getElementById("gate");
     landingEl = document.getElementById("landing");

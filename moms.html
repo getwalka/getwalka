@@ -26,7 +26,7 @@
     --cream-deep:#EDE3D3;
     --card:#FFFFFF;
     --ink:#1B2232;
-    --ink-soft:#6E7488;
+    --ink-soft:#5A6079;
     --sage:#4E9C74;
     --sage-deep:#3F8862;
     --sage-tint:#E3F0E8;
@@ -67,9 +67,15 @@
   .exit{font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--ink-soft);text-decoration:none}
   .exit:hover{color:var(--ink)}
 
-  main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 20px 60px}
-  .shell{max-width:440px;width:100%}
+  main{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 20px 0}
+  .shell{max-width:440px;width:100%;flex:1;display:flex;flex-direction:column}
+  @media (min-width: 900px){
+    .shell{max-width:560px}
+  }
 
+  #app{flex:1;display:flex;flex-direction:column;width:100%}
+
+  .progress__label{font-family:var(--display);font-weight:600;font-size:.8rem;color:var(--ink-soft);margin-bottom:8px}
   .progress{height:8px;border-radius:99px;background:var(--cream-deep);overflow:hidden;margin-bottom:22px}
   .progress__fill{height:100%;width:0;background:var(--sage);border-radius:99px;transition:width .4s ease}
 
@@ -83,6 +89,8 @@
     box-shadow:0 24px 60px -24px rgba(43,46,74,.25);
     padding:32px 26px;margin-bottom:18px;
   }
+
+  .interlude-illustration{display:flex;justify-content:center;margin-bottom:16px}
 
   .eyebrow{font-family:var(--body);font-weight:700;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:block}
   .q-title{font-family:var(--display);font-weight:700;font-size:1.55rem;letter-spacing:-.01em;line-height:1.2;margin-bottom:14px}
@@ -212,7 +220,11 @@
     margin:10px 0 2px;
   }
 
-  .flownav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .flownav{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    margin-top:auto;position:sticky;bottom:0;z-index:10;
+    background:var(--cream);padding:14px 0 20px;
+  }
   .flownav__right{display:flex;align-items:center;gap:18px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
@@ -338,6 +350,7 @@
     <div id="gate" hidden></div>
 
     <div id="app" hidden>
+      <p class="progress__label" id="progressLabel"></p>
       <div class="progress"><div class="progress__fill" id="progressFill"></div></div>
       <div class="resume-banner" id="resumeBanner" hidden></div>
       <div class="card" id="screen"></div>
