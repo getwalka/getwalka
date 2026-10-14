@@ -53,8 +53,7 @@
   .next-item__title{font-family:var(--display);font-weight:700;font-size:.86rem;color:var(--ink);margin-bottom:2px}
   .next-item__body{font-size:.82rem;color:var(--ink-soft);margin-bottom:0;line-height:1.45}
 
-  .price-line{font-family:var(--display);font-weight:700;font-size:1.1rem;color:var(--ink);margin-bottom:4px}
-  .billing-note{font-size:.82rem;margin-top:0}
+  .billing-note{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-top:0}
 
   a.manage{display:block;margin-top:18px;font-family:var(--display);font-weight:600;font-size:.92rem;color:var(--sage);text-decoration:underline}
   .cancel-fallback{font-size:.82rem;margin-top:18px}
@@ -81,7 +80,6 @@
         <div id="nextSteps"></div>
       </div>
 
-      <p class="price-line" id="priceLine"></p>
       <p class="billing-note" id="billingNote"></p>
 
       <a class="manage" id="manageLink" href="#" hidden>Manage or cancel my membership</a>
@@ -140,7 +138,6 @@
   var circleNoteEl = document.getElementById("circleNote");
   var nextTitleEl = document.getElementById("nextTitle");
   var nextStepsEl = document.getElementById("nextSteps");
-  var priceLineEl = document.getElementById("priceLine");
   var billingNoteEl = document.getElementById("billingNote");
   var manageLink = document.getElementById("manageLink");
   var cancelFallbackEl = document.getElementById("cancelFallback");
@@ -176,9 +173,7 @@
         '<p class="next-item__body">' + step.body + '</p></div></div>';
     }).join("");
 
-    var today = new Date();
-    var nextRenewal = addOneMonthClamped(today);
-    priceLineEl.textContent = "Charged " + priceLabel + " today, " + formatLongDate(today);
+    var nextRenewal = addOneMonthClamped(new Date());
     billingNoteEl.textContent = "Renews automatically for " + priceLabel + " on " + formatLongDate(nextRenewal) + ", then monthly until you cancel.";
 
     state.answers.checkout_status = "completed_unverified";
