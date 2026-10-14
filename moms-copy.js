@@ -85,7 +85,7 @@ window.WALKA_MOMS = (function () {
   /* "test" until that end-to-end check above has actually been done.
      Flipping to "live" before then risks sending a real visitor through
      an unverified checkout path. */
-  var STRIPE_MODE = "test"; // "test" | "live"
+  var STRIPE_MODE = "live"; // "test" | "live"
 
   var PLAN_PRICE_CENTS = 3999; // $39.99, same numeral in both currencies
   var BILLING_INTERVAL = "month";
@@ -97,7 +97,7 @@ window.WALKA_MOMS = (function () {
     },
     live: {
       usd: "https://buy.stripe.com/3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc044"
+      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc04"
     }
   };
 
