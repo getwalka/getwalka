@@ -137,10 +137,11 @@
     }
   }
 
-  /* `results` step: a merged circle+chat preview and a gentle-walking
-     note, mostly static copy per the brief (moms-copy.js's RESULTS_COPY).
-     The one personalized element left is the circle chip, which reads the
-     member's actual stage. Title strings below are reused as-is by
+  /* `results` step: two cards, a walking-challenge preview and a
+     community preview, mostly static copy per the brief (moms-copy.js's
+     RESULTS_COPY). The personalized elements left are the circle chip
+     (member's actual stage) and whether the challenge card's numeric
+     example is shown at all. Title strings below are reused as-is by
      `checkout`'s "what's included" list via resultsCards()/
      resultsDiaryCard(), so the two screens agree. */
 
@@ -150,6 +151,13 @@
     var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
     var match = all.filter(function (o) { return o.value === value; })[0];
     return match ? match.label : "";
+  }
+
+  /* Gates the walking-challenge card's numeric example goal/progress —
+     never shown to someone who indicated restrictions or a recovery
+     break, per onboarding's clearance/routine questions. */
+  function isRecovering(a) {
+    return a.routine_preference === "not_ready" || a.clearance_status === "not_yet";
   }
 
   function resultsCircleCard(a) {
@@ -369,12 +377,11 @@
       canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    /* Screen 10, personalized results — merges the old results + trust/
-       community-preview screens into one: a single walking-circle chat
-       card (the visual centerpiece) and a compact gentle-walking note.
-       flownavVariant tightens the CTA gap for this richer step; the shell
-       stays the default width now that it's one column, not a two-up
-       grid — see renderStep(). */
+    /* Screen 10, personalized results — two equally-weighted cards, a
+       walking-challenge preview and a community preview, so the screen
+       doesn't read as just a chat group. flownavVariant tightens the CTA
+       gap for this richer step; the shell stays the default width since
+       it's one column, not a two-up grid — see renderStep(). */
     results: {
       flownavVariant: "tight",
       render: function (a) {
@@ -382,31 +389,34 @@
         var rc = WM.RESULTS_COPY;
         a.cohort = resolvedCohortFor(a); // still stored/synced for real matching later; not displayed as confirmed
         var circle = resultsCircleCard(a);
-        var gw = rc.routine;
+        var ch = rc.routine; // walking-challenge content
+        var recovering = isRecovering(a);
 
         return '<div class="stagger">' +
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + rc.title + '</h2>' +
           '<p class="q-body">' + rc.subheading + '</p>' +
 
+          '<div class="walk-card">' +
+            '<h3 class="walk-card__title">' + ch.title + '</h3>' +
+            '<p class="walk-card__desc">' + ch.description + '</p>' +
+            '<div class="walk-card__preview">' +
+              (recovering ? '' : '<span class="walk-card__tag">' + escapeAttr(ch.previewTag) + '</span>') +
+              '<p class="walk-card__goal">' + (recovering ? ch.goalRecovering : ch.goal) + '</p>' +
+              '<div class="walk-card__days" aria-hidden="true">' + weekDaysHTML() + '</div>' +
+              (recovering ? '' : '<p class="walk-card__progress">' + ch.progress + '</p>') +
+            '</div>' +
+            '<p class="walk-card__note">' + ch.note + '</p>' +
+          '</div>' +
+
           '<div class="circle-chat">' +
             '<div class="circle-chat__header">' +
-              '<div>' +
-                '<h3 class="circle-chat__title">' + circle.title + '</h3>' +
-                '<span class="circle-chat__stage">' + escapeAttr(circle.chip) + '</span>' +
-              '</div>' +
-              '<div class="circle-chat__avatars">' + circleAvatarsHTML(3) + '</div>' +
+              '<h3 class="circle-chat__title">' + circle.title + '</h3>' +
+              '<p class="circle-chat__desc">' + escapeAttr(rc.circle.description) + '</p>' +
+              '<span class="circle-chat__stage">' + escapeAttr(circle.chip) + '</span>' +
             '</div>' +
             chatMessagesHTML(rc.circle.messages) +
             '<p class="circle-chat__caption">' + rc.circle.caption + '</p>' +
-          '</div>' +
-
-          '<div class="gentle-walk">' +
-            '<span class="gentle-walk__icon" aria-hidden="true">' + gw.icon + '</span>' +
-            '<div>' +
-              '<h3 class="gentle-walk__title">' + gw.title + '</h3>' +
-              '<p class="gentle-walk__body">' + gw.body + '</p>' +
-            '</div>' +
           '</div>' +
 
           (rc.foundingNote ? '<p class="founding-note">' + rc.foundingNote + '</p>' : '') +
@@ -417,7 +427,7 @@
       onEnter: function (a) {
         track(EVENTS.cohortChosen, { cohort: a.cohort });
         var circle = resultsCircleCard(a);
-        track(EVENTS.resultsViewed, { circle_reason: circle.reason });
+        track(EVENTS.resultsViewed, { circle_reason: circle.reason, challenge_goal_shown: !isRecovering(a) });
       }
     },
 
@@ -595,15 +605,17 @@
     return '<span class="circle-avatar circle-avatar--' + AVATAR_TINTS[index % AVATAR_TINTS.length] + '" aria-hidden="true">' + initials(name) + '</span>';
   }
 
-  /* results step chat-card header: unlabeled circles (no initials) —
-     these represent future circle members in the abstract, not specific
-     named people, so nothing is put inside one. */
-  function circleAvatarsHTML(count) {
-    var html = "";
-    for (var i = 0; i < count; i++) {
-      html += '<span class="circle-chat__avatar circle-avatar--' + AVATAR_TINTS[i % AVATAR_TINTS.length] + '" aria-hidden="true"></span>';
-    }
-    return html;
+  /* results step walking-challenge card: a purely illustrative "shape of
+     a week" row (Mon-Sun, two example completed days) — never a real
+     tracked-activity visualization, since no real activity data exists
+     pre-signup. Shown regardless of isRecovering(), since it carries no
+     numeric target, only the goal/progress text next to it is gated. */
+  function weekDaysHTML() {
+    var labels = ["M", "T", "W", "T", "F", "S", "S"];
+    var done = [true, false, false, true, false, false, false]; // Mon + Thu, illustrative only
+    return labels.map(function (label, i) {
+      return '<span class="walk-card__day' + (done[i] ? " is-done" : "") + '" aria-hidden="true">' + label + '</span>';
+    }).join("");
   }
 
   /* results step chat preview: same person keeps the same avatar tint

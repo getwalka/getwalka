@@ -189,25 +189,29 @@
   .summary__row{display:flex;justify-content:space-between;font-size:.9rem;padding:6px 0}
   .summary__row span{color:var(--ink-soft)}
 
-  /* ---------- results step (step 10): one merged circle+chat preview
-     card plus a compact gentle-walking note. flownav--tight (below)
-     tightens this step's CTA gap; no wide-shell override anymore now
-     that it's a single column, not a two-up grid. ---------- */
-  .circle-chat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:20px;margin:20px 0}
-  .circle-chat__header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
-  .circle-chat__title{font-family:var(--display);font-weight:700;font-size:1.05rem;margin-bottom:6px}
-  /* #2F6B4C (not --sage-deep) is the smallest darkening of sage-tint's
-     text that still clears WCAG AA 4.5:1 on this background. */
-  .circle-chat__stage{display:inline-block;font-family:var(--display);font-weight:600;font-size:.74rem;color:#2F6B4C;background:var(--sage-tint);border-radius:999px;padding:.3rem .7rem}
-  .circle-chat__avatars{display:flex;flex:none;margin-top:2px}
-  .circle-chat__avatar{width:30px;height:30px;border-radius:50%;flex:none;border:2px solid var(--card);margin-left:-10px;box-shadow:0 2px 6px rgba(43,46,74,.12)}
-  .circle-chat__avatar:first-child{margin-left:0}
-  .circle-chat__caption{text-align:center;font-size:.78rem;color:var(--ink-soft);margin-top:12px}
+  /* ---------- results step (step 10): two equally-weighted cards, a
+     walking-challenge preview and a community preview, so neither reads
+     as the whole product. flownav--tight (below) tightens this step's
+     CTA gap. ---------- */
+  .walk-card,.circle-chat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:20px;margin:20px 0}
+  .walk-card__title,.circle-chat__title{font-family:var(--display);font-weight:700;font-size:1.05rem;margin-bottom:6px}
+  .walk-card__desc,.circle-chat__desc{font-size:.88rem;color:var(--ink-soft);margin-bottom:14px}
 
-  .gentle-walk{display:flex;align-items:center;gap:14px;background:var(--sage-tint);border-radius:var(--r-inner);padding:16px 18px;margin:16px 0}
-  .gentle-walk__icon{font-size:1.5rem;flex:none}
-  .gentle-walk__title{font-family:var(--display);font-weight:700;font-size:.95rem;margin-bottom:3px}
-  .gentle-walk__body{font-size:.86rem;color:var(--ink-soft);line-height:1.4;margin:0}
+  .walk-card__preview{background:var(--sage-tint);border-radius:var(--r-inner);padding:16px}
+  /* #2F6B4C (not --sage-deep/--sage) is the smallest darkening that still
+     clears WCAG AA 4.5:1, both as text on sage-tint and as a fill behind
+     white text (the .is-done day pill below). */
+  .walk-card__tag{display:inline-block;font-family:var(--display);font-weight:700;font-size:.68rem;letter-spacing:.04em;text-transform:uppercase;color:#2F6B4C;background:var(--card);border-radius:999px;padding:.3rem .65rem;margin-bottom:10px}
+  .walk-card__goal{font-family:var(--display);font-weight:700;font-size:.98rem;color:var(--ink);margin-bottom:12px}
+  .walk-card__days{display:flex;gap:6px;margin-bottom:10px}
+  .walk-card__day{flex:1;text-align:center;font-family:var(--display);font-weight:700;font-size:.72rem;color:var(--ink-soft);background:var(--card);border-radius:8px;padding:.4rem 0}
+  .walk-card__day.is-done{background:#2F6B4C;color:#fff}
+  .walk-card__progress{font-size:.84rem;color:#2F6B4C;font-weight:600;margin:0}
+  .walk-card__note{font-size:.82rem;color:var(--ink-soft);margin-top:12px}
+
+  .circle-chat__header{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .circle-chat__stage{display:inline-block;font-family:var(--display);font-weight:600;font-size:.74rem;color:#2F6B4C;background:var(--sage-tint);border-radius:999px;padding:.3rem .7rem}
+  .circle-chat__caption{text-align:center;font-size:.78rem;color:var(--ink-soft);margin-top:12px}
 
   .founding-note{text-align:center;font-size:.84rem;color:var(--ink-soft);margin-top:4px}
 
@@ -374,8 +378,8 @@
     .card--reassurance .q-title{font-size:1.5rem}
     .interlude-illustration svg{width:96px;height:96px}
     .answer-card{font-size:.88rem;padding:.65rem .85rem}
-    .circle-chat{padding:14px}
-    .circle-chat__avatar{width:26px;height:26px;margin-left:-8px}
+    .walk-card,.circle-chat{padding:14px}
+    .walk-card__day{font-size:.66rem}
   }
 </style>
 </head>

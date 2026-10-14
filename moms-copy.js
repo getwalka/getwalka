@@ -408,22 +408,40 @@ window.WALKA_MOMS = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 5. RESULTS: copy for the merged `results` step (circle+chat preview
-   *    plus a gentle-walking note — the old separate trustPreview step
-   *    was folded in here). Mostly static per the brief; the one
-   *    personalized piece left is the circle chip, resolved against the
-   *    member's actual stage by resultsCircleCard() in moms-app.js.
-   *    `communityPreview`/`routine.title`/`diary` stay around only because
-   *    checkout's "what's included" recap list (resultsCards()) still
-   *    wants three distinct titles, even though this step itself now
-   *    folds the chat into one card.
+   * 5. RESULTS: copy for the `results` step's two equally-weighted
+   *    cards — walking challenges and community — so the screen doesn't
+   *    read as just a chat group (the old separate trustPreview step was
+   *    folded into the community card here). Mostly static per the brief; the
+   *    personalized pieces left are the circle chip (member's actual
+   *    stage) and whether the challenge card shows a numeric goal at all
+   *    (see isRecovering() in moms-app.js). `communityPreview`/
+   *    `routine.title`/`diary` stay around only because checkout's
+   *    "what's included" recap list (resultsCards()) still wants three
+   *    distinct titles.
    * ------------------------------------------------------------------ */
   var RESULTS_COPY = {
-    title: "You don't have to figure this out alone.",
-    subheading: "Meet moms in a similar season, share the little things, and find your rhythm together.",
+    title: "A little movement. A lot of support.",
+    subheading: "Gentle walking challenges and a circle of moms who understand this season of life.",
+
+    /* Walking-challenge preview card. The real app tracks steps, not
+       minutes (see modal_step_goal()/FALLBACK_STEP_GOAL in the main
+       stepr repo) — 5,000 is that same fallback goal, not an invented
+       number. `goal`/`progress` are illustrative example numbers, never
+       shown when the member indicated restrictions or isn't ready for a
+       goal yet (goalRecovering instead, see isRecovering()). */
+    routine: {
+      title: "Your walking challenges",
+      description: "A flexible weekly challenge, designed around your routine.",
+      previewTag: "Example progress",
+      goal: "5,000 steps on 3 days this week",
+      goalRecovering: "No set goal until you're ready, just gentle movement at your pace.",
+      progress: "2 of 3 walks completed",
+      note: "Goals are adjustable, and rest days are always welcome."
+    },
 
     circle: {
-      title: "Your walking circle",
+      title: "Your community",
+      description: "Meet moms at a similar stage. Celebrate the small wins and talk about everything in between.",
       genericChip: "Moms at a similar stage",
       /* "Finding your circle: {label}", never a confirmed assignment —
          matching hasn't happened yet when this screen renders. */
@@ -433,20 +451,13 @@ window.WALKA_MOMS = (function () {
          timestamps, online indicators, member counts, or testimonials. */
       caption: "Preview of your future circle.",
       messages: [
-        { name: "Jess", text: "Made it outside for ten minutes today. Calling that a win." },
-        { name: "Maya", text: "That absolutely counts. 💚" },
-        { name: "Jess", text: "Some days I just need someone who gets it." }
+        { name: "Jess", text: "Why does everyone say “sleep when the baby sleeps” like there's not a mountain of laundry staring at me? 😂" },
+        { name: "Maya", text: "And somehow the baby only sleeps when I have 47 things to do." }
       ]
     },
 
     communityPreview: {
       title: "Honest conversations"
-    },
-
-    routine: {
-      title: "Gentle walking, your way",
-      icon: "🚶‍♀️",
-      body: "Flexible challenges, no fixed pace, and rest days always welcome."
     },
 
     /* Optional secondary feature: shown only on checkout's recap list,
@@ -459,7 +470,7 @@ window.WALKA_MOMS = (function () {
 
     /* Only a real, confirmed date — never a placeholder. Matches the
        date on moms-success.html's COPY.success.circleDate. */
-    foundingNote: "Your founding circle opens November 2, 2026. We'll send your app invitation before it begins."
+    foundingNote: "Your founding circle opens November 2, 2026. We'll email your app invitation before it begins."
   };
 
   /* ------------------------------------------------------------------ *
