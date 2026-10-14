@@ -473,10 +473,6 @@ window.WALKA_MOMS = (function () {
       /* "Finding your circle: {label}", never a confirmed assignment —
          matching hasn't happened yet when this screen renders. */
       chipPrefix: "Finding your circle: ",
-      /* Small, subtle caption under the chat — deliberately not a
-         prominent badge. Must never read as real member activity: no
-         timestamps, online indicators, member counts, or testimonials. */
-      // caption: "Preview of your future circle.",
       messages: [
         { name: "Jess", text: "Why does everyone say “sleep when the baby sleeps” like there's not a mountain of laundry staring at me? 😂" },
         { name: "Maya", text: "And somehow the baby only sleeps when I have 47 things to do." }

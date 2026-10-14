@@ -433,7 +433,6 @@
               '<span class="circle-chat__stage">' + escapeAttr(circle.chip) + '</span>' +
             '</div>' +
             chatMessagesHTML(rc.circle.messages) +
-            '<p class="circle-chat__caption">' + rc.circle.caption + '</p>' +
           '</div>' +
 
           (rc.foundingNote ? '<p class="founding-note">' + rc.foundingNote + '</p>' : '') +
