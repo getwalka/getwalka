@@ -391,8 +391,17 @@ window.WALKA_MOMS = (function () {
 
     success: {
       title: "You're in.",
-      body: "Your Walka Mom membership is active. Open the Walka app to see your plan and your people.",
-      note: "A confirmation email is on its way, with a link to manage your membership anytime."
+      subtitle: "Welcome to the founding circle of Walka Mom. We're so glad you're here.",
+      circleLabel: "Your circle begins",
+      circleDate: "November 2, 2026",
+      circleNote: "We'll email you the moment the Walka app is ready for you, with everything you need to get started.",
+      nextTitle: "What happens next",
+      nextSteps: [
+        { title: "Check your inbox", body: "Your receipt and founding membership confirmation are on their way." },
+        { title: "We'll get your circle ready", body: "We're bringing together moms who are in this same season of life." },
+        { title: "Start together on November 2", body: "That's when your walking circle and the Walka app open up to you." }
+      ],
+      cancelFallback: "To manage or cancel anytime, email susanadelokiki@gmail.com."
     },
 
     returnMissing: {

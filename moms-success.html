@@ -21,32 +21,73 @@
 </script>
 <style>
   :root{
-    --cream:#F7F1E8;--card:#FFFFFF;--ink:#1B2232;--ink-soft:#6E7488;
+    --cream:#F7F1E8;--card:#FFFFFF;--ink:#1B2232;--ink-soft:#5A6079;
     --sage:#4E9C74;--sage-tint:#E3F0E8;--line:rgba(43,46,74,.08);
     --display:'Quicksand',system-ui,sans-serif;--body:'Nunito Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
   body{
     font-family:var(--body);font-size:17px;line-height:1.6;color:var(--ink);background:var(--cream);
     min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
     -webkit-font-smoothing:antialiased;
   }
-  .card{background:var(--card);border-radius:24px;box-shadow:0 24px 60px -24px rgba(43,46,74,.25);padding:40px 32px;max-width:420px;text-align:center}
+  .card{background:var(--card);border-radius:24px;box-shadow:0 24px 60px -24px rgba(43,46,74,.25);padding:40px 32px;max-width:440px;text-align:center}
   .ic{width:56px;height:56px;border-radius:50%;background:var(--sage-tint);color:var(--sage);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 18px}
-  h1{font-family:var(--display);font-weight:700;font-size:1.6rem;margin-bottom:12px}
+  h1{font-family:var(--display);font-weight:700;font-size:1.6rem;margin-bottom:10px}
   p{color:var(--ink-soft);margin-bottom:10px}
-  .note{font-size:.85rem;margin-top:18px}
-  a.home{display:inline-block;margin-top:20px;font-family:var(--display);font-weight:600;color:var(--sage);text-decoration:underline}
-  a.manage{display:block;margin-top:8px;font-family:var(--display);font-weight:600;font-size:.9rem;color:var(--ink-soft);text-decoration:underline}
+  .subtitle{font-size:.95rem;margin-bottom:0}
+
+  .divider{height:1px;background:var(--line);margin:22px 0}
+
+  .circle-block{text-align:center;margin-bottom:4px}
+  .circle-block__label{font-family:var(--display);font-weight:700;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+  .circle-block__date{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--ink);margin-bottom:8px}
+  .circle-block p{font-size:.88rem;margin-bottom:0}
+
+  .next-box{background:var(--cream);border-radius:16px;padding:18px 20px;text-align:left;margin:20px 0}
+  .next-box__title{font-family:var(--display);font-weight:700;font-size:.9rem;margin-bottom:14px;color:var(--ink)}
+  .next-item{display:flex;gap:10px;margin-bottom:12px}
+  .next-item:last-child{margin-bottom:0}
+  .next-item__icon{flex:none;width:20px;color:var(--sage);font-weight:700}
+  .next-item__title{font-family:var(--display);font-weight:700;font-size:.86rem;color:var(--ink);margin-bottom:2px}
+  .next-item__body{font-size:.82rem;color:var(--ink-soft);margin-bottom:0;line-height:1.45}
+
+  .price-line{font-family:var(--display);font-weight:700;font-size:1.1rem;color:var(--ink);margin-bottom:4px}
+  .billing-note{font-size:.82rem;margin-top:0}
+
+  a.manage{display:block;margin-top:18px;font-family:var(--display);font-weight:600;font-size:.92rem;color:var(--sage);text-decoration:underline}
+  .cancel-fallback{font-size:.82rem;margin-top:18px}
+  a.home{display:block;margin-top:16px;font-size:.78rem;color:var(--ink-soft);text-decoration:underline}
 </style>
 </head>
 <body>
   <main class="card" id="card">
     <div class="ic">✓</div>
     <h1 id="title">You're in.</h1>
-    <p id="body"></p>
-    <p class="note" id="note"></p>
-    <a class="manage" id="manageLink" href="#" hidden>Manage or cancel my membership</a>
+    <p class="subtitle" id="subtitle"></p>
+
+    <div id="richContent" hidden>
+      <div class="divider"></div>
+
+      <div class="circle-block">
+        <p class="circle-block__label" id="circleLabel"></p>
+        <p class="circle-block__date" id="circleDate"></p>
+        <p id="circleNote"></p>
+      </div>
+
+      <div class="next-box">
+        <p class="next-box__title" id="nextTitle"></p>
+        <div id="nextSteps"></div>
+      </div>
+
+      <p class="price-line" id="priceLine"></p>
+      <p class="billing-note" id="billingNote"></p>
+
+      <a class="manage" id="manageLink" href="#" hidden>Manage or cancel my membership</a>
+      <p class="cancel-fallback" id="cancelFallback" hidden></p>
+    </div>
+
     <a class="home" href="/">Back to getwalka.com</a>
   </main>
 
@@ -62,6 +103,29 @@
     try { if (window.posthog) posthog.capture(event, props || {}); } catch (e) {}
   }
 
+  function checkoutCurrency(a) {
+    return (a && a.country === "CA") ? "cad" : "usd";
+  }
+
+  function centsLabel(cents) {
+    return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
+  }
+
+  // Matches Stripe's own monthly billing-cycle-anchor behavior: same
+  // day next month, clamped to that month's last day when it's shorter
+  // (e.g. Jan 31 -> Feb 28, not Mar 3).
+  function addOneMonthClamped(d) {
+    var day = d.getDate();
+    var next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    var lastDayOfNextMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    next.setDate(Math.min(day, lastDayOfNextMonth));
+    return next;
+  }
+
+  function formatLongDate(d) {
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  }
+
   var state = null;
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
@@ -69,9 +133,17 @@
   } catch (e) {}
 
   var titleEl = document.getElementById("title");
-  var bodyEl = document.getElementById("body");
-  var noteEl = document.getElementById("note");
+  var subtitleEl = document.getElementById("subtitle");
+  var richContent = document.getElementById("richContent");
+  var circleLabelEl = document.getElementById("circleLabel");
+  var circleDateEl = document.getElementById("circleDate");
+  var circleNoteEl = document.getElementById("circleNote");
+  var nextTitleEl = document.getElementById("nextTitle");
+  var nextStepsEl = document.getElementById("nextSteps");
+  var priceLineEl = document.getElementById("priceLine");
+  var billingNoteEl = document.getElementById("billingNote");
   var manageLink = document.getElementById("manageLink");
+  var cancelFallbackEl = document.getElementById("cancelFallback");
 
   var params = new URLSearchParams(window.location.search);
   var hasSessionId = !!params.get("session_id");
@@ -79,12 +151,35 @@
   if (WM.CUSTOMER_PORTAL_URL) {
     manageLink.href = WM.CUSTOMER_PORTAL_URL;
     manageLink.hidden = false;
+  } else {
+    cancelFallbackEl.textContent = WM.COPY.success.cancelFallback;
+    cancelFallbackEl.hidden = false;
   }
 
   if (state && state.localId) {
-    titleEl.textContent = WM.COPY.success.title;
-    bodyEl.textContent = WM.COPY.success.body;
-    noteEl.textContent = WM.COPY.success.note;
+    var c = WM.COPY.success;
+    var currency = checkoutCurrency(state.answers);
+    var priceLabel = centsLabel(WM.PLAN_PRICE_CENTS) + " " + currency.toUpperCase();
+
+    titleEl.textContent = c.title;
+    subtitleEl.textContent = c.subtitle;
+    richContent.hidden = false;
+
+    circleLabelEl.textContent = c.circleLabel;
+    circleDateEl.textContent = c.circleDate;
+    circleNoteEl.textContent = c.circleNote;
+
+    nextTitleEl.textContent = c.nextTitle;
+    nextStepsEl.innerHTML = c.nextSteps.map(function (step) {
+      return '<div class="next-item"><span class="next-item__icon">&check;</span>' +
+        '<div><p class="next-item__title">' + step.title + '</p>' +
+        '<p class="next-item__body">' + step.body + '</p></div></div>';
+    }).join("");
+
+    var today = new Date();
+    var nextRenewal = addOneMonthClamped(today);
+    priceLineEl.textContent = "Charged " + priceLabel + " today, " + formatLongDate(today);
+    billingNoteEl.textContent = "Renews automatically for " + priceLabel + " on " + formatLongDate(nextRenewal) + ", then monthly until you cancel.";
 
     state.answers.checkout_status = "completed_unverified";
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -93,6 +188,7 @@
       local_id: state.localId,
       plan_price_cents: WM.PLAN_PRICE_CENTS,
       billing_interval: WM.BILLING_INTERVAL,
+      currency: currency,
       has_session_id: hasSessionId
     });
 
@@ -117,7 +213,7 @@
     // We can't personalize or confirm which plan this was, since payment
     // already happened on Stripe's hosted page before redirecting here.
     titleEl.textContent = WM.COPY.returnMissing.title;
-    bodyEl.textContent = WM.COPY.returnMissing.body;
+    subtitleEl.textContent = WM.COPY.returnMissing.body;
     track(WM.EVENTS.checkoutCompleted, { local_id: null, has_session_id: hasSessionId, note: "no_local_state" });
   }
 })();
