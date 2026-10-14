@@ -139,11 +139,11 @@
 
   /* `results` step: two cards, a walking-challenge preview and a
      community preview, mostly static copy per the brief (moms-copy.js's
-     RESULTS_COPY). The personalized elements left are the circle chip
-     (member's actual stage) and whether the challenge card's numeric
-     example is shown at all. Title strings below are reused as-is by
-     `checkout`'s "what's included" list via resultsCards()/
-     resultsDiaryCard(), so the two screens agree. */
+     RESULTS_COPY). The personalized elements are the sentence under the
+     headline, the circle chip (member's actual stage), and whether the
+     challenge card's numeric example is shown at all. Title strings
+     below are reused as-is by `checkout`'s "what's included" list via
+     resultsCards()/resultsDiaryCard(), so the two screens agree. */
 
   /* Reads the same grouping data COPY.cohort uses for resolvedCohortFor()'s
      return codes, for display on the "Finding your circle:" chip. */
@@ -151,6 +151,23 @@
     var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
     var match = all.filter(function (o) { return o.value === value; })[0];
     return match ? match.label : "";
+  }
+
+  /* "You told us you'd love to {a}, while {bIng}." built from up to two
+     of the member's actual onboarding answers (see the priority-ordered
+     `clauses` list in moms-copy.js for why each one is worded the way
+     it is). Deterministic lookup, no scoring. */
+  function resultsPersonalizedSentence(a) {
+    var p = WM.RESULTS_COPY.personalization;
+    var wants = a.motivation_wants || [];
+    var barriers = a.barriers || [];
+    var matches = p.clauses.filter(function (c) {
+      var source = c.field === "barriers" ? barriers : wants;
+      return source.indexOf(c.value) !== -1;
+    });
+    if (matches.length === 0) return p.default;
+    if (matches.length === 1) return p.oneClause.replace("{a}", matches[0].base);
+    return p.twoClause.replace("{a}", matches[0].base).replace("{bIng}", matches[1].ing);
   }
 
   /* Gates the walking-challenge card's numeric example goal/progress —
@@ -395,7 +412,8 @@
         return '<div class="stagger">' +
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + rc.title + '</h2>' +
-          '<p class="q-body">' + rc.subheading + '</p>' +
+          '<p class="q-body">' + resultsPersonalizedSentence(a) + '</p>' +
+          '<p class="q-body">' + rc.intro + '</p>' +
 
           '<div class="walk-card">' +
             '<h3 class="walk-card__title">' + ch.title + '</h3>' +

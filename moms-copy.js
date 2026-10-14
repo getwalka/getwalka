@@ -411,17 +411,45 @@ window.WALKA_MOMS = (function () {
    * 5. RESULTS: copy for the `results` step's two equally-weighted
    *    cards — walking challenges and community — so the screen doesn't
    *    read as just a chat group (the old separate trustPreview step was
-   *    folded into the community card here). Mostly static per the brief; the
-   *    personalized pieces left are the circle chip (member's actual
-   *    stage) and whether the challenge card shows a numeric goal at all
-   *    (see isRecovering() in moms-app.js). `communityPreview`/
-   *    `routine.title`/`diary` stay around only because checkout's
-   *    "what's included" recap list (resultsCards()) still wants three
-   *    distinct titles.
+   *    folded into the community card here). The personalized pieces are
+   *    the sentence under the headline (resultsPersonalizedSentence() in
+   *    moms-app.js, built from `personalization.clauses` below), the
+   *    circle chip (member's actual stage), and whether the challenge
+   *    card shows a numeric goal at all (see isRecovering()).
+   *    `communityPreview`/`routine.title`/`diary` stay around only
+   *    because checkout's "what's included" recap list (resultsCards())
+   *    still wants three distinct titles.
    * ------------------------------------------------------------------ */
   var RESULTS_COPY = {
-    title: "A little movement. A lot of support.",
-    subheading: "Gentle walking challenges and a circle of moms who understand this season of life.",
+    title: "Here's what we've created for you.",
+    intro: "With Walka Mom, you'll get two things to help you feel more supported:",
+
+    /* Builds "You told us you'd love to {a}, while {bIng}." from up to
+       two of the member's actual answers, in priority order below
+       (motivation_wants first, since those already read as "I'd love
+       X"; barriers second, each reframed as the want implied by that
+       obstacle, so the sentence shape stays consistent either way).
+       0 matches -> `default`. 1 match -> `oneClause`. Every clause is
+       traceable to one specific answer value, no scoring/inference. */
+    personalization: {
+      default: "Here's a preview of what your Walka Mom experience could look like.",
+      oneClause: "You told us you'd love to {a}.",
+      twoClause: "You told us you'd love to {a}, while {bIng}.",
+      clauses: [
+        { field: "motivation_wants", value: "other_moms", base: "meet other moms who understand this season", ing: "meeting other moms who understand this season" },
+        { field: "motivation_wants", value: "routine", base: "find a routine that actually sticks", ing: "finding a routine that actually sticks" },
+        { field: "motivation_wants", value: "reason_outside", base: "have a reason to get outside", ing: "having a reason to get outside" },
+        { field: "motivation_wants", value: "time_my_own", base: "find a little more time for yourself", ing: "finding a little more time for yourself" },
+        { field: "motivation_wants", value: "encouragement", base: "feel a little more encouraged along the way", ing: "feeling a little more encouraged along the way" },
+        { field: "motivation_wants", value: "energy", base: "find a bit more energy for your day", ing: "finding a bit more energy for your day" },
+        { field: "barriers", value: "exhaustion", base: "have a little more ease in your days", ing: "having a little more ease in your days" },
+        { field: "barriers", value: "limited_support", base: "feel a bit more backed up", ing: "feeling a bit more backed up" },
+        { field: "barriers", value: "unpredictable_routine", base: "find some steadiness in days that don't always go as planned", ing: "finding some steadiness in days that don't always go as planned" },
+        { field: "barriers", value: "recovering_physically", base: "move at a pace that respects where you're at physically", ing: "moving at a pace that respects where you're at physically" },
+        { field: "barriers", value: "motivation", base: "feel that first step get a little easier", ing: "feeling that first step get a little easier" },
+        { field: "barriers", value: "doing_okay", base: "settle into a simple, steady routine", ing: "settling into a simple, steady routine" }
+      ]
+    },
 
     /* Walking-challenge preview card. The real app tracks steps, not
        minutes (see modal_step_goal()/FALLBACK_STEP_GOAL in the main
@@ -430,8 +458,8 @@ window.WALKA_MOMS = (function () {
        shown when the member indicated restrictions or isn't ready for a
        goal yet (goalRecovering instead, see isRecovering()). */
     routine: {
-      title: "Your walking challenges",
-      description: "A flexible weekly challenge, designed around your routine.",
+      title: "Your gentle walking challenges",
+      description: "Join flexible step challenges, track your progress, and build a routine that fits your own pace.",
       previewTag: "Example progress",
       goal: "5,000 steps on 3 days this week",
       goalRecovering: "No set goal until you're ready, just gentle movement at your pace.",
@@ -440,8 +468,8 @@ window.WALKA_MOMS = (function () {
     },
 
     circle: {
-      title: "Your community",
-      description: "Meet moms at a similar stage. Celebrate the small wins and talk about everything in between.",
+      title: "Your circle of moms",
+      description: "You'll be invited into a community of moms at a similar stage, to connect, share experiences, and encourage each other.",
       genericChip: "Moms at a similar stage",
       /* "Finding your circle: {label}", never a confirmed assignment —
          matching hasn't happened yet when this screen renders. */
