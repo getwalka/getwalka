@@ -93,11 +93,11 @@ window.WALKA_MOMS = (function () {
   var MEMBERSHIP_PAYMENT_LINK = {
     test: {
       usd: "https://buy.stripe.com/test_3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/test_fZubJ28Ue5of3Upgwpdwc01"
+      cad: "https://buy.stripe.com/test_14A6oI9Yig2T8aFdkddwc03"
     },
     live: {
       usd: "https://buy.stripe.com/3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/fZubJ28Ue5of3Upgwpdwc01"
+      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc04"
     }
   };
 
