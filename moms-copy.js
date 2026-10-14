@@ -348,15 +348,13 @@ window.WALKA_MOMS = (function () {
         eyebrow: "Made for you"
       },
 
-      /* Screen 11, trust / community preview. Renders as a mocked circle
-         screen (header + chat + challenge card + participation row) via
-         renderCirclePreview() in moms-app.js, not a list of quote cards.
-         No member counts, response-time/engagement numbers, or real named
-         people anywhere in this data — illustrative only. */
+      /* Landing-page-only now: the funnel step this originally rendered
+         was merged into `results` (see RESULTS_COPY.circle below), but
+         the landing page's compact community section still reads this
+         via renderCirclePreview() in moms-app.js. No member counts,
+         response-time/engagement numbers, or real named people anywhere
+         in this data — illustrative only. */
       trustPreview: {
-        eyebrow: "A peek inside",
-        title: "What it actually feels like in here.",
-        intro: "Here's a peek at what a circle actually looks like.",
         illustrativeBadge: "Illustrative community preview",
         circleName: "Early Days Circle",
         messages: [
@@ -411,108 +409,58 @@ window.WALKA_MOMS = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 5. PERSONALIZATION: copy for the `results` step — a headline subtext,
-   *    a walking-circle hero, a community preview, a routine preview, and
-   *    an optional secondary diary mention — resolved deterministically
-   *    against the member's actual answers by resultsHeadlineSubtext()/
-   *    resultsCircleCard()/resultsRoutineCard()/resultsDiaryCard() in
-   *    moms-app.js. Plain lookups and if/else, no
-   *    scoring, no inference beyond "this answer maps to this line" —
-   *    card titles are reused as-is on `checkout`'s "what's included"
-   *    list so both screens agree.
+   * 5. RESULTS: copy for the merged `results` step (circle+chat preview
+   *    plus a gentle-walking note — the old separate trustPreview step
+   *    was folded in here). Mostly static per the brief; the one
+   *    personalized piece left is the circle chip, resolved against the
+   *    member's actual stage by resultsCircleCard() in moms-app.js.
+   *    `communityPreview`/`routine.title`/`diary` stay around only because
+   *    checkout's "what's included" recap list (resultsCards()) still
+   *    wants three distinct titles, even though this step itself now
+   *    folds the chat into one card.
    * ------------------------------------------------------------------ */
   var RESULTS_COPY = {
     title: "You don't have to figure this out alone.",
-
-    subtextDefault: "Here's a preview of what your Walka experience could look like.",
-    /* First match wins; order here IS the priority. Each entry names which
-       answer field it reads, since motivation_wants and barriers are two
-       separate fields a reader shouldn't have to infer from the value
-       alone. */
-    subtextPriority: [
-      { field: "motivation_wants", value: "other_moms" },
-      { field: "barriers", value: "exhaustion" },
-      { field: "motivation_wants", value: "routine" },
-      { field: "motivation_wants", value: "reason_outside" },
-      { field: "barriers", value: "limited_support" },
-      { field: "barriers", value: "unpredictable_routine" },
-      { field: "motivation_wants", value: "time_my_own" },
-      { field: "motivation_wants", value: "encouragement" },
-      { field: "motivation_wants", value: "energy" },
-      { field: "barriers", value: "motivation" },
-      { field: "barriers", value: "recovering_physically" },
-      { field: "barriers", value: "doing_okay" }
-    ],
-    subtextByKey: {
-      "motivation_wants:other_moms": "You told us you'd love to meet moms who understand this season. Here's what your Walka experience could look like.",
-      "barriers:exhaustion": "You've got a lot on your plate. Your Walka experience is designed to make room for real life.",
-      "motivation_wants:routine": "You're looking for a little consistency. We'll help you find a rhythm that works for your life.",
-      "motivation_wants:reason_outside": "You're looking for a reason to get outside. Here's what your Walka experience could look like.",
-      "barriers:limited_support": "You've been doing a lot without much backup. This is a place to find some.",
-      "barriers:unpredictable_routine": "Your days don't always go as planned. Your Walka experience is built to flex with that.",
-      "motivation_wants:time_my_own": "You're looking for a little time that's yours. Here's what your Walka experience could look like.",
-      "motivation_wants:encouragement": "A little encouragement goes a long way. Here's what your Walka experience could look like.",
-      "motivation_wants:energy": "You're looking for more energy day to day. Here's what your Walka experience could look like.",
-      "barriers:motivation": "Some days the hardest part is just starting. Your Walka experience is designed to help with that.",
-      "barriers:recovering_physically": "You're recovering or adjusting physically right now. Your Walka experience is designed to meet you there, gently.",
-      "barriers:doing_okay": "You're doing okay and just want a routine. Here's what your Walka experience could look like."
-    },
+    subheading: "Meet moms in a similar season, share the little things, and find your rhythm together.",
 
     circle: {
       title: "Your walking circle",
-      explainer: "A small circle to walk, check in, and share the everyday moments with.",
       genericChip: "Moms at a similar stage",
       /* "Finding your circle: {label}", never a confirmed assignment —
          matching hasn't happened yet when this screen renders. */
       chipPrefix: "Finding your circle: ",
-      /* Longer-form line kept for checkout's "what's included" list, which
-         just needs a sentence, not the hero's chip+explainer pair. */
-      byStage: {
-        pregnant: "You're currently pregnant, so when you're ready, we'll look to match you with others due around the same time.",
-        postpartum_0_3: "You're in the early postpartum weeks, so we'll look to match you with others in a similar season.",
-        postpartum_3_6: "Based on where you are postpartum, we'll look to match you with others a few months in, too.",
-        postpartum_6_12: "Based on where you are postpartum, we'll look to match you with others further along in recovery.",
-        postpartum_12_plus: "However long it's been, we'll look to match you with others further out from birth too."
-      },
-      fallback: "We'll look to match you with a small circle of moms as you get started.",
-      recoveringNote: "No pressure to keep pace with anyone, this is about company, not competition."
-    },
-
-    communityPreview: {
-      title: "Honest conversations",
-      illustrativeBadge: "Illustrative example, not actual member posts",
+      /* Small, subtle caption under the chat — deliberately not a
+         prominent badge. Must never read as real member activity: no
+         timestamps, online indicators, member counts, or testimonials. */
+      caption: "Preview of your future circle.",
       messages: [
-        { name: "Ava", text: "Anyone else counting getting outside today as a win?" },
-        { name: "Nora", text: "Absolutely. We made it around the block and I'm celebrating." },
-        { name: "Ava", text: "Some days that's more than enough." }
+        { name: "Jess", text: "Made it outside for ten minutes today. Calling that a win." },
+        { name: "Maya", text: "That absolutely counts. 💚" },
+        { name: "Jess", text: "Some days I just need someone who gets it." }
       ]
     },
 
-    routine: {
-      title: "Your pace, your way",
-      /* Every bullet set here is already goal-free by design (no step
-         counts or numeric targets), so "don't assign exercise targets to
-         recovering/uncertain/restricted members" holds for every branch,
-         not just not_ready. */
-      byPreference: {
-        not_ready: ["No pressure to set a goal yet", "We'll check back in when you're ready", "Rest days are always welcome"],
-        short_walks: ["Short walks when you can grab them", "Nothing more structured than that", "Rest days are welcome"],
-        time_outside: ["Time outside most days, however that looks", "No fixed distance or pace", "Rest days are welcome"],
-        flexible_goal: ["A flexible weekly goal, not a daily number", "Moves with your week", "Rest days are welcome"],
-        gentle_challenges: ["Gentle, shared challenges you can opt into", "Never mandatory", "Rest days are welcome"]
-      },
-      fallback: ["Short walks when you can", "Flexible weekly goals", "Rest days are welcome"],
-      outsideNote: "Extra encouragement to get outside, since that's what you're looking for"
+    communityPreview: {
+      title: "Honest conversations"
     },
 
-    /* Optional secondary feature: shown only when a specific answer
-       actually points to it, never as a default filler card. */
+    routine: {
+      title: "Gentle walking, your way",
+      icon: "🚶‍♀️",
+      body: "Flexible challenges, no fixed pace, and rest days always welcome."
+    },
+
+    /* Optional secondary feature: shown only on checkout's recap list,
+       when a specific answer actually points to it, never as a default
+       filler card. */
     diary: {
       title: "A little space just for you",
       body: "Keep a private note of how you're feeling, whenever you want."
     },
 
-    continueLabel: "See your community"
+    /* Only a real, confirmed date — never a placeholder. Matches the
+       date on moms-success.html's COPY.success.circleDate. */
+    foundingNote: "Your founding circle opens November 2, 2026. We'll send your app invitation before it begins."
   };
 
   /* ------------------------------------------------------------------ *

@@ -11,17 +11,17 @@
   var WM = window.WALKA_MOMS;
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
-  /* v3: bumped for the empathetic-funnel/membership redesign, which
-     replaced the step sequence wholesale (new steps inserted/removed/
-     reordered throughout, not just a couple added in the middle). A saved
+  /* v4: bumped because `trustPreview` (the standalone community-preview
+     step) was folded into `results`, shortening STEP_IDS by one. Any
+     change to STEP_IDS's length or order needs the same bump — a saved
      numeric stepIndex from before this change would resume into a
-     completely different step than the one the visitor left, so stale
-     state must be discarded rather than resumed. moms-success.html reads
-     the same key and must be bumped in lockstep. */
-  var STORAGE_KEY = "walka_moms_state_v3";
+     different step than the one the visitor left, so stale state must be
+     discarded rather than resumed. moms-success.html reads the same key
+     and must be bumped in lockstep. */
+  var STORAGE_KEY = "walka_moms_state_v4";
   var STEP_IDS = [
     "stage", "motivation", "barriers", "interludeCare", "connection", "conversations",
-    "interludeCommunity", "baseline", "clearance", "results", "trustPreview", "checkout"
+    "interludeCommunity", "baseline", "clearance", "results", "checkout"
   ];
 
   /* ---------------- utilities ---------------- */
@@ -138,63 +138,40 @@
     }
   }
 
-  /* `results` step personalization: a headline subtext, a walking-circle
-     hero, a routine preview, and an optional diary mention, each resolved
-     deterministically against the member's actual answers from
-     moms-copy.js's RESULTS_COPY. Plain lookups/if-else, no scoring —
-     every branch is traceable to one specific answer. Card titles are
-     reused as-is by `checkout`'s "what's included" list via resultsCards()/
-     resultsDiaryCard(), so both screens agree. The community preview
-     (example chat messages) is static/illustrative, not personalized —
-     the headline subtext above it already carries the "wants other moms"
-     signal, so a second personalized variant here would be redundant. */
-
-  function isRecovering(a) {
-    return a.routine_preference === "not_ready" || a.clearance_status === "not_yet";
-  }
+  /* `results` step: a merged circle+chat preview and a gentle-walking
+     note, mostly static copy per the brief (moms-copy.js's RESULTS_COPY).
+     The one personalized element left is the circle chip, which reads the
+     member's actual stage. Title strings below are reused as-is by
+     `checkout`'s "what's included" list via resultsCards()/
+     resultsDiaryCard(), so the two screens agree. */
 
   /* Reads the same grouping data COPY.cohort uses for resolvedCohortFor()'s
-     return codes, for display on the results hero's "Finding your
-     circle:" chip. */
+     return codes, for display on the "Finding your circle:" chip. */
   function cohortLabel(value) {
     var all = COPY.cohort.groupsPregnant.concat(COPY.cohort.groupsPostpartum);
     var match = all.filter(function (o) { return o.value === value; })[0];
     return match ? match.label : "";
   }
 
-  function resultsHeadlineSubtext(a) {
-    var c = WM.RESULTS_COPY;
-    var wants = a.motivation_wants || [];
-    var barriers = a.barriers || [];
-    for (var i = 0; i < c.subtextPriority.length; i++) {
-      var entry = c.subtextPriority[i];
-      var source = entry.field === "barriers" ? barriers : wants;
-      if (source.indexOf(entry.value) !== -1) return c.subtextByKey[entry.field + ":" + entry.value];
-    }
-    return c.subtextDefault;
-  }
-
   function resultsCircleCard(a) {
     var c = WM.RESULTS_COPY.circle;
     var label = cohortLabel(a.cohort);
     var chip = label ? (c.chipPrefix + label) : c.genericChip;
-    var body = c.explainer;
-    if (isRecovering(a)) body += " " + c.recoveringNote;
-    var reason = (c.byStage[a.motherhood_stage]) ? ("stage:" + a.motherhood_stage) : "fallback";
-    return { title: c.title, chip: chip, body: body, reason: reason };
+    var reason = label ? ("stage:" + a.motherhood_stage) : "fallback";
+    return { title: c.title, chip: chip, reason: reason };
   }
 
-  function resultsRoutineCard(a) {
-    var c = WM.RESULTS_COPY.routine;
-    var bullets = (c.byPreference[a.routine_preference] || c.fallback).slice();
-    var reason = c.byPreference[a.routine_preference] ? ("routine:" + a.routine_preference) : "fallback";
-    var wants = a.motivation_wants || [];
-    if (wants.indexOf("reason_outside") !== -1 && a.routine_preference !== "not_ready") bullets.push(c.outsideNote);
-    return { title: c.title, bullets: bullets, reason: reason };
+  /* No longer personalized (the brief replaces the per-preference bullet
+     list with one static line); kept as a function purely so checkout's
+     resultsCards() has a consistent title to read. */
+  function resultsRoutineCard() {
+    return { title: WM.RESULTS_COPY.routine.title };
   }
 
   /* Optional secondary feature: returns null (render nothing) unless a
-     specific answer actually points to it. Never a default filler. */
+     specific answer actually points to it. Never a default filler. Only
+     consumed by checkout's recap list now; the results step itself no
+     longer shows a diary mention. */
   function resultsDiaryCard(a) {
     var wants = a.motivation_wants || [];
     var show = wants.indexOf("encouragement") !== -1 || wants.indexOf("time_my_own") !== -1
@@ -208,7 +185,7 @@
      one (community) has no per-user variant to resolve, since the chat
      preview it's based on is static/illustrative. */
   function resultsCards(a) {
-    return [resultsCircleCard(a), { title: WM.RESULTS_COPY.communityPreview.title }, resultsRoutineCard(a)];
+    return [resultsCircleCard(a), { title: WM.RESULTS_COPY.communityPreview.title }, resultsRoutineCard()];
   }
 
   /* ---------------- DOM refs ---------------- */
@@ -397,89 +374,59 @@
       canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    /* Screen 10, personalized results — the richest screen in the funnel:
-       a walking-circle hero, an illustrative community chat preview, a
-       routine preview, and an optional diary strip. cardVariant is unset
-       (plain .card), but shellVariant/flownavVariant widen the shell and
-       tighten the CTA gap for this one step — see renderStep(). */
+    /* Screen 10, personalized results — merges the old results + trust/
+       community-preview screens into one: a single walking-circle chat
+       card (the visual centerpiece) and a compact gentle-walking note.
+       flownavVariant tightens the CTA gap for this richer step; the shell
+       stays the default width now that it's one column, not a two-up
+       grid — see renderStep(). */
     results: {
-      shellVariant: "wide",
       flownavVariant: "tight",
       render: function (a) {
         var c = COPY.steps.results;
         var rc = WM.RESULTS_COPY;
         a.cohort = resolvedCohortFor(a); // still stored/synced for real matching later; not displayed as confirmed
         var circle = resultsCircleCard(a);
-        var routine = resultsRoutineCard(a);
-        var diary = resultsDiaryCard(a);
-        var cp = rc.communityPreview;
+        var gw = rc.routine;
 
         return '<div class="stagger">' +
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + rc.title + '</h2>' +
-          '<p class="q-body">' + resultsHeadlineSubtext(a) + '</p>' +
+          '<p class="q-body">' + rc.subheading + '</p>' +
 
-          '<div class="circle-hero">' +
-            '<span class="circle-hero__blob" aria-hidden="true"></span>' +
-            '<span class="circle-hero__chip">' + escapeAttr(circle.chip) + '</span>' +
-            '<div class="circle-hero__avatars">' + heroAvatarsHTML() + '</div>' +
-            '<h3 class="circle-hero__title">' + circle.title + '</h3>' +
-            '<p class="circle-hero__body">' + circle.body + '</p>' +
+          '<div class="circle-chat">' +
+            '<div class="circle-chat__header">' +
+              '<div>' +
+                '<h3 class="circle-chat__title">' + circle.title + '</h3>' +
+                '<span class="circle-chat__stage">' + escapeAttr(circle.chip) + '</span>' +
+              '</div>' +
+              '<div class="circle-chat__avatars">' + circleAvatarsHTML(3) + '</div>' +
+            '</div>' +
+            chatMessagesHTML(rc.circle.messages) +
+            '<p class="circle-chat__caption">' + rc.circle.caption + '</p>' +
           '</div>' +
 
-          '<div class="results-grid">' +
-            '<div class="mini-chat">' +
-              '<span class="badge badge--illustrative">' + escapeAttr(cp.illustrativeBadge) + '</span>' +
-              '<h3 class="q-label" style="margin-top:12px">' + cp.title + '</h3>' +
-              cp.messages.map(function (m, i) {
-                return '<div class="chat-message">' + avatarHTML(m.name, i) +
-                  '<div class="chat-message__bubble">' +
-                    '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span></div>' +
-                    '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
-                  '</div></div>';
-              }).join("") +
-            '</div>' +
-
-            '<div class="routine-preview">' +
-              '<h3 class="q-label" style="margin-top:0">' + routine.title + '</h3>' +
-              '<div class="routine-preview__dots" aria-hidden="true">' + routineDotsHTML() + '</div>' +
-              '<ul class="routine-preview__list">' + routine.bullets.map(function (b) { return '<li>' + b + '</li>'; }).join("") + '</ul>' +
+          '<div class="gentle-walk">' +
+            '<span class="gentle-walk__icon" aria-hidden="true">' + gw.icon + '</span>' +
+            '<div>' +
+              '<h3 class="gentle-walk__title">' + gw.title + '</h3>' +
+              '<p class="gentle-walk__body">' + gw.body + '</p>' +
             '</div>' +
           '</div>' +
 
-          (diary ? '<div class="diary-strip"><span class="diary-strip__icon" aria-hidden="true">💛</span>' +
-            '<p><strong>' + diary.title + '</strong> ' + diary.body + '</p></div>' : '') +
+          (rc.foundingNote ? '<p class="founding-note">' + rc.foundingNote + '</p>' : '') +
         '</div>';
       },
       bind: function () {},
       canAdvance: function () { return true; },
-      continueLabel: function () { return WM.RESULTS_COPY.continueLabel; },
       onEnter: function (a) {
         track(EVENTS.cohortChosen, { cohort: a.cohort });
         var circle = resultsCircleCard(a);
-        var routine = resultsRoutineCard(a);
-        track(EVENTS.resultsViewed, {
-          circle_reason: circle.reason,
-          routine_reason: routine.reason,
-          diary_shown: !!resultsDiaryCard(a)
-        });
+        track(EVENTS.resultsViewed, { circle_reason: circle.reason });
       }
     },
 
-    /* Screen 11, trust / community preview */
-    trustPreview: {
-      render: function (a) {
-        var c = COPY.steps.trustPreview;
-        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
-          '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.intro + '</p>' +
-          renderCirclePreview(c);
-      },
-      bind: function () {},
-      canAdvance: function () { return true; }
-    },
-
-    /* Screen 12 */
+    /* Screen 11 */
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
@@ -653,33 +600,39 @@
     return '<span class="circle-avatar circle-avatar--' + AVATAR_TINTS[index % AVATAR_TINTS.length] + '" aria-hidden="true">' + initials(name) + '</span>';
   }
 
-  /* results step hero: unlabeled circles (no initials) — these represent
-     future circle members in the abstract, not specific named people, so
-     nothing is put inside one. Five falls within the brief's 4-6 range. */
-  function heroAvatarsHTML() {
+  /* results step chat-card header: unlabeled circles (no initials) —
+     these represent future circle members in the abstract, not specific
+     named people, so nothing is put inside one. */
+  function circleAvatarsHTML(count) {
     var html = "";
-    for (var i = 0; i < 5; i++) {
-      html += '<span class="circle-hero__avatar circle-avatar--' + AVATAR_TINTS[i % AVATAR_TINTS.length] + '" aria-hidden="true"></span>';
+    for (var i = 0; i < count; i++) {
+      html += '<span class="circle-chat__avatar circle-avatar--' + AVATAR_TINTS[i % AVATAR_TINTS.length] + '" aria-hidden="true"></span>';
     }
     return html;
   }
 
-  /* Purely decorative "a flexible week" motif for the routine preview —
-     not a real tracked-activity visualization (no real activity data
-     exists pre-signup), so the pattern is fixed/illustrative, never
-     derived from anything resembling real data. */
-  function routineDotsHTML() {
-    var pattern = [true, false, true, true, false, true, true];
-    return pattern.map(function (filled) {
-      return '<span class="routine-preview__dot' + (filled ? " is-filled" : "") + '" aria-hidden="true"></span>';
+  /* results step chat preview: same person keeps the same avatar tint
+     across all of their messages (assigned by first appearance), rather
+     than tinting by message position. No timestamps — the brief is
+     explicit this must never read as real, dated member activity. */
+  function chatMessagesHTML(messages) {
+    var tintByName = {};
+    var nextTint = 0;
+    return messages.map(function (m) {
+      if (!(m.name in tintByName)) { tintByName[m.name] = AVATAR_TINTS[nextTint % AVATAR_TINTS.length]; nextTint++; }
+      return '<div class="chat-message"><span class="circle-avatar circle-avatar--' + tintByName[m.name] + '" aria-hidden="true">' + initials(m.name) + '</span>' +
+        '<div class="chat-message__bubble">' +
+          '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span></div>' +
+          '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
+        '</div></div>';
     }).join("");
   }
 
-  /* Shared between the `trustPreview` step and the landing page's
-     community section, so the "clearly labeled illustrative preview"
-     the brief asks for is one implementation, not two different mocks.
-     opts.compact (landing page use) trims to 2 messages and drops the
-     challenge card / participation row, so the marketing page stays lean. */
+  /* Used by the landing page's compact community section (`opts.compact`
+     trims to 2 messages, drops the challenge card / participation row).
+     Reads the `trustPreview` data object in moms-copy.js, which exists
+     only for this now that the full-size step it originally rendered was
+     merged into `results`. */
   function renderCirclePreview(data, opts) {
     opts = opts || {};
     var messages = opts.compact ? data.messages.slice(0, 2) : data.messages;

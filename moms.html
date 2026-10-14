@@ -189,53 +189,27 @@
   .summary__row{display:flex;justify-content:space-between;font-size:.9rem;padding:6px 0}
   .summary__row span{color:var(--ink-soft)}
 
-  /* ---------- results step (step 10): hero circle preview, mini chat,
-     routine preview, diary strip — see .shell--wide/.flownav--tight below
-     for this step's wider layout and tighter CTA gap ---------- */
-  .circle-hero{
-    position:relative;overflow:hidden;text-align:center;
-    background:linear-gradient(135deg,var(--sage-tint),var(--lavender) 130%);
-    border-radius:var(--r-card);padding:32px 28px;margin:20px 0;
-  }
-  .circle-hero__blob{
-    position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;
-    background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.55),transparent 70%);
-    pointer-events:none;
-  }
-  .circle-hero__chip{
-    position:relative;display:inline-block;font-family:var(--display);font-weight:700;font-size:.74rem;
-    letter-spacing:.03em;color:var(--ink);background:rgba(255,255,255,.85);
-    border-radius:999px;padding:.4rem .9rem;margin-bottom:18px;
-  }
-  .circle-hero__avatars{position:relative;display:flex;justify-content:center;margin-bottom:18px}
-  .circle-hero__avatar{
-    width:44px;height:44px;border-radius:50%;flex:none;
-    border:3px solid var(--card);margin-left:-14px;
-    box-shadow:0 4px 10px rgba(43,46,74,.15);
-  }
-  .circle-hero__avatar:first-child{margin-left:0}
-  .circle-hero__title{position:relative;font-family:var(--display);font-weight:700;font-size:1.3rem;margin-bottom:8px}
-  .circle-hero__body{position:relative;color:var(--ink-soft);font-size:.95rem;max-width:30rem;margin:0 auto;line-height:1.5}
+  /* ---------- results step (step 10): one merged circle+chat preview
+     card plus a compact gentle-walking note. flownav--tight (below)
+     tightens this step's CTA gap; no wide-shell override anymore now
+     that it's a single column, not a two-up grid. ---------- */
+  .circle-chat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:20px;margin:20px 0}
+  .circle-chat__header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .circle-chat__title{font-family:var(--display);font-weight:700;font-size:1.05rem;margin-bottom:6px}
+  /* #2F6B4C (not --sage-deep) is the smallest darkening of sage-tint's
+     text that still clears WCAG AA 4.5:1 on this background. */
+  .circle-chat__stage{display:inline-block;font-family:var(--display);font-weight:600;font-size:.74rem;color:#2F6B4C;background:var(--sage-tint);border-radius:999px;padding:.3rem .7rem}
+  .circle-chat__avatars{display:flex;flex:none;margin-top:2px}
+  .circle-chat__avatar{width:30px;height:30px;border-radius:50%;flex:none;border:2px solid var(--card);margin-left:-10px;box-shadow:0 2px 6px rgba(43,46,74,.12)}
+  .circle-chat__avatar:first-child{margin-left:0}
+  .circle-chat__caption{text-align:center;font-size:.78rem;color:var(--ink-soft);margin-top:12px}
 
-  .results-grid{display:grid;grid-template-columns:1fr;gap:16px;margin:16px 0}
-  @media (min-width:720px){
-    .results-grid{grid-template-columns:1fr 1fr}
-  }
+  .gentle-walk{display:flex;align-items:center;gap:14px;background:var(--sage-tint);border-radius:var(--r-inner);padding:16px 18px;margin:16px 0}
+  .gentle-walk__icon{font-size:1.5rem;flex:none}
+  .gentle-walk__title{font-family:var(--display);font-weight:700;font-size:.95rem;margin-bottom:3px}
+  .gentle-walk__body{font-size:.86rem;color:var(--ink-soft);line-height:1.4;margin:0}
 
-  .mini-chat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:18px}
-
-  .routine-preview{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:18px}
-  .routine-preview__dots{display:flex;gap:6px;margin:10px 0 14px}
-  .routine-preview__dot{width:10px;height:10px;border-radius:50%;background:var(--cream-deep)}
-  .routine-preview__dot.is-filled{background:var(--sage)}
-  .routine-preview__list{list-style:none;display:flex;flex-direction:column;gap:6px}
-  .routine-preview__list li{font-size:.9rem;color:var(--ink-soft);padding-left:18px;position:relative}
-  .routine-preview__list li::before{content:"•";position:absolute;left:0;color:var(--sage);font-weight:700}
-
-  .diary-strip{display:flex;align-items:center;gap:10px;background:var(--lavender);border-radius:999px;padding:10px 18px;margin:16px 0}
-  .diary-strip__icon{font-size:1.1rem;flex:none}
-  .diary-strip p{font-size:.86rem;color:var(--ink-soft);margin:0;line-height:1.4}
-  .diary-strip strong{color:var(--ink)}
+  .founding-note{text-align:center;font-size:.84rem;color:var(--ink-soft);margin-top:4px}
 
   .badge{
     display:inline-block;font-family:var(--display);font-weight:700;font-size:.72rem;
@@ -400,10 +374,8 @@
     .card--reassurance .q-title{font-size:1.5rem}
     .interlude-illustration svg{width:96px;height:96px}
     .answer-card{font-size:.88rem;padding:.65rem .85rem}
-    .circle-hero{padding:26px 18px}
-    .circle-hero__avatar{width:38px;height:38px;margin-left:-12px}
-    .circle-hero__title{font-size:1.15rem}
-    .mini-chat,.routine-preview{padding:14px}
+    .circle-chat{padding:14px}
+    .circle-chat__avatar{width:26px;height:26px;margin-left:-8px}
   }
 </style>
 </head>
