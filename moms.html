@@ -252,6 +252,15 @@
   .chat-message__time{font-size:.72rem;color:var(--ink-soft)}
   .chat-message__text{font-size:.9rem;color:var(--ink);line-height:1.4}
 
+  /* Reply styling (used in the results step's community-card chat preview,
+     alternating by message index): mirrors the bubble to the other side
+     so a short back-and-forth reads as a conversation, not a stack of
+     identical announcements. */
+  .chat-message--reply{flex-direction:row-reverse}
+  .chat-message--reply .chat-message__bubble{background:var(--lavender)}
+  .chat-message--reply .chat-message__meta{flex-direction:row-reverse}
+  .chat-message--reply .chat-message__text{text-align:right}
+
   .challenge-card{
     display:flex;align-items:center;gap:12px;
     background:var(--sage-tint);border-radius:var(--r-inner);padding:12px 14px;margin:14px 0 10px;

@@ -643,9 +643,12 @@
   function chatMessagesHTML(messages) {
     var tintByName = {};
     var nextTint = 0;
-    return messages.map(function (m) {
+    return messages.map(function (m, i) {
       if (!(m.name in tintByName)) { tintByName[m.name] = AVATAR_TINTS[nextTint % AVATAR_TINTS.length]; nextTint++; }
-      return '<div class="chat-message"><span class="circle-avatar circle-avatar--' + tintByName[m.name] + '" aria-hidden="true">' + initials(m.name) + '</span>' +
+      // Alternate sides by position so a short back-and-forth reads as a
+      // conversation (a reply) rather than a stack of identical posts.
+      var replyClass = (i % 2 === 1) ? " chat-message--reply" : "";
+      return '<div class="chat-message' + replyClass + '"><span class="circle-avatar circle-avatar--' + tintByName[m.name] + '" aria-hidden="true">' + initials(m.name) + '</span>' +
         '<div class="chat-message__bubble">' +
           '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span></div>' +
           '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
