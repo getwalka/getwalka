@@ -92,12 +92,12 @@ window.WALKA_MOMS = (function () {
 
   var MEMBERSHIP_PAYMENT_LINK = {
     test: {
-      usd: "https://buy.stripe.com/test_3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/test_eVqbJ2fiCdUL8aFcg9dwc04"
+      usd: "https://buy.stripe.com/test_dRmbJ25I2aIz0Iddkddwc05",
+      cad: "https://buy.stripe.com/test_5kQeVefiC17Z9eJ5RLdwc06"
     },
     live: {
       usd: "https://buy.stripe.com/3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc04"
+      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc044"
     }
   };
 
