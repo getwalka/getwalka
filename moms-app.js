@@ -413,7 +413,6 @@
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + rc.title + '</h2>' +
           '<p class="q-body">' + resultsPersonalizedSentence(a) + '</p>' +
-          '<p class="q-body">' + rc.intro + '</p>' +
 
           '<div class="walk-card">' +
             '<h3 class="walk-card__title">' + ch.title + '</h3>' +

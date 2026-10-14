@@ -422,7 +422,6 @@ window.WALKA_MOMS = (function () {
    * ------------------------------------------------------------------ */
   var RESULTS_COPY = {
     title: "Here's what we've created for you.",
-    intro: "With Walka Mom, you'll get two things to help you feel more supported:",
 
     /* Builds "You told us you'd love to {a}, while {bIng}." from up to
        two of the member's actual answers, in priority order below
