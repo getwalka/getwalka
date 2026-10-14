@@ -345,8 +345,7 @@ window.WALKA_MOMS = (function () {
          all comes from RESULTS_COPY via moms-app.js's results* functions,
          not static strings here. */
       results: {
-        eyebrow: "Made for you",
-        note: "This isn't a promise about results, just where we'd start with you."
+        eyebrow: "Made for you"
       },
 
       /* Screen 11, trust / community preview. Renders as a mocked circle

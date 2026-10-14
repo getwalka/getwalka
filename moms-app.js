@@ -449,8 +449,6 @@
 
           (diary ? '<div class="diary-strip"><span class="diary-strip__icon" aria-hidden="true">💛</span>' +
             '<p><strong>' + diary.title + '</strong> ' + diary.body + '</p></div>' : '') +
-
-          '<p class="q-hint">' + c.note + '</p>' +
         '</div>';
       },
       bind: function () {},
