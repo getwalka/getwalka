@@ -12,7 +12,7 @@ create table if not exists public.moms_leads (
 
   stage text,                            -- 'pregnant' | 'postpartum', derived from motherhood_stage
   weeks_postpartum int,                  -- no longer asked, kept for historical rows
-  due_date date,
+  due_date date,                         -- no longer asked, kept for historical rows
   delivery_type text,                    -- 'vaginal' | 'csection' | 'prefer_not_to_say'; no longer asked, kept for historical rows
 
   motherhood_stage text,                 -- 'pregnant' | 'postpartum_0_3' | 'postpartum_3_6' | 'postpartum_6_12' | 'postpartum_12_plus'

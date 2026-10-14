@@ -227,8 +227,7 @@ window.WALKA_MOMS = (function () {
           { value: "postpartum_3_6", label: "3–6 months postpartum" },
           { value: "postpartum_6_12", label: "6–12 months postpartum" },
           { value: "postpartum_12_plus", label: "More than a year postpartum" }
-        ],
-        dueDateLabel: "Due date (optional)"
+        ]
       },
 
       /* Screen 2, multi-select, skippable */

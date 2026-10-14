@@ -98,7 +98,6 @@
       country: a.country || null,
       stage: a.stage || null,
       motherhood_stage: a.motherhood_stage || null,
-      due_date: a.due_date || null,
       clearance_status: a.clearance_status || null,
       prepare_mode: a.clearance_status ? a.clearance_status !== "yes" : null,
       routine_preference: a.routine_preference || null,
@@ -208,8 +207,7 @@
           return pillOption("stage_value", o.value, o.label, a.motherhood_stage === o.value);
         }).join("");
         return '<h2 class="q-title">' + COPY.steps.stage.title + '</h2>' +
-          '<div class="answer-grid" id="stageOpts">' + opts + '</div>' +
-          '<div id="stageFollowup">' + stageFollowupHTML(a) + '</div>';
+          '<div class="answer-grid" id="stageOpts">' + opts + '</div>';
       },
       bind: function (root) {
         root.querySelectorAll('#stageOpts .answer-card').forEach(function (b) {
@@ -218,12 +216,9 @@
             state.answers.motherhood_stage = v;
             state.answers.stage = (v === "pregnant") ? "pregnant" : "postpartum";
             root.querySelectorAll('#stageOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            root.querySelector("#stageFollowup").innerHTML = stageFollowupHTML(state.answers);
-            bindStageFollowup(root);
             refreshContinue();
           });
         });
-        bindStageFollowup(root);
       },
       canAdvance: function (a) { return !!a.motherhood_stage; }
     },
@@ -670,17 +665,6 @@
 
   function centsLabel(cents) {
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
-  }
-
-  function stageFollowupHTML(a) {
-    if (a.stage !== "pregnant") return "";
-    var s = COPY.steps.stage;
-    return '<label class="field"><span>' + s.dueDateLabel + '</span><input type="date" id="dueDateInput" value="' + escapeAttr(a.due_date || "") + '"></label>';
-  }
-
-  function bindStageFollowup(root) {
-    var due = root.querySelector("#dueDateInput");
-    if (due) due.addEventListener("input", function () { state.answers.due_date = due.value; });
   }
 
   /* ---------------- flow control ---------------- */
