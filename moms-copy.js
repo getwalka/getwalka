@@ -101,6 +101,21 @@ window.WALKA_MOMS = (function () {
     }
   };
 
+  /* Inline checkout (Stripe Elements), the default path as of 2026-10:
+     create-moms-subscription-intent returns a clientSecret, the Payment
+     Element mounts right on the checkout screen, and stripe.confirmPayment
+     charges the card without leaving getwalka.com. MEMBERSHIP_PAYMENT_LINK
+     above is kept as the fallback if Stripe.js fails to load or the intent
+     call errors, so checkout never dead-ends.
+
+     Publishable keys are not secret, safe to ship in client code (unlike
+     the Edge Function's STRIPE_SECRET_KEY). From the Stripe dashboard:
+     Developers > API keys > Publishable key, once per mode. */
+  var STRIPE_PUBLISHABLE_KEY = {
+    test: "pk_test_REPLACE_ME",
+    live: "pk_live_REPLACE_ME"
+  };
+
   /* No-code cancellation, per the README's documented plan: Settings >
      Billing > Customer portal > the shareable link option (asks the
      member to verify their email, no login system needed on our side).
@@ -366,8 +381,12 @@ window.WALKA_MOMS = (function () {
         agreeTermsText: "Terms",
         agreeJoiner: "and",
         agreePrivacyText: "Privacy Policy",
-        payCta: "Start my membership",
+        payCta: "Continue to payment",
+        cardLabel: "Card details",
+        confirmCta: "Subscribe",
+        processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
+        genericError: "Something went wrong. Please try again.",
         legalLinks: { terms: "/terms", privacy: "/privacy" }
       }
     },
@@ -514,6 +533,7 @@ window.WALKA_MOMS = (function () {
     PLAN_PRICE_CENTS: PLAN_PRICE_CENTS,
     BILLING_INTERVAL: BILLING_INTERVAL,
     MEMBERSHIP_PAYMENT_LINK: MEMBERSHIP_PAYMENT_LINK,
+    STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY,
     CUSTOMER_PORTAL_URL: CUSTOMER_PORTAL_URL,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,

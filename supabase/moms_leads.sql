@@ -53,8 +53,12 @@ create table if not exists public.moms_leads (
   last_step text,                        -- furthest step reached, the drop-off signal
   checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (reserved is historical only: the no-charge fork was retired along with the stake model)
 
-  stripe_customer_id text,               -- set by link-moms-subscriber (Edge Function) after a Stripe Payment Link redirect, matched by email since Payment Links don't return a customer id in the URL
-  subscription_status text               -- mirrors Stripe's own subscription.status (active | trialing | past_due | canceled | incomplete | ...); null until link-moms-subscriber finds a subscription for this email
+  stripe_customer_id text,               -- set by create-moms-subscription-intent (inline checkout) or link-moms-subscriber (Payment Link redirect fallback), matched by email in the latter case since Payment Links don't return a customer id in the URL
+  stripe_subscription_id text,            -- set by create-moms-subscription-intent; lets a retry/resume reuse the same incomplete subscription instead of creating a duplicate
+  subscription_status text,              -- mirrors Stripe's own subscription.status (active | trialing | past_due | canceled | incomplete | ...)
+
+  abandoned_email_touch1_sent_at timestamptz, -- claimed (set before sending) by process-abandoned-moms-leads; doubles as its dedup state, there being no notify()-equivalent for email
+  abandoned_email_touch2_sent_at timestamptz
 );
 
 -- Running this file again against an already-created table adds any new
@@ -62,6 +66,7 @@ create table if not exists public.moms_leads (
 alter table public.moms_leads add column if not exists entry_fee_cents int;
 alter table public.moms_leads add column if not exists country text;
 alter table public.moms_leads add column if not exists stripe_customer_id text;
+alter table public.moms_leads add column if not exists stripe_subscription_id text;
 alter table public.moms_leads add column if not exists subscription_status text;
 
 -- Added for the empathetic-funnel/membership redesign (stake/cohort model
@@ -76,12 +81,18 @@ alter table public.moms_leads add column if not exists plan_price_cents int;
 alter table public.moms_leads add column if not exists billing_interval text;
 alter table public.moms_leads add column if not exists billing_currency text;
 
+-- Abandoned-cart email tracking (process-abandoned-moms-leads Edge Function).
+alter table public.moms_leads add column if not exists abandoned_email_touch1_sent_at timestamptz;
+alter table public.moms_leads add column if not exists abandoned_email_touch2_sent_at timestamptz;
+
 -- The tone picker is retired and no longer writes this column; stop new rows
 -- from silently inheriting 'princess' as if it were a real answer.
 alter table public.moms_leads alter column motivation_style drop default;
 
 create index if not exists moms_leads_checkout_status_idx on public.moms_leads (checkout_status);
 create index if not exists moms_leads_created_at_idx on public.moms_leads (created_at);
+create index if not exists moms_leads_abandoned_touch1_idx on public.moms_leads (abandoned_email_touch1_sent_at);
+create index if not exists moms_leads_abandoned_touch2_idx on public.moms_leads (abandoned_email_touch2_sent_at);
 
 alter table public.moms_leads enable row level security;
 

@@ -551,14 +551,26 @@
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
+          '<div id="paymentElementContainer" hidden></div>' +
           '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
+        var c = COPY.steps.checkout;
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
+        var paymentContainer = root.querySelector("#paymentElementContainer");
+
+        /* "collect" (name/email/terms) -> "confirm" (card mounted inline,
+           same button now confirms the charge). Falls back to the old
+           Payment Link redirect if Stripe.js never loaded, the
+           publishable key isn't configured, or the intent call fails, so
+           checkout never dead-ends on a broken inline path. */
+        var phase = "collect";
+        var stripeClient = null, elements = null;
 
         function validate() {
+          if (phase !== "collect") return true;
           var valid = agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
           pay.disabled = !valid;
           return valid;
@@ -567,37 +579,113 @@
         email.addEventListener("input", function () { state.answers.email = email.value; validate(); });
         agree.addEventListener("change", validate);
 
-        pay.addEventListener("click", function () {
-          if (!validate()) return;
+        function showError(msg) {
+          err.textContent = msg;
+          err.hidden = false;
+        }
 
-          var currency = checkoutCurrency(state.answers);
+        function fallbackToRedirect(currency) {
           var link = WM.MEMBERSHIP_PAYMENT_LINK[WM.STRIPE_MODE][currency];
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
-            err.textContent = "Payment link isn't configured yet. Add it to moms-copy.js.";
-            err.hidden = false;
+            showError("Payment isn't configured yet. Add it to moms-copy.js.");
             track(EVENTS.checkoutFailed, { reason: "missing_payment_link", currency: currency });
+            pay.disabled = false;
             return;
           }
-          state.answers.checkout_status = "started";
-          state.answers.billing_currency = currency;
-          saveState();
-          track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
-
           var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
             "&prefilled_email=" + encodeURIComponent(email.value.trim());
-
-          /* This sync carries the real email the member just typed, which
-             link-moms-subscriber later looks the Stripe customer up BY —
-             if the browser navigates away before this upsert finishes,
-             the request gets cancelled mid-flight and the row keeps
-             whatever (likely empty) email the earlier "viewed" sync
-             wrote on page load. Wait for it, racing a short timeout so a
-             slow/broken connection never traps someone who can't pay. */
-          pay.disabled = true;
           var navigated = false;
           function goToStripe() { if (!navigated) { navigated = true; window.location.href = url; } }
           syncLead().then(goToStripe).catch(goToStripe);
           setTimeout(goToStripe, 1200);
+        }
+
+        function startInlineCheckout(currency) {
+          var pk = WM.STRIPE_PUBLISHABLE_KEY[WM.STRIPE_MODE];
+          if (!window.Stripe || !pk || pk.indexOf("REPLACE_ME") !== -1) {
+            fallbackToRedirect(currency);
+            return;
+          }
+          sbClient.functions.invoke("create-moms-subscription-intent", {
+            body: { local_id: state.localId, email: email.value.trim(), name: name.value.trim(), currency: currency }
+          }).then(function (res) {
+            if (res.error) throw res.error;
+            var data = res.data || {};
+            if (data.error) throw new Error(data.error);
+
+            if (data.alreadyActive) {
+              state.answers.checkout_status = "completed_unverified";
+              state.answers.billing_currency = currency;
+              saveState();
+              window.location.href = "/moms-success";
+              return;
+            }
+            if (!data.clientSecret) throw new Error("no clientSecret in response");
+
+            stripeClient = window.Stripe(pk);
+            elements = stripeClient.elements({ clientSecret: data.clientSecret });
+            paymentContainer.innerHTML = '<p class="q-label">' + c.cardLabel + '</p><div id="paymentElement"></div>';
+            paymentContainer.hidden = false;
+            elements.create("payment").mount("#paymentElement");
+
+            phase = "confirm";
+            pay.textContent = c.confirmCta;
+            pay.disabled = false;
+            err.hidden = true;
+
+            track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
+          }).catch(function (e) {
+            console.warn("[moms checkout] create-moms-subscription-intent failed, falling back to redirect", e);
+            fallbackToRedirect(currency);
+          });
+        }
+
+        function confirmInlinePayment() {
+          pay.disabled = true;
+          pay.textContent = c.processingCta;
+          err.hidden = true;
+          stripeClient.confirmPayment({
+            elements: elements,
+            confirmParams: { return_url: window.location.origin + "/moms-success" },
+            redirect: "if_required"
+          }).then(function (result) {
+            if (result.error) {
+              showError(result.error.message || c.genericError);
+              pay.disabled = false;
+              pay.textContent = c.confirmCta;
+              return;
+            }
+            // Confirmed without a redirect (no 3D Secure challenge needed);
+            // a challenge would have sent the browser to return_url itself.
+            state.answers.checkout_status = "completed_unverified";
+            saveState();
+            track(EVENTS.checkoutCompleted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS });
+            window.location.href = "/moms-success";
+          }).catch(function () {
+            showError(c.genericError);
+            pay.disabled = false;
+            pay.textContent = c.confirmCta;
+          });
+        }
+
+        pay.addEventListener("click", function () {
+          if (phase === "confirm") { confirmInlinePayment(); return; }
+          if (!validate()) return;
+
+          var currency = checkoutCurrency(state.answers);
+          state.answers.checkout_status = "started";
+          state.answers.billing_currency = currency;
+          saveState();
+
+          /* Same race as the old redirect flow: the real email just typed
+             needs to land in Supabase before create-moms-subscription-intent
+             reads it back, but a slow/broken connection must never trap
+             someone who can't pay. */
+          pay.disabled = true;
+          var started = false;
+          function begin() { if (!started) { started = true; startInlineCheckout(currency); } }
+          syncLead().then(begin).catch(begin);
+          setTimeout(begin, 1200);
         });
       },
       canAdvance: function () { return false; }, // own pay button drives navigation
