@@ -647,6 +647,15 @@
             if (initiated || !fieldsValid()) return;
             initiated = true;
 
+            paymentContainer.className = "payment-loading";
+            paymentContainer.innerHTML =
+              '<span class="payment-loading__dots" aria-hidden="true">' +
+                '<span class="payment-loading__dot payment-loading__dot--sage"></span>' +
+                '<span class="payment-loading__dot payment-loading__dot--lavender"></span>' +
+                '<span class="payment-loading__dot payment-loading__dot--amber"></span>' +
+              '</span>' +
+              '<p class="q-hint">' + c.paymentLoading + '</p>';
+
             var currency = checkoutCurrency(state.answers);
             state.answers.checkout_status = "started";
             state.answers.billing_currency = currency;

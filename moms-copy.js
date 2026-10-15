@@ -384,6 +384,7 @@ window.WALKA_MOMS = (function () {
         agreePrivacyText: "Privacy Policy",
         cardLabel: "Card details",
         paymentPlaceholder: "Complete the fields above to enter payment details.",
+        paymentLoading: "Loading payment details...",
         confirmCta: "Subscribe",
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
