@@ -354,27 +354,6 @@ window.WALKA_MOMS = (function () {
         eyebrow: "Made for you"
       },
 
-      /* Landing-page-only now: the funnel step this originally rendered
-         was merged into `results` (see RESULTS_COPY.circle below), but
-         the landing page's compact community section still reads this
-         via renderCirclePreview() in moms-app.js. No member counts,
-         response-time/engagement numbers, or real named people anywhere
-         in this data — illustrative only. */
-      trustPreview: {
-        illustrativeBadge: "Illustrative community preview",
-        circleName: "Early Days Circle",
-        messages: [
-          { name: "Jess", time: "this morning", text: "Only made it around the block today but I went. Ten minutes still counts." },
-          { name: "Maya", time: "this morning", text: "Needed to hear that. Rough night here too." },
-          { name: "Priya", time: "yesterday", text: "Posting this one anonymously, just a tired day. Glad this space is here." }
-        ],
-        challenge: {
-          icon: "🚶‍♀️", title: "This week's gentle challenge",
-          body: "A short walk most days, however that looks for you. No fixed step count, no leaderboard."
-        },
-        participation: ["Post", "Reply", "Just read, that counts too"]
-      },
-
       /* Screen 12 */
       checkout: {
         title: "Your membership",

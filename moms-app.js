@@ -123,6 +123,57 @@
       .catch(function (err) { console.warn("[moms-flow] supabase upsert failed", err); });
   }
 
+  /* Resuming from an emailed link (process-abandoned-moms-leads), where the
+     visitor may be on a different device/browser than the one that started
+     the flow, so localStorage has nothing. ?lid=<local_id> on the URL is the
+     only thing that lets this device find their saved progress.
+     Only last_step is persisted server-side (no full step-by-step snapshot),
+     so this can land one step off from exactly where they stopped -- a UX
+     nit, not a money issue: nothing here re-sends a Payment Link click
+     without the visitor tapping the checkout CTA again. */
+  function maybeRehydrateFromLink() {
+    var lid = getQueryParam("lid");
+    if (!lid || !sbClient || state.localId === lid) return Promise.resolve();
+
+    return sbClient.from(WM.SUPABASE_TABLE).select("*").eq("local_id", lid).maybeSingle()
+      .then(function (res) {
+        if (res.error || !res.data) return;
+        var row = res.data;
+        var idx = STEP_IDS.indexOf(row.last_step);
+        state = {
+          localId: row.local_id,
+          stepIndex: idx >= 0 ? idx : 0,
+          answers: {
+            email: row.email || null,
+            first_name: row.first_name || null,
+            country: row.country || null,
+            stage: row.stage || null,
+            motherhood_stage: row.motherhood_stage || null,
+            clearance_status: row.clearance_status || null,
+            routine_preference: row.routine_preference || null,
+            activity_baseline: row.activity_baseline || null,
+            barriers: row.barriers || null,
+            motivation_wants: row.motivation_wants || null,
+            connection: row.connection || null,
+            conversations_openness: row.conversations_openness || null,
+            cohort: row.cohort || null,
+            checkout_status: row.checkout_status || "not_started"
+          },
+          startedAt: Date.now(),
+          isResumed: true
+        };
+        saveState();
+        // Strip ?lid= so a later refresh resumes from localStorage (now
+        // populated above), not a possibly-stale server copy.
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.delete("lid");
+          history.replaceState(null, "", url.pathname + url.search + url.hash);
+        } catch (e) { /* ignore */ }
+      })
+      .catch(function (err) { console.warn("[moms-flow] rehydrate from link failed", err); });
+  }
+
   /* Auto-placement into a small walking circle, read-only (no screen of
      its own — the assignment surfaces as one line on the `results` step).
      Falls back to the earliest postpartum group if motherhood_stage is
@@ -694,46 +745,6 @@
     }).join("");
   }
 
-  /* Used by the landing page's compact community section (`opts.compact`
-     trims to 2 messages, drops the challenge card / participation row).
-     Reads the `trustPreview` data object in moms-copy.js, which exists
-     only for this now that the full-size step it originally rendered was
-     merged into `results`. */
-  function renderCirclePreview(data, opts) {
-    opts = opts || {};
-    var messages = opts.compact ? data.messages.slice(0, 2) : data.messages;
-
-    var avatarsHTML = messages.map(function (m, i) { return avatarHTML(m.name, i); }).join("");
-
-    var messagesHTML = messages.map(function (m, i) {
-      return '<div class="chat-message">' + avatarHTML(m.name, i) +
-        '<div class="chat-message__bubble">' +
-          '<div class="chat-message__meta"><span class="chat-message__name">' + escapeAttr(m.name) + '</span>' +
-          (m.time ? '<span class="chat-message__time">' + escapeAttr(m.time) + '</span>' : '') + '</div>' +
-          '<p class="chat-message__text">' + escapeAttr(m.text) + '</p>' +
-        '</div></div>';
-    }).join("");
-
-    var challengeHTML = (!opts.compact && data.challenge) ?
-      '<div class="challenge-card"><span class="challenge-card__icon" aria-hidden="true">' + data.challenge.icon + '</span>' +
-        '<div><p class="challenge-card__title">' + data.challenge.title + '</p>' +
-        '<p class="challenge-card__body">' + data.challenge.body + '</p></div></div>' : "";
-
-    var participationHTML = (!opts.compact && data.participation) ?
-      '<div class="participation-row">' +
-        data.participation.map(function (p) { return '<span class="participation-chip">' + escapeAttr(p) + '</span>'; }).join("") +
-      '</div>' : "";
-
-    return '<div class="circle-preview">' +
-      '<span class="badge badge--illustrative">' + escapeAttr(data.illustrativeBadge) + '</span>' +
-      '<div class="circle-preview__header">' +
-        '<span class="circle-preview__name">' + escapeAttr(data.circleName) + '</span>' +
-        '<span class="circle-preview__avatars">' + avatarsHTML + '</span>' +
-      '</div>' +
-      messagesHTML + challengeHTML + participationHTML +
-      '</div>';
-  }
-
   function centsLabel(cents) {
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
@@ -936,17 +947,16 @@
         '</div>' +
       '</div></section>' +
 
-      '<section class="mcohort"><div class="wrap cohort-layout">' +
-        '<div class="cohort-visual rv">' + renderCirclePreview(COPY.steps.trustPreview, { compact: true }) + '</div>' +
-        '<div class="rv">' +
+      '<section class="mcohort"><div class="wrap">' +
+        '<div class="sec-head rv">' +
           '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
           '<h2>' + L.cohortTitle + '</h2>' +
-          '<p class="q-body" style="margin:10px 0 18px">' + L.cohortBody + '</p>' +
-          '<div class="cohort-chips">' +
-            L.cohortGroups.map(function (g) {
-              return '<span class="cohort-chip">' + g.caption + '</span>';
-            }).join("") +
-          '</div>' +
+          '<p class="q-body" style="margin:10px 0 0">' + L.cohortBody + '</p>' +
+        '</div>' +
+        '<div class="cohort-chips rv">' +
+          L.cohortGroups.map(function (g) {
+            return '<span class="cohort-chip">' + g.caption + '</span>';
+          }).join("") +
         '</div>' +
       '</div></section>';
 
@@ -1034,6 +1044,6 @@
     backBtn.addEventListener("click", goBack);
     resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
 
-    initGate();
+    maybeRehydrateFromLink().then(function () { initGate(); });
   });
 })();

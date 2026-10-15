@@ -241,23 +241,6 @@ fbq('track', 'PageView');
   @keyframes preparingBounce{0%,80%,100%{transform:translateY(0);opacity:.6}40%{transform:translateY(-10px);opacity:1}}
   @media (prefers-reduced-motion:reduce){.preparing__dot{animation:none;opacity:.85}}
 
-  .badge{
-    display:inline-block;font-family:var(--display);font-weight:700;font-size:.72rem;
-    letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:.35rem .8rem;
-  }
-  .badge--illustrative{background:var(--amber-tint);color:#7A5A1F}
-
-  .circle-preview{
-    background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);
-    padding:16px;margin:14px 0;
-  }
-  .circle-preview__header{
-    display:flex;align-items:center;justify-content:space-between;
-    margin-top:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line);
-  }
-  .circle-preview__name{font-family:var(--display);font-weight:700;font-size:.98rem}
-  .circle-preview__avatars{display:flex}
-
   .circle-avatar{
     width:28px;height:28px;border-radius:50%;flex:none;
     display:flex;align-items:center;justify-content:center;
@@ -275,7 +258,6 @@ fbq('track', 'PageView');
   .chat-message__bubble{background:var(--cream);border-radius:var(--r-inner);padding:10px 14px;flex:1;min-width:0}
   .chat-message__meta{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
   .chat-message__name{font-family:var(--display);font-weight:700;font-size:.82rem}
-  .chat-message__time{font-size:.72rem;color:var(--ink-soft)}
   .chat-message__text{font-size:.9rem;color:var(--ink);line-height:1.4}
 
   /* Reply styling (used in the results step's community-card chat preview,
@@ -284,20 +266,6 @@ fbq('track', 'PageView');
      identical announcements. */
   .chat-message--reply{flex-direction:row-reverse}
   .chat-message--reply .chat-message__bubble{background:var(--lavender);flex:0 1 auto;max-width:78%}
-
-  .challenge-card{
-    display:flex;align-items:center;gap:12px;
-    background:var(--sage-tint);border-radius:var(--r-inner);padding:12px 14px;margin:14px 0 10px;
-  }
-  .challenge-card__icon{font-size:1.3rem;flex:none}
-  .challenge-card__title{font-family:var(--display);font-weight:700;font-size:.86rem;color:var(--sage-deep);margin-bottom:2px}
-  .challenge-card__body{font-size:.84rem;color:var(--ink-soft);line-height:1.4}
-
-  .participation-row{display:flex;flex-wrap:wrap;gap:8px}
-  .participation-chip{
-    font-family:var(--display);font-weight:600;font-size:.74rem;color:var(--ink-soft);
-    background:var(--cream);border-radius:999px;padding:.32rem .75rem;
-  }
 
   .price-tag{
     font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
@@ -377,17 +345,10 @@ fbq('track', 'PageView');
 
   .mcohort{background:var(--rose-tint)}
   .mcohort .eyebrow{color:var(--rose-ink)}
-  .cohort-layout{display:grid;grid-template-columns:.95fr 1.05fr;gap:40px;align-items:center;margin-top:8px}
-  .cohort-layout>*{min-width:0}
-  .cohort-visual{max-width:360px}
   .cohort-chips{display:flex;flex-wrap:wrap;gap:10px}
   .cohort-chip{
     font-family:var(--display);font-weight:600;font-size:.88rem;color:var(--ink);
     background:var(--card);border-radius:999px;padding:.55rem 1.05rem;
-  }
-  @media (max-width:860px){
-    .cohort-layout{grid-template-columns:1fr}
-    .cohort-visual{margin:0 auto;max-width:280px}
   }
 
   .rv{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
