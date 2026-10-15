@@ -19,7 +19,7 @@
      rather than resumed. moms-success.html reads the same key and must
      be bumped in lockstep. */
   var STORAGE_KEY = "walka_moms_state_v5";
-  var PREPARING_DELAY_MS = 2200;
+  var PREPARING_DELAY_MS = 5000;
   var STEP_IDS = [
     "stage", "motivation", "barriers", "interludeCare", "connection", "conversations",
     "interludeCommunity", "baseline", "clearance", "preparing", "results", "checkout"
