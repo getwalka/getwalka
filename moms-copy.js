@@ -340,7 +340,14 @@ window.WALKA_MOMS = (function () {
         ]
       },
 
-      /* Screen 10, personalized results. Title/subtext/hero/preview content
+      /* Screen 10: brief timed transition before results, no question —
+         see PREPARING_DELAY_MS in moms-app.js for how long it shows. */
+      preparing: {
+        title: "Preparing your circle",
+        body: "We're using what you shared to find your people and your pace."
+      },
+
+      /* Screen 11, personalized results. Title/subtext/hero/preview content
          all comes from RESULTS_COPY via moms-app.js's results* functions,
          not static strings here. */
       results: {

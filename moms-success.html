@@ -19,6 +19,23 @@
     defaults: '2025-05-24'
   });
 </script>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1746460553856132');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1746460553856132&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <style>
   :root{
     --cream:#F7F1E8;--card:#FFFFFF;--ink:#1B2232;--ink-soft:#5A6079;
@@ -92,7 +109,7 @@
 (function () {
   "use strict";
   var WM = window.WALKA_MOMS;
-  var STORAGE_KEY = "walka_moms_state_v4"; // kept in sync with moms-app.js
+  var STORAGE_KEY = "walka_moms_state_v5"; // kept in sync with moms-app.js
 
   function track(event, props) {
     try { if (window.posthog) posthog.capture(event, props || {}); } catch (e) {}
@@ -183,6 +200,20 @@
       currency: currency,
       has_session_id: hasSessionId
     });
+
+    // Meta Pixel Purchase: the one conversion event worth sending beyond
+    // the automatic PageView, since it's what ad campaigns optimize
+    // toward. Deduped per local_id (no server-verified payment id exists
+    // on this redirect-only page) so refreshing/revisiting this page
+    // doesn't double-count the same signup, same spirit as the native
+    // app's meta_purchase:<paymentId> guard in lib/metaEvents.ts.
+    try {
+      var metaPurchaseKey = "meta_purchase:" + state.localId;
+      if (window.fbq && !localStorage.getItem(metaPurchaseKey)) {
+        fbq("track", "Purchase", { value: WM.PLAN_PRICE_CENTS / 100, currency: currency.toUpperCase() });
+        localStorage.setItem(metaPurchaseKey, "1");
+      }
+    } catch (e) {}
 
     if (window.supabase && WM.SUPABASE_URL.indexOf("REPLACE_ME") === -1 && WM.SUPABASE_ANON_KEY.indexOf("REPLACE_ME") === -1) {
       try {

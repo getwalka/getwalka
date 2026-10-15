@@ -11,17 +11,18 @@
   var WM = window.WALKA_MOMS;
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
-  /* v4: bumped because `trustPreview` (the standalone community-preview
-     step) was folded into `results`, shortening STEP_IDS by one. Any
-     change to STEP_IDS's length or order needs the same bump — a saved
-     numeric stepIndex from before this change would resume into a
-     different step than the one the visitor left, so stale state must be
-     discarded rather than resumed. moms-success.html reads the same key
-     and must be bumped in lockstep. */
-  var STORAGE_KEY = "walka_moms_state_v4";
+  /* v5: bumped because `preparing` (a timed, non-interactive "preparing
+     your circle" transition) was inserted before `results`. Any change
+     to STEP_IDS's length or order needs the same bump — a saved numeric
+     stepIndex from before this change would resume into a different step
+     than the one the visitor left, so stale state must be discarded
+     rather than resumed. moms-success.html reads the same key and must
+     be bumped in lockstep. */
+  var STORAGE_KEY = "walka_moms_state_v5";
+  var PREPARING_DELAY_MS = 2200;
   var STEP_IDS = [
     "stage", "motivation", "barriers", "interludeCare", "connection", "conversations",
-    "interludeCommunity", "baseline", "clearance", "results", "checkout"
+    "interludeCommunity", "baseline", "clearance", "preparing", "results", "checkout"
   ];
 
   /* ---------------- utilities ---------------- */
@@ -241,7 +242,7 @@
             state.answers.motherhood_stage = v;
             state.answers.stage = (v === "pregnant") ? "pregnant" : "postpartum";
             root.querySelectorAll('#stageOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            autoAdvance();
           });
         });
       },
@@ -299,7 +300,7 @@
           b.addEventListener("click", function () {
             state.answers.connection = b.getAttribute("data-value");
             root.querySelectorAll('#connectionOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            autoAdvance();
           });
         });
       },
@@ -321,7 +322,7 @@
           b.addEventListener("click", function () {
             state.answers.conversations_openness = b.getAttribute("data-value");
             root.querySelectorAll('#conversationsOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            autoAdvance();
           });
         });
       },
@@ -345,7 +346,7 @@
           b.addEventListener("click", function () {
             state.answers.activity_baseline = b.getAttribute("data-value");
             root.querySelectorAll('#baselineOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            autoAdvance();
           });
         });
       },
@@ -387,14 +388,42 @@
           b.addEventListener("click", function () {
             state.answers.routine_preference = b.getAttribute("data-value");
             root.querySelectorAll('#routineOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
+            autoAdvance();
           });
         });
       },
       canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    /* Screen 10, personalized results — two equally-weighted cards, a
+    /* Screen 10: a brief, timed "preparing your circle" transition — no
+       question, no Continue/Back/Skip (hideNav), just a pause with a
+       loading motif before the personalized results reveal. Advances
+       itself via onEnter's timer; canAdvance stays true as a fallback
+       only (goNext() checks it, but nothing in the UI can trigger goNext
+       early since hideNav removes every button). */
+    preparing: {
+      hideNav: true,
+      render: function () {
+        var c = COPY.steps.preparing;
+        return '<div class="preparing">' +
+          '<div class="preparing__dots" aria-hidden="true">' +
+            '<span class="preparing__dot preparing__dot--sage"></span>' +
+            '<span class="preparing__dot preparing__dot--lavender"></span>' +
+            '<span class="preparing__dot preparing__dot--amber"></span>' +
+          '</div>' +
+          '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + c.body + '</p>' +
+        '</div>';
+      },
+      bind: function () {},
+      canAdvance: function () { return true; },
+      onEnter: function () {
+        clearTimeout(pendingAdvanceTimer);
+        pendingAdvanceTimer = setTimeout(function () { goNext(); }, PREPARING_DELAY_MS);
+      }
+    },
+
+    /* Screen 11, personalized results — two equally-weighted cards, a
        walking-challenge preview and a community preview, so the screen
        doesn't read as just a chat group. flownavVariant tightens the CTA
        gap for this richer step; the shell stays the default width since
@@ -447,7 +476,7 @@
       }
     },
 
-    /* Screen 11 */
+    /* Screen 12 */
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
@@ -707,7 +736,24 @@
     continueBtn.disabled = !step.canAdvance(state.answers);
   }
 
+  /* For single-select questions only (never multi-select, which still
+     needs an explicit Continue so the member can pick more than one
+     before moving on): advances automatically once the step's one
+     required pick is made, after a short delay so the selection
+     highlight is visible first. pendingAdvanceTimer is reset on every
+     call so a second click (changing their mind) cancels the first
+     timer rather than both eventually firing. */
+  var pendingAdvanceTimer = null;
+  function autoAdvance() {
+    refreshContinue();
+    clearTimeout(pendingAdvanceTimer);
+    if (steps[currentStepId()].canAdvance(state.answers)) {
+      pendingAdvanceTimer = setTimeout(function () { goNext(); }, 220);
+    }
+  }
+
   function renderStep(trackView) {
+    clearTimeout(pendingAdvanceTimer);
     var id = currentStepId();
     var step = steps[id];
     screenEl.innerHTML = step.render(state.answers);
@@ -721,9 +767,11 @@
     progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
     var isCheckout = id === "checkout";
-    continueBtn.hidden = isCheckout;
-    skipBtn.hidden = isCheckout || !step.optional;
-    if (!isCheckout) {
+    var hideNav = isCheckout || step.hideNav; // checkout drives its own nav; a few steps (e.g. preparing) are timed/non-interactive
+    continueBtn.hidden = hideNav;
+    skipBtn.hidden = hideNav || !step.optional;
+    if (step.hideNav) backBtn.hidden = true;
+    if (!hideNav) {
       continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : COPY.continueLabel;
       refreshContinue();
     }
