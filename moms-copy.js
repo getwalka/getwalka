@@ -112,8 +112,9 @@ window.WALKA_MOMS = (function () {
      the Edge Function's STRIPE_SECRET_KEY). From the Stripe dashboard:
      Developers > API keys > Publishable key, once per mode. */
   var STRIPE_PUBLISHABLE_KEY = {
-    test: "pk_test_REPLACE_ME",
-    live: "pk_live_REPLACE_ME"
+    test: "pk_test_51IAPwwKmW6iAmon9BvmoxKu3jXyKpZsKwOQ3uEoeZDk36hIzuECAUktrzreXANmhKa03DWf7GFhUPT8i54UZBWUV00oO4xYgwS",
+    live: "pk_live_51IAPwwKmW6iAmon97vBggpfUblagf7SYYMOQ6mYGj0gWjCtZQ1nnst9oiSu9rka7jvlwnIPbca0RLScydPB8Scy4005VuT8ANc"
+    
   };
 
   /* No-code cancellation, per the README's documented plan: Settings >
