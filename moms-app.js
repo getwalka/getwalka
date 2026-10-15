@@ -91,7 +91,7 @@
   }
 
   function syncLead(extra) {
-    if (!sbClient) return;
+    if (!sbClient) return Promise.resolve();
     var a = state.answers;
     var row = Object.assign({
       local_id: state.localId,
@@ -118,7 +118,7 @@
       checkout_status: a.checkout_status || "not_started"
     }, extra || {});
 
-    sbClient.from(WM.SUPABASE_TABLE).upsert(row, { onConflict: "local_id" })
+    return sbClient.from(WM.SUPABASE_TABLE).upsert(row, { onConflict: "local_id" })
       .then(function (res) { if (res.error) console.warn("[moms-flow] supabase upsert error", res.error); })
       .catch(function (err) { console.warn("[moms-flow] supabase upsert failed", err); });
   }
@@ -531,11 +531,22 @@
           state.answers.billing_currency = currency;
           saveState();
           track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
-          syncLead();
 
           var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
             "&prefilled_email=" + encodeURIComponent(email.value.trim());
-          window.location.href = url;
+
+          /* This sync carries the real email the member just typed, which
+             link-moms-subscriber later looks the Stripe customer up BY —
+             if the browser navigates away before this upsert finishes,
+             the request gets cancelled mid-flight and the row keeps
+             whatever (likely empty) email the earlier "viewed" sync
+             wrote on page load. Wait for it, racing a short timeout so a
+             slow/broken connection never traps someone who can't pay. */
+          pay.disabled = true;
+          var navigated = false;
+          function goToStripe() { if (!navigated) { navigated = true; window.location.href = url; } }
+          syncLead().then(goToStripe).catch(goToStripe);
+          setTimeout(goToStripe, 1200);
         });
       },
       canAdvance: function () { return false; }, // own pay button drives navigation
