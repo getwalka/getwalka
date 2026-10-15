@@ -551,8 +551,8 @@
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
-          '<div id="paymentElementContainer" hidden></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.payCta + '</button>' +
+          '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCta + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
@@ -561,23 +561,25 @@
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
         var paymentContainer = root.querySelector("#paymentElementContainer");
 
-        /* "collect" (name/email/terms) -> "confirm" (card mounted inline,
-           same button now confirms the charge). Falls back to the old
-           Payment Link redirect if Stripe.js never loaded, the
-           publishable key isn't configured, or the intent call fails, so
-           checkout never dead-ends on a broken inline path. */
-        var phase = "collect";
+        /* No "continue" click: the intent is created automatically, in the
+           background, the moment name/email/terms are all valid (debounced
+           so we don't fire on every keystroke), and the Payment Element
+           replaces the dimmed placeholder as soon as it mounts. The Subscribe
+           button stays disabled until both that AND the fields are valid.
+           Falls back to the old Payment Link redirect if Stripe.js never
+           loaded, the publishable key isn't configured, or the intent call
+           fails, so checkout never dead-ends on a broken inline path. */
         var stripeClient = null, elements = null;
+        var initiated = false; // intent creation started (or already done)
+        var mounted = false;   // Payment Element is actually on the page
+        var debounceTimer = null;
 
-        function validate() {
-          if (phase !== "collect") return true;
-          var valid = agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
-          pay.disabled = !valid;
-          return valid;
+        function fieldsValid() {
+          return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
         }
-        name.addEventListener("input", function () { state.answers.first_name = name.value; });
-        email.addEventListener("input", function () { state.answers.email = email.value; validate(); });
-        agree.addEventListener("change", validate);
+        function refreshButton() {
+          pay.disabled = !(mounted && fieldsValid());
+        }
 
         function showError(msg) {
           err.textContent = msg;
@@ -589,7 +591,6 @@
           if (!link || link.indexOf("REPLACE_ME") !== -1) {
             showError("Payment isn't configured yet. Add it to moms-copy.js.");
             track(EVENTS.checkoutFailed, { reason: "missing_payment_link", currency: currency });
-            pay.disabled = false;
             return;
           }
           var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
@@ -624,14 +625,13 @@
 
             stripeClient = window.Stripe(pk);
             elements = stripeClient.elements({ clientSecret: data.clientSecret });
+            paymentContainer.className = "";
             paymentContainer.innerHTML = '<p class="q-label">' + c.cardLabel + '</p><div id="paymentElement"></div>';
-            paymentContainer.hidden = false;
             elements.create("payment").mount("#paymentElement");
 
-            phase = "confirm";
-            pay.textContent = c.confirmCta;
-            pay.disabled = false;
+            mounted = true;
             err.hidden = true;
+            refreshButton();
 
             track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
           }).catch(function (e) {
@@ -639,6 +639,32 @@
             fallbackToRedirect(currency);
           });
         }
+
+        function scheduleInit() {
+          if (initiated || !fieldsValid()) return;
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(function () {
+            if (initiated || !fieldsValid()) return;
+            initiated = true;
+
+            var currency = checkoutCurrency(state.answers);
+            state.answers.checkout_status = "started";
+            state.answers.billing_currency = currency;
+            saveState();
+
+            /* The real email just typed needs to land in Supabase before
+               create-moms-subscription-intent reads it back, but a
+               slow/broken connection must never trap someone who can't pay. */
+            var started = false;
+            function begin() { if (!started) { started = true; startInlineCheckout(currency); } }
+            syncLead().then(begin).catch(begin);
+            setTimeout(begin, 1200);
+          }, 600);
+        }
+
+        name.addEventListener("input", function () { state.answers.first_name = name.value; refreshButton(); scheduleInit(); });
+        email.addEventListener("input", function () { state.answers.email = email.value; refreshButton(); scheduleInit(); });
+        agree.addEventListener("change", function () { refreshButton(); scheduleInit(); });
 
         function confirmInlinePayment() {
           pay.disabled = true;
@@ -651,8 +677,8 @@
           }).then(function (result) {
             if (result.error) {
               showError(result.error.message || c.genericError);
-              pay.disabled = false;
               pay.textContent = c.confirmCta;
+              refreshButton();
               return;
             }
             // Confirmed without a redirect (no 3D Secure challenge needed);
@@ -663,29 +689,14 @@
             window.location.href = "/moms-success";
           }).catch(function () {
             showError(c.genericError);
-            pay.disabled = false;
             pay.textContent = c.confirmCta;
+            refreshButton();
           });
         }
 
         pay.addEventListener("click", function () {
-          if (phase === "confirm") { confirmInlinePayment(); return; }
-          if (!validate()) return;
-
-          var currency = checkoutCurrency(state.answers);
-          state.answers.checkout_status = "started";
-          state.answers.billing_currency = currency;
-          saveState();
-
-          /* Same race as the old redirect flow: the real email just typed
-             needs to land in Supabase before create-moms-subscription-intent
-             reads it back, but a slow/broken connection must never trap
-             someone who can't pay. */
-          pay.disabled = true;
-          var started = false;
-          function begin() { if (!started) { started = true; startInlineCheckout(currency); } }
-          syncLead().then(begin).catch(begin);
-          setTimeout(begin, 1200);
+          if (!mounted) return; // guarded by disabled state anyway
+          confirmInlinePayment();
         });
       },
       canAdvance: function () { return false; }, // own pay button drives navigation

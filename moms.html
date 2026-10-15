@@ -157,6 +157,8 @@ fbq('track', 'PageView');
   .q-source a{color:var(--sage-deep)}
   .q-error{color:#B3443A;font-size:.85rem;margin-top:10px;font-weight:600}
   #paymentElementContainer{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px}
+  #paymentElementContainer.payment-pending{opacity:.55}
+  #paymentElementContainer.payment-pending .q-hint{margin:0}
 
   .answer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
   @media (max-width:420px){
