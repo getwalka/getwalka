@@ -17,21 +17,16 @@ pages).
 separate feature flag on mobile, not built here. Every `/moms` signup joins
 a cohort group.
 
-Visitors see a full-width marketing landing page first (headline, a 3-step
-"how it works", a cohort section), then the step-by-step wizard. Resuming a
-started session skips straight back to the wizard, no landing page again.
-The landing lives outside the wizard's 440px card shell (it's a sibling of
-`<main>` in `moms.html`, toggled by `mainEl`/`landingEl` in `moms-app.js`),
-reusing the main site's `.wrap`/`.steps3`/`.s3`-style visual language rather
-than the compact wizard card look.
-
-The cohort section's photo slots (`COPY.landing.cohortGroups[].photo` in
-`moms-copy.js`) point at `images/cohort-*.jpg`, which don't exist yet; each
-`<img>` fails gracefully to a colored fallback icon via `onerror` until real
-photos are dropped into a `getwalka/images/` folder at those exact paths.
-Nothing here uses stock or generated photos of people, real cohort photos
-(with consent) are a prerequisite for that section to look finished, not
-optional polish.
+As of 2026-10-16, `/moms` goes straight into the step-by-step wizard, no
+separate marketing landing page first. (There used to be a full-width hero
+section with a headline, a 3-step "how it works," and a cohort preview,
+gated behind its own "Let's begin" button; `startFlow()` in `moms-app.js`
+now enters the wizard directly instead of calling into that, and the old
+render function was deleted along with the scroll-reveal helper it was the
+only caller of. `landingEl`/`#landing` is still a sibling of `<main>` in
+`moms.html`, left in place but permanently empty/hidden, in case this gets
+reverted.) `COPY.landing` in `moms-copy.js` is consequently unused by the
+flow itself; `moms_landing_view` no longer fires for the same reason.
 
 Files:
 - `moms.html`: the route itself (page shell, styles, landing + step markup
@@ -76,9 +71,9 @@ above.
   tells Vercel to keep serving the static route rather than replacing the
   response.
 - `moms-app.js` reads that cookie and, if the country isn't in the allowed
-  list, shows `COPY.geoGate` instead of the landing page/wizard. The
-  decision lives here, not in middleware, so there's one place (same as the
-  feature-flag gate) that owns who gets in.
+  list, shows `COPY.geoGate` instead of the wizard. The decision lives
+  here, not in middleware, so there's one place (same as the feature-flag
+  gate) that owns who gets in.
 - **Fails OPEN**, the opposite of the feature-flag gate: if the cookie is
   missing or empty (middleware didn't run, e.g. plain `vercel dev` or a
   local file open), the visitor is let through rather than blocked. A
@@ -301,19 +296,16 @@ no Stripe handoff to track).
       "not open yet" gate, no flow visible.
 - [ ] `/moms?preview=1` unlocks the flow on that device; `?preview=0`
       relocks it.
-- [ ] From a US or Canadian IP (or a VPN set to one), `/moms` shows the
-      landing page/flow as normal; a `moms_leads` row appears with
-      `country` set to `US`/`CA` even before starting onboarding.
+- [ ] From a US or Canadian IP (or a VPN set to one), `/moms` goes straight
+      into the wizard as normal; a `moms_leads` row appears with `country`
+      set to `US`/`CA` even before completing the first step.
 - [ ] From a VPN set to a third country, `/moms` shows the "not available
-      in your country yet" gate instead of the landing page; a
-      `moms_geo_blocked` event fires in PostHog and the `moms_leads` row's
-      `country` reflects that country with `last_step: "geo_blocked"`.
+      in your country yet" gate instead of the wizard; a `moms_geo_blocked`
+      event fires in PostHog and the `moms_leads` row's `country` reflects
+      that country with `last_step: "geo_blocked"`.
 - [ ] `/moms?preview=1` from that same non-US/CA VPN still unlocks the full
       flow (preview bypasses the geo gate, not just the feature flag).
-- [ ] Landing page always shows first on load, even mid-flow, with no
-      "Save & exit" link in the header until the wizard actually starts.
-- [ ] Reload mid-flow (after starting the wizard) → landing page shows
-      again, and "Let's begin" resumes at the saved step with a "welcome
+- [ ] Reload mid-flow → returns straight to the saved step with a "welcome
       back" banner instead of restarting from Step 1.
 - [ ] Stage: pick **pregnant**, due-date field shows, no delivery
       type question.

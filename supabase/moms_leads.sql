@@ -49,6 +49,7 @@ create table if not exists public.moms_leads (
 
   first_name text,
   email text,
+  referral_source text,                  -- how she heard about us, self-reported, optional (instagram | facebook | tiktok | friend | google | other)
 
   last_step text,                        -- furthest step reached, the drop-off signal
   checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (reserved is historical only: the no-charge fork was retired along with the stake model)
@@ -84,6 +85,11 @@ alter table public.moms_leads add column if not exists billing_currency text;
 -- Abandoned-cart email tracking (process-abandoned-moms-leads Edge Function).
 alter table public.moms_leads add column if not exists abandoned_email_touch1_sent_at timestamptz;
 alter table public.moms_leads add column if not exists abandoned_email_touch2_sent_at timestamptz;
+
+-- Name/email moved earlier in the flow (the `contact` step, before the
+-- offer and checkout) so a checkout dropoff still leaves a reachable lead;
+-- referral_source is new alongside it, for attribution.
+alter table public.moms_leads add column if not exists referral_source text;
 
 -- The tone picker is retired and no longer writes this column; stop new rows
 -- from silently inheriting 'princess' as if it were a real answer.

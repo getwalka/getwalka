@@ -11,18 +11,18 @@
   var WM = window.WALKA_MOMS;
   var COPY = WM.COPY;
   var EVENTS = WM.EVENTS;
-  /* v5: bumped because `preparing` (a timed, non-interactive "preparing
-     your circle" transition) was inserted before `results`. Any change
-     to STEP_IDS's length or order needs the same bump — a saved numeric
-     stepIndex from before this change would resume into a different step
-     than the one the visitor left, so stale state must be discarded
-     rather than resumed. moms-success.html reads the same key and must
-     be bumped in lockstep. */
-  var STORAGE_KEY = "walka_moms_state_v5";
+  /* v6: bumped because `contact` (first name + email, captured earlier so
+     checkout dropoffs still leave a reachable lead) was inserted before
+     `preparing`. Any change to STEP_IDS's length or order needs the same
+     bump — a saved numeric stepIndex from before this change would resume
+     into a different step than the one the visitor left, so stale state
+     must be discarded rather than resumed. moms-success.html reads the
+     same key and must be bumped in lockstep. */
+  var STORAGE_KEY = "walka_moms_state_v6";
   var PREPARING_DELAY_MS = 5000;
   var STEP_IDS = [
     "stage", "motivation", "barriers", "interludeCare", "connection", "conversations",
-    "interludeCommunity", "baseline", "clearance", "preparing", "results", "checkout"
+    "interludeCommunity", "baseline", "clearance", "contact", "preparing", "results", "checkout"
   ];
 
   /* ---------------- utilities ---------------- */
@@ -114,6 +114,7 @@
       billing_currency: checkoutCurrency(a),
       email: a.email || null,
       first_name: a.first_name || null,
+      referral_source: a.referral_source || null,
       last_step: STEP_IDS[state.stepIndex] || null,
       checkout_status: a.checkout_status || "not_started"
     }, extra || {});
@@ -446,7 +447,44 @@
       canAdvance: function (a) { return !!a.routine_preference; }
     },
 
-    /* Screen 10: a brief, timed "preparing your circle" transition — no
+    /* Screen 10: captures first name + email here, before the offer and
+       checkout, rather than only at checkout — so a member who reaches
+       checkout but doesn't finish paying still leaves a reachable lead
+       (email/name previously only existed on rows that got all the way
+       through checkout). checkout's own name/email fields already read
+       from state.answers and will arrive here pre-filled, no change
+       needed there. referral_source is optional and purely for
+       attribution, so it doesn't gate canAdvance. */
+    contact: {
+      render: function (a) {
+        var c = COPY.steps.contact;
+        var opts = c.referralOptions.map(function (o) {
+          return pillOption("referral_value", o.value, o.label, a.referral_source === o.value);
+        }).join("");
+        return '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + c.subtitle + '</p>' +
+          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
+          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
+          '<p class="q-label">' + c.referralLabel + '</p>' +
+          '<div class="answer-grid" id="referralOpts">' + opts + '</div>';
+      },
+      bind: function (root) {
+        var name = root.querySelector("#firstName"), email = root.querySelector("#email");
+        name.addEventListener("input", function () { state.answers.first_name = name.value; refreshContinue(); });
+        email.addEventListener("input", function () { state.answers.email = email.value; refreshContinue(); });
+        root.querySelectorAll('#referralOpts .answer-card').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.referral_source = b.getAttribute("data-value");
+            root.querySelectorAll('#referralOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
+          });
+        });
+      },
+      canAdvance: function (a) {
+        return !!(a.first_name && a.first_name.trim()) && /\S+@\S+\.\S+/.test((a.email || "").trim());
+      }
+    },
+
+    /* Screen 11: a brief, timed "preparing your circle" transition — no
        question, no Continue/Back/Skip (hideNav), just a pause with a
        loading motif before the personalized results reveal. Advances
        itself via onEnter's timer; canAdvance stays true as a fallback
@@ -474,7 +512,7 @@
       }
     },
 
-    /* Screen 11, personalized results — two equally-weighted cards, a
+    /* Screen 12, personalized results — two equally-weighted cards, a
        walking-challenge preview and a community preview, so the screen
        doesn't read as just a chat group. flownavVariant tightens the CTA
        gap for this richer step; the shell stays the default width since
@@ -527,7 +565,7 @@
       }
     },
 
-    /* Screen 12 */
+    /* Screen 13 */
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
@@ -997,99 +1035,24 @@
     return a.country === "CA" ? "cad" : "usd";
   }
 
-  function observeReveals(root) {
-    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var els = root.querySelectorAll(".rv");
-    if (reduce || !("IntersectionObserver" in window)) {
-      els.forEach(function (e) { e.classList.add("in"); });
-      return;
-    }
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-      });
-    }, { threshold: 0.15 });
-    els.forEach(function (e) { io.observe(e); });
-  }
-
-  function showLanding() {
-    mainEl.hidden = true;
-    landingEl.hidden = false;
-    var L = COPY.landing;
-
-    landingEl.innerHTML =
-      '<section class="mhero"><div class="wrap mhero__grid">' +
-        '<div>' +
-          '<p class="eyebrow">' + L.eyebrow + '</p>' +
-          '<h1>' + L.title + '</h1>' +
-          '<p class="mhero__sub mhero__tagline">' + L.tagline + '</p>' +
-          '<div class="mhero__ctas">' +
-            '<button type="button" class="btn btn--ink" id="landingCta">' + L.cta + '</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="mhero__media">' +
-          '<img src="' + escapeAttr(L.heroPhoto) + '" alt="A mum walking outside with a stroller">' +
-        '</div>' +
-      '</div></section>' +
-
-      '<section class="mhow"><div class="wrap">' +
-        '<div class="sec-head rv">' +
-          '<p class="eyebrow">' + L.howEyebrow + '</p>' +
-          '<h2>' + L.howTitle + '</h2>' +
-        '</div>' +
-        '<div class="msteps3">' +
-          L.howSteps.map(function (s, i) {
-            return '<div class="ms3 rv">' +
-              '<div class="ms3__photo">' +
-                '<img src="' + escapeAttr(s.photo) + '" alt="" ' +
-                  'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                '<span class="ms3__fallback">' + s.icon + '</span>' +
-              '</div>' +
-              '<div class="ms3__body">' +
-                '<p class="ms3__step">Step ' + (i + 1) + '</p>' +
-                '<h3>' + s.title + '</h3>' +
-                '<p>' + s.desc + '</p>' +
-              '</div>' +
-            '</div>';
-          }).join("") +
-        '</div>' +
-      '</div></section>' +
-
-      '<section class="mcohort"><div class="wrap">' +
-        '<div class="sec-head rv">' +
-          '<p class="eyebrow">' + L.cohortEyebrow + '</p>' +
-          '<h2>' + L.cohortTitle + '</h2>' +
-          '<p class="q-body" style="margin:10px 0 0">' + L.cohortBody + '</p>' +
-        '</div>' +
-        '<div class="cohort-chips rv">' +
-          L.cohortGroups.map(function (g) {
-            return '<span class="cohort-chip">' + g.caption + '</span>';
-          }).join("") +
-        '</div>' +
-      '</div></section>';
-
-    track(EVENTS.landingView, { local_id: state.localId });
-    observeReveals(landingEl);
-
-    document.getElementById("landingCta").addEventListener("click", function () {
-      state.onboardingStarted = true;
-      track(EVENTS.onboardingStart, { local_id: state.localId });
-      saveState();
-      landingEl.hidden = true;
-      mainEl.hidden = false;
-      appEl.hidden = false;
-      exitLink.hidden = false;
-      if (state.stepIndex > 0) {
-        resumeBanner.hidden = false;
-        resumeBannerText.textContent = COPY.resumeBanner;
-      }
-      renderStep();
-    });
-  }
-
+  /* /moms goes straight into the step wizard now, no marketing landing
+     page first (landingEl stays hidden/empty, left in moms.html in case
+     this gets reverted). onboardingStart still fires immediately since
+     there's no separate landing-view moment to distinguish it from
+     anymore. */
   function startFlow() {
     loadingEl.hidden = true;
-    showLanding();
+    state.onboardingStarted = true;
+    track(EVENTS.onboardingStart, { local_id: state.localId });
+    saveState();
+    mainEl.hidden = false;
+    appEl.hidden = false;
+    exitLink.hidden = false;
+    if (state.stepIndex > 0) {
+      resumeBanner.hidden = false;
+      resumeBannerText.textContent = COPY.resumeBanner;
+    }
+    renderStep();
   }
 
   function initGate() {

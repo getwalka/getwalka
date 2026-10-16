@@ -356,21 +356,42 @@ window.WALKA_MOMS = (function () {
         ]
       },
 
-      /* Screen 10: brief timed transition before results, no question —
+      /* Screen 10: first name + email, captured here (before the offer and
+         checkout) rather than only at checkout, so a member who drops off
+         at checkout still leaves a reachable lead. referral_source is
+         optional, for attribution only — see moms-app.js's contact step
+         for why it doesn't gate canAdvance. */
+      contact: {
+        title: "Let's save your spot.",
+        subtitle: "We'll use this to get your circle ready and keep you posted, nothing else.",
+        nameLabel: "First name",
+        emailLabel: "Email",
+        referralLabel: "How did you hear about us?",
+        referralOptions: [
+          { value: "instagram", label: "Instagram" },
+          { value: "facebook", label: "Facebook" },
+          { value: "tiktok", label: "TikTok" },
+          { value: "friend", label: "A friend or family member" },
+          { value: "google", label: "Google search" },
+          { value: "other", label: "Something else" }
+        ]
+      },
+
+      /* Screen 11: brief timed transition before results, no question —
          see PREPARING_DELAY_MS in moms-app.js for how long it shows. */
       preparing: {
         title: "Preparing your circle",
         body: "We're using what you shared to find your people and your pace."
       },
 
-      /* Screen 11, personalized results. Title/subtext/hero/preview content
+      /* Screen 12, personalized results. Title/subtext/hero/preview content
          all comes from RESULTS_COPY via moms-app.js's results* functions,
          not static strings here. */
       results: {
         eyebrow: "Made for you"
       },
 
-      /* Screen 12 */
+      /* Screen 13 */
       checkout: {
         title: "Your membership",
         intro: "Here's what you're joining.",
