@@ -123,21 +123,6 @@ fbq('track', 'PageView');
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  // Matches Stripe's own monthly billing-cycle-anchor behavior: same
-  // day next month, clamped to that month's last day when it's shorter
-  // (e.g. Jan 31 -> Feb 28, not Mar 3).
-  function addOneMonthClamped(d) {
-    var day = d.getDate();
-    var next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-    var lastDayOfNextMonth = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-    next.setDate(Math.min(day, lastDayOfNextMonth));
-    return next;
-  }
-
-  function formatLongDate(d) {
-    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  }
-
   var state = null;
   try {
     var raw = localStorage.getItem(STORAGE_KEY);
@@ -187,8 +172,7 @@ fbq('track', 'PageView');
         '<p class="next-item__body">' + step.body + '</p></div></div>';
     }).join("");
 
-    var nextRenewal = addOneMonthClamped(new Date());
-    billingNoteEl.textContent = "Renews automatically for " + priceLabel + " on " + formatLongDate(nextRenewal) + ", then monthly until you cancel.";
+    billingNoteEl.textContent = "Renews automatically for " + priceLabel + " on " + c.renewalDate + ", then monthly until you cancel.";
 
     state.answers.checkout_status = "completed_unverified";
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}

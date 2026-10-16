@@ -419,6 +419,13 @@ window.WALKA_MOMS = (function () {
       subtitle: "Welcome to the founding circle of Walka Mom. We're so glad you're here.",
       circleLabel: "Your circle begins",
       circleDate: "November 2, 2026",
+      /* Fixed to match the founding circle's Nov 2 start, not computed
+         from signup date. NOTE: this is display copy only, Stripe still
+         actually bills each subscription one month from its own creation
+         date (whatever day someone actually signs up), so this will be
+         inaccurate for anyone who doesn't sign up on exactly Nov 2. Known
+         tradeoff, not a bug, revisit if that mismatch becomes a problem. */
+      renewalDate: "December 2, 2026",
       circleNote: "Everything you need to get started will be ready for you before your circle opens.",
       nextTitle: "What happens next",
       nextSteps: [
