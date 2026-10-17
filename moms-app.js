@@ -939,14 +939,16 @@
     shellEl.classList.toggle("shell--wide", step.shellVariant === "wide");
     flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
     introHeaderEl.hidden = id !== "stage";
+    /* The bar is the real progress indicator throughout, and reflects the
+       true percentage on every step. The TEXT label never states the
+       total step count anywhere, on any screen, so there's no number
+       (like "13") to feel like a wall of things to get through; it's
+       either the softened first-step label or just the current step
+       number alone ("Step 4"), never "Step 4 of 13". */
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
-    /* The bar itself still reflects real progress from step 1 on; only
-       the text softens on the very first step, where "Step 1 of 13"
-       reads as "13 things to get through" before anyone's answered
-       anything. Every step after this one keeps the plain numeric label. */
     progressLabel.textContent = (id === "stage")
       ? COPY.firstStepProgressLabel
-      : "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
+      : "Step " + (state.stepIndex + 1);
     backBtn.hidden = state.stepIndex === 0;
     var isCheckout = id === "checkout";
     var hideNav = isCheckout || step.hideNav; // checkout drives its own nav; a few steps (e.g. preparing) are timed/non-interactive
