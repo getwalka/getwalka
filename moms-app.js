@@ -267,7 +267,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink, shellEl, flownavEl;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, landingEl, appEl, loadingEl, mainEl, exitLink, shellEl, flownavEl, introHeaderEl;
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML string, bind(root) attach listeners,
@@ -285,8 +285,7 @@
         var opts = c.options.map(function (o) {
           return pillOption("stage_value", o.value, o.label, a.motherhood_stage === o.value);
         }).join("");
-        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
-          '<h2 class="q-title">' + c.title + '</h2>' +
+        return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="answer-grid" id="stageOpts">' + opts + '</div>';
       },
@@ -934,6 +933,7 @@
     screenEl.classList.add("card--enter");
     shellEl.classList.toggle("shell--wide", step.shellVariant === "wide");
     flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
+    introHeaderEl.hidden = id !== "stage";
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
     progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
@@ -1112,11 +1112,23 @@
     exitLink = document.getElementById("exitLink");
     shellEl = document.querySelector(".shell");
     flownavEl = document.querySelector(".flownav");
+    introHeaderEl = document.getElementById("introHeader");
 
     continueBtn.addEventListener("click", function () { goNext(); });
     skipBtn.addEventListener("click", function () { goNext(true); });
     backBtn.addEventListener("click", goBack);
     resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
+
+    /* Static content, same on every step it's shown on — populated once
+       here rather than re-rendered per step like #screen is. */
+    introHeaderEl.innerHTML =
+      '<h1 class="intro-header__title">' + COPY.introHeader.title + '</h1>' +
+      '<p class="intro-header__body">' + COPY.introHeader.body + '</p>' +
+      '<div class="intro-header__features">' +
+        COPY.introHeader.features.map(function (f) {
+          return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(f.label) + '</span>';
+        }).join("") +
+      '</div>';
 
     maybeRehydrateFromLink().then(function () { initGate(); });
   });

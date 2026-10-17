@@ -170,6 +170,21 @@ window.WALKA_MOMS = (function () {
 
     resumeBanner: "Welcome back. Picking up where you left off.",
 
+    /* Shown only above the first question (stage), toggled in
+       moms-app.js's renderStep() by step id. Replaces some of the
+       context the marketing landing page used to establish before it
+       was removed (/moms now skips straight into the wizard), without
+       bringing back a separate click/step. */
+    introHeader: {
+      title: "Motherhood feels better with a village.",
+      body: "Join gentle walking challenges and connect with moms who understand what this season of life really feels like.",
+      features: [
+        { icon: "🚶‍♀️", label: "Walking challenges" },
+        { icon: "🫂", label: "Mom circles" },
+        { icon: "🌱", label: "Your own pace" }
+      ]
+    },
+
     disclaimer: "Not medical advice, and this isn't a medical clearance. Always follow your doctor's or midwife's guidance.",
 
     privacyNote: "Anything you share here is private to your Walka Mom account. You can skip any question you'd rather not answer.",
@@ -236,12 +251,10 @@ window.WALKA_MOMS = (function () {
     steps: {
       /* Screen 1 */
       stage: {
-        /* Added after removing the marketing landing page: this question
-           is now the first thing a cold visitor sees, with no context
-           beforehand. eyebrow/intro replace what the landing page used to
-           establish (what this is, why answer) in two short lines rather
-           than reviving the full hero/how-it-works/cohort sections. */
-        eyebrow: "For pregnancy & postpartum",
+        /* The eyebrow this used to carry ("For pregnancy & postpartum")
+           moved up into introHeader above, which now establishes
+           relevance/context; intro stays here since it's about the
+           question flow itself, not the product. */
         intro: "A few quick questions to help us build your Walka Mom plan.",
         title: "Where are you in your motherhood journey?",
         options: [

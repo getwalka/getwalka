@@ -112,6 +112,24 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
   .progress{height:6px;border-radius:99px;background:var(--cream-deep);overflow:hidden;margin-bottom:26px}
   .progress__fill{height:100%;width:0;background:var(--sage);border-radius:99px;transition:width .4s ease}
 
+  /* Shown only above the first question (toggled in renderStep()) — the
+     context the old marketing landing page used to carry before it was
+     removed, without adding back a separate click/step. */
+  .intro-header{text-align:center;margin-bottom:28px}
+  .intro-header__title{
+    font-family:var(--display);font-weight:700;color:var(--ink);
+    font-size:clamp(1.5rem,4vw,1.9rem);letter-spacing:-.015em;line-height:1.15;margin-bottom:10px;
+  }
+  .intro-header__body{color:var(--ink-soft);font-size:1rem;line-height:1.5;max-width:30rem;margin:0 auto 18px}
+  .intro-header__features{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+  .intro-header__feature{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--display);font-weight:600;font-size:.82rem;
+    /* #2F6B4C (not --sage-deep) is the smallest darkening of sage-tint's
+       text that still clears WCAG AA 4.5:1 on this background. */
+    color:#2F6B4C;background:var(--sage-tint);border-radius:999px;padding:.4rem .85rem;
+  }
+
   .resume-banner{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     background:var(--lavender);color:var(--ink-soft);font-weight:600;font-size:.82rem;
@@ -422,6 +440,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     <div id="gate" hidden></div>
 
     <div id="app" hidden>
+      <div id="introHeader" class="intro-header" hidden></div>
       <p class="progress__label" id="progressLabel"></p>
       <div class="progress"><div class="progress__fill" id="progressFill"></div></div>
       <div class="resume-banner" id="resumeBanner" hidden>
