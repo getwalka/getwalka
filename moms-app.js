@@ -281,10 +281,13 @@
     /* Screen 1 */
     stage: {
       render: function (a) {
-        var opts = COPY.steps.stage.options.map(function (o) {
+        var c = COPY.steps.stage;
+        var opts = c.options.map(function (o) {
           return pillOption("stage_value", o.value, o.label, a.motherhood_stage === o.value);
         }).join("");
-        return '<h2 class="q-title">' + COPY.steps.stage.title + '</h2>' +
+        return '<p class="eyebrow">' + c.eyebrow + '</p>' +
+          '<h2 class="q-title">' + c.title + '</h2>' +
+          '<p class="q-body">' + c.intro + '</p>' +
           '<div class="answer-grid" id="stageOpts">' + opts + '</div>';
       },
       bind: function (root) {

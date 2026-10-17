@@ -236,6 +236,13 @@ window.WALKA_MOMS = (function () {
     steps: {
       /* Screen 1 */
       stage: {
+        /* Added after removing the marketing landing page: this question
+           is now the first thing a cold visitor sees, with no context
+           beforehand. eyebrow/intro replace what the landing page used to
+           establish (what this is, why answer) in two short lines rather
+           than reviving the full hero/how-it-works/cohort sections. */
+        eyebrow: "For pregnancy & postpartum",
+        intro: "A few quick questions to help us build your Walka Mom plan.",
         title: "Where are you in your motherhood journey?",
         options: [
           { value: "pregnant", label: "Currently pregnant" },
