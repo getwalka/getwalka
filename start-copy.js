@@ -37,7 +37,17 @@ window.WALKA_START = (function () {
    *    START_MEMBERSHIP_PRICE_ID_USD env var on the create-start-subscription-intent
    *    Edge Function, NOT here -- the price id itself is read server-side).
    * ------------------------------------------------------------------ */
-  var STRIPE_MODE = "test"; // "test" | "live" -- flip only after the full test-mode checkout below has been run end to end
+  /* Temporarily "live", NOT because checkout has been verified end to end --
+     it hasn't yet. The shared STRIPE_SECRET_KEY on this Supabase project is
+     the LIVE key (the /moms funnel already runs in live mode off the same
+     project-wide secret, and Edge Functions only have one STRIPE_SECRET_KEY,
+     not a test/live pair), so a "test" publishable key here would mount
+     Stripe Elements against a live-mode clientSecret and fail silently.
+     Testing the actual checkout therefore means a real card and a real
+     (small, refundable-stake) charge -- cancel/refund it in the Stripe
+     dashboard afterward. Revisit if this funnel gets its own test-mode
+     secret key later. */
+  var STRIPE_MODE = "live"; // "test" | "live"
 
   var PLAN_PRICE_CENTS = 999; // $9.99
   var BILLING_INTERVAL = "month";
