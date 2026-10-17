@@ -243,34 +243,49 @@ window.WALKA_START = (function () {
         body: "We're turning what you told us into an actual plan."
       },
 
-      /* Screen 9, the paywall -- "Made for you". Mostly built from state in
-         start-app.js, not static strings here. */
+      /* Screen 9, the paywall -- "Made for you". A short plan-facts list (one
+         row per fact, icon + label + value) plus one clearly separated price
+         at the bottom, rather than two same-sized numbers competing for
+         attention. Mostly built from state in start-app.js, not static
+         strings here. */
       results: {
         eyebrow: "Made for you",
         title: "Here's your plan.",
-        stakeNote: "Refunded in full the moment you hit your goal.",
-        groupTitle: "Join a cohort starting Monday",
+        dailyGoalLabel: "Daily goal",
+        coachLabel: "Coach",
+        formatLabel: "Format",
+        stakeLabel: "Stake",
+        stakeNote: "refunded in full when you finish",
+        stakeDeferredNote: "choose at checkout",
+        groupTitle: "A shared weekly cohort",
+        groupSub: "Starting Monday",
         soloTitle: "Your own private challenge",
         soloBody: "Just you, your pace, starting the day you join.",
         spotsLeftLabel: "spots left this week",
-        sampleMessageLabel: "A sample message from your coach:",
-        priceLabel: "Then, to keep your plan and your coach:",
+        sampleMessageLabel: "A sample message from your coach",
+        priceLabel: "Then, to keep your plan and your coach",
         continueCta: "Continue to checkout"
       },
 
       /* Screen 10 */
       checkout: {
         title: "Lock in your plan.",
-        intro: "One card, two charges, both shown below.",
+        intro: "One card. The membership charges today; the stake is yours to choose.",
         includedLabel: "What's included",
         includedItems: [
           "Your personal step goal, built from your answers",
           "Daily messages from your coach",
           "Free tracking, history and leaderboards, always"
         ],
+        membershipRowLabel: "Membership",
+        stakeRowLabel: "Stake (refundable)",
+        stakeRowDeferred: "Pay later, in the app",
         nameLabel: "First name",
         emailLabel: "Email",
-        billingNote: "The membership is billed monthly and cancel anytime; the stake is a one-time charge, refunded in full when you finish.",
+        /* {stake} is replaced with the dollar amount, e.g. "$25". */
+        stakeToggleLabel: "Also lock in my {stake} stake now",
+        stakeToggleHint: "Leave this unchecked to pay it later, when you join in the app instead.",
+        billingNote: "The membership is billed monthly, cancel anytime. The stake, if you lock it in now, is a one-time charge, refunded in full when you finish.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -279,6 +294,7 @@ window.WALKA_START = (function () {
         paymentPlaceholder: "Complete the fields above to enter payment details.",
         paymentLoading: "Loading payment details...",
         confirmCta: "Subscribe & lock in my stake",
+        confirmCtaNoStake: "Subscribe",
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         genericError: "Something went wrong. Please try again.",

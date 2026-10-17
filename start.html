@@ -209,6 +209,29 @@ fbq('track', 'PageView');
   .walk-card__desc{font-size:.88rem;color:var(--ink-soft);margin-bottom:0}
   .walk-card__progress{font-size:.84rem;color:#2F6B4C;font-weight:600;margin:4px 0 0}
 
+  /* ---------- results step: one-glance plan-facts list ---------- */
+  .plan-summary{background:var(--cream);border-radius:var(--r-inner);padding:0 18px;margin:20px 0}
+  .plan-summary__row{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)}
+  .plan-summary__row:last-child{border-bottom:none}
+  .plan-summary__icon{font-size:1.3rem;line-height:1.3;flex:none;width:26px;text-align:center}
+  .plan-summary__text{flex:1;min-width:0}
+  .plan-summary__label{font-family:var(--display);font-weight:700;font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+  .plan-summary__value{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--ink);line-height:1.3}
+  .plan-summary__sub{font-size:.84rem;color:var(--ink-soft);margin-top:3px}
+
+  .plan-price{text-align:center;background:var(--sage-tint);border-radius:var(--r-inner);padding:18px 16px 16px;margin-top:20px}
+  .plan-price .q-label{margin-top:0;margin-bottom:4px;text-align:center}
+  .plan-price .price-tag{margin:0}
+  .price-tag__interval{font-size:1.05rem;font-weight:600;color:var(--ink-soft);margin-left:2px}
+
+  /* ---------- checkout step: charge breakdown + optional stake toggle ---------- */
+  .charge-breakdown{background:var(--cream);border-radius:var(--r-inner);padding:4px 18px;margin:16px 0}
+  .charge-breakdown__row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+  .charge-breakdown__row:last-child{border-bottom:none}
+  .charge-breakdown__row span{color:var(--ink-soft)}
+  .charge-breakdown__row strong{font-family:var(--display);color:var(--ink)}
+  .charge-breakdown__row.is-deferred strong{color:var(--ink-soft);font-weight:600;font-size:.88rem}
+
   .price-tag{
     font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
     margin:10px 0 2px;

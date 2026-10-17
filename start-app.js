@@ -58,6 +58,19 @@
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
+  /* One row of the results step's plan-facts list: icon, label, value, and
+     an optional smaller sub-line (e.g. "refunded in full when you finish"). */
+  function planRow(icon, label, value, sub) {
+    return '<div class="plan-summary__row">' +
+      '<span class="plan-summary__icon" aria-hidden="true">' + icon + '</span>' +
+      '<div class="plan-summary__text">' +
+        '<p class="plan-summary__label">' + escapeAttr(label) + '</p>' +
+        '<p class="plan-summary__value">' + escapeAttr(value) + '</p>' +
+        (sub ? '<p class="plan-summary__sub">' + escapeAttr(sub) + '</p>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
   /* ---------------- state ---------------- */
 
   var state = loadState();
@@ -360,7 +373,12 @@
     /* The "Made for you" paywall. For `group`, fetches the REAL cohort terms
        (never the stake the visitor picked, since they didn't pick one -- the
        `stake` step is skipped for this path). For `solo`, uses the chosen
-       stake and the illustrative plan_step_goal computed on `preparing`. */
+       stake and the illustrative plan_step_goal computed on `preparing`.
+
+       One plan-facts list (icon + label + value, same row height, same
+       alignment throughout) reads at a glance; the recurring price is the
+       only large number on the screen, so it doesn't compete with the
+       stake for attention -- the stake is just another fact in the list. */
     results: {
       flownavVariant: "tight",
       render: function (a) {
@@ -372,42 +390,41 @@
         var coachLabel = a.coach_style === "princess" ? "Coach Serena" : "Coach Tim";
         var sampleMessage = WS.SAMPLE_COACH_MESSAGE[a.coach_style] || WS.SAMPLE_COACH_MESSAGE.tough;
 
-        var planLine = stepGoal
-          ? (Number(stepGoal).toLocaleString() + " steps a day for " + WS.PLAN_DURATION_DAYS + " days, with " + coachLabel)
-          : ("Your plan with " + coachLabel);
+        var goalValue = stepGoal
+          ? (Number(stepGoal).toLocaleString() + " steps/day for " + WS.PLAN_DURATION_DAYS + " days")
+          : "Built from your answers";
 
-        var stakeLine = stake
-          ? ('<p class="price-tag">' + centsLabel(stake * 100) + '</p><p class="q-hint">' + c.stakeNote + '</p>')
-          : '<p class="q-hint">We will confirm your exact stake at checkout.</p>';
-
-        var modeCard;
+        var formatValue, formatSub;
         if (isGroup) {
-          var spotsLine = (cohort && typeof cohort.spotsLeft === "number")
-            ? ('<p class="walk-card__progress">' + cohort.spotsLeft + ' ' + c.spotsLeftLabel + '</p>')
-            : "";
-          modeCard = '<div class="walk-card">' +
-            '<h3 class="walk-card__title">' + c.groupTitle + '</h3>' +
-            spotsLine +
-          '</div>';
+          formatValue = c.groupTitle;
+          formatSub = (cohort && typeof cohort.spotsLeft === "number")
+            ? (c.groupSub + " · " + cohort.spotsLeft + " " + c.spotsLeftLabel)
+            : c.groupSub;
         } else {
-          modeCard = '<div class="walk-card">' +
-            '<h3 class="walk-card__title">' + c.soloTitle + '</h3>' +
-            '<p class="walk-card__desc">' + c.soloBody + '</p>' +
-          '</div>';
+          formatValue = c.soloTitle;
+          formatSub = c.soloBody;
         }
+
+        var stakeValue = stake ? centsLabel(stake * 100) : "You choose at checkout";
+        var stakeSub = stake ? c.stakeNote : c.stakeDeferredNote;
 
         return '<div class="stagger">' +
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body"><strong>' + planLine + '</strong></p>' +
-          modeCard +
-          stakeLine +
+          '<div class="plan-summary">' +
+            planRow("🎯", c.dailyGoalLabel, goalValue) +
+            planRow("🧑‍🏫", c.coachLabel, coachLabel) +
+            planRow(isGroup ? "👥" : "🚶", c.formatLabel, formatValue, formatSub) +
+            planRow("💵", c.stakeLabel, stakeValue, stakeSub) +
+          '</div>' +
           '<div class="recap">' +
             '<p class="recap__title">' + c.sampleMessageLabel + '</p>' +
-            '<p class="q-body" style="margin-bottom:0">' + escapeAttr(sampleMessage) + '</p>' +
+            '<p class="q-body" style="margin-bottom:0">“' + escapeAttr(sampleMessage) + '”</p>' +
           '</div>' +
-          '<p class="q-label">' + c.priceLabel + '</p>' +
-          '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '/' + WS.BILLING_INTERVAL + '</p>' +
+          '<div class="plan-price">' +
+            '<p class="q-label" style="margin-top:0">' + c.priceLabel + '</p>' +
+            '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '<span class="price-tag__interval">/' + WS.BILLING_INTERVAL + '</span></p>' +
+          '</div>' +
         '</div>';
       },
       bind: function () {},
@@ -435,10 +452,14 @@
         var c = COPY.steps.checkout;
         var isGroup = a.mode === "group";
         var stake = isGroup ? (a.cohortPreview ? a.cohortPreview.buyIn : null) : a.stake_amount;
-        var stakeLabel = stake ? (centsLabel(stake * 100) + " stake") : "your stake";
+        var stakeDollarLabel = stake ? centsLabel(stake * 100) : "";
+        var stakeRowValue = stake ? stakeDollarLabel : c.stakeRowDeferred;
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
-          '<div class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '/' + WS.BILLING_INTERVAL + ' + ' + stakeLabel + '</div>' +
+          '<div class="charge-breakdown">' +
+            '<div class="charge-breakdown__row"><span>' + c.membershipRowLabel + '</span><strong>' + centsLabel(WS.PLAN_PRICE_CENTS) + '/' + WS.BILLING_INTERVAL + '</strong></div>' +
+            '<div class="charge-breakdown__row' + (stake ? '' : ' is-deferred') + '" id="stakeChargeRow"><span>' + c.stakeRowLabel + '</span><strong id="stakeChargeAmount">' + stakeRowValue + '</strong></div>' +
+          '</div>' +
           '<p class="q-hint">' + c.billingNote + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
@@ -446,6 +467,11 @@
           '</ul></div>' +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
+          (stake ? (
+            '<label class="checkline"><input type="checkbox" id="stakeToggle" checked> ' +
+              c.stakeToggleLabel.replace("{stake}", stakeDollarLabel) + '</label>' +
+            '<p class="q-hint">' + c.stakeToggleHint + '</p>'
+          ) : '') +
           '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
             ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
@@ -460,20 +486,43 @@
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
         var paymentContainer = root.querySelector("#paymentElementContainer");
+        // Only present when a real stake exists to pick from (both group and
+        // solo always have one by the time checkout renders); still guarded
+        // below since render() only emits it when `stake` was truthy.
+        var stakeToggle = root.querySelector("#stakeToggle");
+        var stakeChargeRow = root.querySelector("#stakeChargeRow");
+        var stakeChargeAmount = root.querySelector("#stakeChargeAmount");
+        var stakeDollarLabel = stakeChargeAmount ? stakeChargeAmount.textContent : "$0";
 
         var stripeClient = null, elements = null;
         var initiated = false, mounted = false, alreadyActive = false;
         var debounceTimer = null;
 
+        function wantsStake() {
+          return !!(stakeToggle && stakeToggle.checked);
+        }
+        function confirmLabel() {
+          return wantsStake() ? c.confirmCta : c.confirmCtaNoStake;
+        }
         function fieldsValid() {
           return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
         }
         function refreshButton() {
           pay.disabled = !((mounted || alreadyActive) && fieldsValid());
+          if (!pay.disabled || pay.textContent !== c.processingCta) pay.textContent = confirmLabel();
         }
         function showError(msg) {
           err.textContent = msg;
           err.hidden = false;
+        }
+
+        if (stakeToggle) {
+          stakeToggle.addEventListener("change", function () {
+            var deferred = !wantsStake();
+            stakeChargeRow.classList.toggle("is-deferred", deferred);
+            stakeChargeAmount.textContent = deferred ? c.stakeRowDeferred : stakeDollarLabel;
+            pay.textContent = confirmLabel();
+          });
         }
 
         function startInlineCheckout() {
@@ -494,7 +543,7 @@
             if (data.alreadyActive) {
               alreadyActive = true;
               paymentContainer.className = "";
-              paymentContainer.innerHTML = '<p class="q-hint">Membership already active. Confirming your stake...</p>';
+              paymentContainer.innerHTML = '<p class="q-hint">Membership already active. Ready when you are.</p>';
               refreshButton();
               return;
             }
@@ -571,13 +620,14 @@
 
         function handleCheckoutError(e) {
           showError((e && e.message) || c.genericError);
-          pay.textContent = c.confirmCta;
+          pay.textContent = confirmLabel();
           refreshButton();
           track(EVENTS.checkoutFailed, { reason: "confirm_error" });
         }
 
         pay.addEventListener("click", function () {
           if (!(mounted || alreadyActive)) return;
+          var chargeStakeNow = wantsStake();
           pay.disabled = true;
           pay.textContent = c.processingCta;
           err.hidden = true;
@@ -592,7 +642,11 @@
                 if (result.error) throw result.error;
               });
 
-          subscriptionConfirmed.then(chargeStake).then(finishCheckout).catch(handleCheckoutError);
+          subscriptionConfirmed
+            .then(function () { return chargeStakeNow ? chargeStake() : Promise.resolve(); })
+            .then(function () { state.answers.stake_deferred = !chargeStakeNow; })
+            .then(finishCheckout)
+            .catch(handleCheckoutError);
         });
       },
       canAdvance: function () { return false; }, // own pay button drives navigation
