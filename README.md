@@ -356,3 +356,72 @@ no Stripe handoff to track).
 - [ ] Close the tab mid-flow (e.g. after Baseline) and reopen `/moms`:
       resumes at the same step with a "welcome back" banner, answers intact.
 - [ ] Confirm `/`, `/invite`, `/terms`, `/privacy` are all unchanged.
+
+## General-audience flow (`/start`)
+
+Same pattern as `/moms` above (quiz -> paywall -> inline Stripe checkout ->
+success page, no Supabase session, a `local_id`-scoped leads table), aimed at
+anyone rather than pregnancy/postpartum specifically. Files: `start.html`,
+`start-copy.js`, `start-app.js`, `start-success.html`,
+`supabase/start_leads.sql`.
+
+### The six questions
+
+Goal, current average daily steps, a difficulty pick (easy/medium/hard),
+coach personality (princess/tough, same two personas the app already has),
+solo-or-group, and -- solo only -- a stake amount. The stake step is skipped
+entirely for a group pick: a shared weekly cohort has one fixed stake, not a
+per-user choice, so the paywall shows the cohort's real price instead of
+asking for one.
+
+### What's different from `/moms`
+
+- **Two charges, one card.** Checkout confirms the $9.99/mo membership
+  (Stripe Subscription, `create-start-subscription-intent`) and then,
+  immediately after and without asking for card details again, the
+  refundable stake (`create-start-stake-intent`, a one-time PaymentIntent
+  against the same saved payment method). No Payment Link fallback for this
+  funnel -- a Payment Link can't carry the second charge, so a Stripe.js load
+  failure shows an error instead of degrading to a redirect.
+- **The group price is fetched, not invented.** `get-weekly-cohort-preview`
+  (public, no auth) returns the real next cohort's step goal, stake, entry
+  fee, start date and spots left, read fresh from `challenges` the same way
+  `lib/weeklyCohort.ts`'s `getNextJoinableCohort()` does in the app. The stake
+  actually charged is resolved the same way, server-side, inside
+  `create-start-stake-intent` -- never trusted from the client.
+- **The app-side linking step moms's own notes called "separate and not yet
+  built" is built here**, as `apply-pending-web-plan` (an authenticated Edge
+  Function, not a widened `handle_new_user()` trigger) plus
+  `hooks/usePendingWebPlan.ts` in the main app, called once per signed-in
+  session. It looks up `start_leads` by the signed-in user's email, re-verifies
+  the stake PaymentIntent with Stripe, credits the wallet via the existing
+  `apply_credit('top_up', ...)` RPC, and writes `coach_style`, `fitness_goal`,
+  `recommended_step_goal`, `weekly_mode`, `solo_stake` and the subscriber
+  columns onto the profile -- the same fields in-app onboarding already
+  writes, so the existing home-screen cards (`HomeFallbackCard`,
+  `StartSoloCard`) pick the plan up with no new screen. Idempotent via
+  `profiles.web_plan_applied_at`.
+- **No geo gate, USD only, v1.** Add a CAD price and the same
+  `middleware.js`/cookie gate `/moms` uses if this ever needs Canada.
+
+### Manual test checklist
+
+- [ ] Walk all six questions + contact on `/start?preview=1`; `start_leads`
+      upserts after every step.
+- [ ] Pick **group**: the `stake` step never appears; the paywall shows
+      `get-weekly-cohort-preview`'s real numbers (step goal, stake, spots
+      left), not a user-editable amount.
+- [ ] Pick **solo**: only $15/$25/$50/$100 are selectable; the paywall shows
+      the chosen amount.
+- [ ] Checkout with Stripe's `4242 4242 4242 4242` test card: both
+      PaymentIntents succeed against the same Customer (check the Stripe test
+      dashboard); `start_leads` has `stripe_customer_id`,
+      `stripe_subscription_id` and `stake_payment_intent_id` all populated;
+      redirect lands on `/start-success`.
+- [ ] On a different device/browser, sign up in the app with the same email:
+      `apply-pending-web-plan` applies on first cold start (check
+      `profiles.web_plan_applied_at`, `weekly_mode`, `coach_style`,
+      `recommended_step_goal`); the wallet shows the stake credited
+      (`credit_ledger`, `type = 'top_up'`, `stripe_ref` = the stake
+      PaymentIntent id); re-opening the app doesn't credit it twice.
+- [ ] Confirm `/moms`, `/invite`, `/terms`, `/privacy` are all unchanged.
