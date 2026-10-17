@@ -153,6 +153,10 @@ window.WALKA_MOMS = (function () {
 
     continueLabel: "Continue",
     skipLabel: "Skip for now",
+    /* Replaces "Step 1 of 13" on the stage step only (see renderStep()) —
+       the raw count reads as "13 things to get through" before anyone's
+       answered anything. Every later step keeps the plain numeric label. */
+    firstStepProgressLabel: "Getting to know you",
 
     gate: {
       title: "This page isn't open yet.",
@@ -177,7 +181,7 @@ window.WALKA_MOMS = (function () {
        bringing back a separate click/step. */
     introHeader: {
       title: "Motherhood feels better with a village.",
-      body: "Join gentle walking challenges and connect with moms who understand what this season of life really feels like.",
+      body: "Find your people, build a walking routine that fits your life, and have something to look forward to each week.",
       features: [
         { icon: "🚶‍♀️", label: "Walking challenges" },
         { icon: "🫂", label: "Mom circles" },

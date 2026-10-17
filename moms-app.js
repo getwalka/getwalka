@@ -280,6 +280,7 @@
 
     /* Screen 1 */
     stage: {
+      hideContinue: true, // single-select, auto-advances on pick (see autoAdvance())
       render: function (a) {
         var c = COPY.steps.stage;
         var opts = c.options.map(function (o) {
@@ -342,6 +343,7 @@
     /* Screen 5, skippable */
     connection: {
       optional: true,
+      hideContinue: true, // single-select, auto-advances on pick; Skip stays for the no-answer case
       render: function (a) {
         var opts = COPY.steps.connection.options.map(function (o) {
           return pillOption("connection_value", o.value, o.label, a.connection === o.value);
@@ -364,6 +366,7 @@
     /* Screen 6, skippable */
     conversations: {
       optional: true,
+      hideContinue: true, // single-select, auto-advances on pick; Skip stays for the no-answer case
       render: function (a) {
         var opts = COPY.steps.conversations.options.map(function (o) {
           return pillOption("conversations_value", o.value, o.label, a.conversations_openness === o.value);
@@ -388,6 +391,7 @@
 
     /* Screen 8 */
     baseline: {
+      hideContinue: true, // single-select, auto-advances on pick (see autoAdvance())
       render: function (a) {
         var opts = COPY.steps.baseline.options.map(function (o) {
           return pillOption("baseline_value", o.value, o.label, a.activity_baseline === o.value);
@@ -411,6 +415,7 @@
        (routine preference, required). Worded so it never reads as medical
        clearance, per the brief. */
     clearance: {
+      hideContinue: true, // routineOpts (the required pick) auto-advances on pick
       render: function (a) {
         var c = COPY.steps.clearance;
         var opts = c.options.map(function (o) {
@@ -935,11 +940,20 @@
     flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
     introHeaderEl.hidden = id !== "stage";
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
-    progressLabel.textContent = "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
+    /* The bar itself still reflects real progress from step 1 on; only
+       the text softens on the very first step, where "Step 1 of 13"
+       reads as "13 things to get through" before anyone's answered
+       anything. Every step after this one keeps the plain numeric label. */
+    progressLabel.textContent = (id === "stage")
+      ? COPY.firstStepProgressLabel
+      : "Step " + (state.stepIndex + 1) + " of " + STEP_IDS.length;
     backBtn.hidden = state.stepIndex === 0;
     var isCheckout = id === "checkout";
     var hideNav = isCheckout || step.hideNav; // checkout drives its own nav; a few steps (e.g. preparing) are timed/non-interactive
-    continueBtn.hidden = hideNav;
+    /* Single-select steps already auto-advance on pick (see autoAdvance()),
+       so a visible Continue button is redundant there — hidden separately
+       from hideNav since Back (and Skip, where optional) still apply. */
+    continueBtn.hidden = hideNav || step.hideContinue;
     skipBtn.hidden = hideNav || !step.optional;
     if (step.hideNav) backBtn.hidden = true;
     if (!hideNav) {
