@@ -259,9 +259,14 @@ window.WALKA_START = (function () {
         stakeDeferredNote: "choose at checkout",
         groupTitle: "A shared weekly cohort",
         groupSub: "Starting Monday",
+        /* Shown only when paidCount > 0 -- social proof ("3 people already
+           joined"), not a spots-remaining count. max_participants is a
+           generous cap (30), so "X spots left" on a young cohort reads as
+           "barely anyone's here" instead of urgent; see
+           get-weekly-cohort-preview's comment on paidCount. */
+        joinedLabel: "already joined",
         soloTitle: "Your own private challenge",
         soloBody: "Just you, your pace, starting the day you join.",
-        spotsLeftLabel: "spots left this week",
         sampleMessageLabel: "A sample message from your coach",
         priceLabel: "Then, to keep your plan and your coach",
         continueCta: "Continue to checkout"

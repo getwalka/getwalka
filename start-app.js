@@ -397,8 +397,8 @@
         var formatValue, formatSub;
         if (isGroup) {
           formatValue = c.groupTitle;
-          formatSub = (cohort && typeof cohort.spotsLeft === "number")
-            ? (c.groupSub + " · " + cohort.spotsLeft + " " + c.spotsLeftLabel)
+          formatSub = (cohort && typeof cohort.paidCount === "number" && cohort.paidCount > 0)
+            ? (c.groupSub + " · " + cohort.paidCount + " " + c.joinedLabel)
             : c.groupSub;
         } else {
           formatValue = c.soloTitle;
