@@ -388,7 +388,6 @@
         var stepGoal = isGroup && cohort ? cohort.stepGoal : a.plan_step_goal;
         var stake = isGroup ? (cohort ? cohort.buyIn : null) : a.stake_amount;
         var coachLabel = a.coach_style === "princess" ? "Coach Serena" : "Coach Tim";
-        var sampleMessage = WS.SAMPLE_COACH_MESSAGE[a.coach_style] || WS.SAMPLE_COACH_MESSAGE.tough;
 
         var goalValue = stepGoal
           ? (Number(stepGoal).toLocaleString() + " steps/day for " + WS.PLAN_DURATION_DAYS + " days")
@@ -416,10 +415,6 @@
             planRow("🧑‍🏫", c.coachLabel, coachLabel) +
             planRow(isGroup ? "👥" : "🚶", c.formatLabel, formatValue, formatSub) +
             planRow("💵", c.stakeLabel, stakeValue, stakeSub) +
-          '</div>' +
-          '<div class="recap">' +
-            '<p class="recap__title">' + c.sampleMessageLabel + '</p>' +
-            '<p class="q-body" style="margin-bottom:0">“' + escapeAttr(sampleMessage) + '”</p>' +
           '</div>' +
           '<div class="plan-price">' +
             '<p class="q-label" style="margin-top:0">' + c.priceLabel + '</p>' +

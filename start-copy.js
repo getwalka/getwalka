@@ -267,7 +267,6 @@ window.WALKA_START = (function () {
         joinedLabel: "already joined",
         soloTitle: "Your own private challenge",
         soloBody: "Just you, your pace, starting the day you join.",
-        sampleMessageLabel: "A sample message from your coach",
         priceLabel: "Then, to keep your plan and your coach",
         continueCta: "Continue to checkout"
       },
@@ -275,15 +274,16 @@ window.WALKA_START = (function () {
       /* Screen 10 */
       checkout: {
         title: "Lock in your plan.",
-        intro: "One card. The membership charges today; the stake is yours to choose.",
+        intro: "Your membership charges today. The stake is optional, pay it now or when you join.",
         includedLabel: "What's included",
         includedItems: [
           "Your personal step goal, built from your answers",
           "Daily messages from your coach",
+          "Connect with other walkers in your group",
           "Free tracking, history and leaderboards, always"
         ],
         membershipRowLabel: "Membership",
-        stakeRowLabel: "Stake (refundable)",
+        stakeRowLabel: "Stake, for your first challenge (refundable)",
         stakeRowDeferred: "Pay later, in the app",
         nameLabel: "First name",
         emailLabel: "Email",
@@ -329,20 +329,7 @@ window.WALKA_START = (function () {
   };
 
   /* ------------------------------------------------------------------ *
-   * 6. SAMPLE COACH MESSAGES: one hand-copied line per persona for the
-   *    paywall's "a sample message from your coach" preview. Lifted from
-   *    the 'behind' bucket in lib/coach.ts (not imported -- this file has
-   *    no build step to share TypeScript with the app) so a future coach-
-   *    copy change there doesn't silently drift without a human noticing
-   *    this needs updating too.
-   * ------------------------------------------------------------------ */
-  var SAMPLE_COACH_MESSAGE = {
-    princess: "No rush, star. Every step still counts. Ease in when you're ready 👑",
-    tough: "That goal won't hit itself. Move."
-  };
-
-  /* ------------------------------------------------------------------ *
-   * 7. ANALYTICS EVENT NAMES, prefixed start_ so they never collide with
+   * 6. ANALYTICS EVENT NAMES, prefixed start_ so they never collide with
    *    the moms funnel's events or the main app's.
    * ------------------------------------------------------------------ */
   var EVENTS = {
@@ -379,7 +366,6 @@ window.WALKA_START = (function () {
     STEP_CEILING: STEP_CEILING,
     BASELINE_BUCKETS: BASELINE_BUCKETS,
     COPY: COPY,
-    SAMPLE_COACH_MESSAGE: SAMPLE_COACH_MESSAGE,
     EVENTS: EVENTS
   };
 })();
