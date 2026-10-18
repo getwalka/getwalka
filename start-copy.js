@@ -267,7 +267,8 @@ window.WALKA_START = (function () {
         joinedLabel: "already joined",
         soloTitle: "Your own private challenge",
         soloBody: "Just you, your pace, starting the day you join.",
-        priceLabel: "Then, to keep your plan and your coach",
+        priceLabel: "Your membership",
+        priceSub: "Keeps your plan, coach and crew going. Cancel anytime.",
         continueCta: "Continue to checkout"
       },
 

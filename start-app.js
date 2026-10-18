@@ -436,6 +436,7 @@
           '<div class="plan-price">' +
             '<p class="q-label" style="margin-top:0">' + c.priceLabel + '</p>' +
             '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '<span class="price-tag__interval">/' + WS.BILLING_INTERVAL + '</span></p>' +
+            '<p class="plan-price__sub">' + c.priceSub + '</p>' +
           '</div>' +
         '</div>';
       },
