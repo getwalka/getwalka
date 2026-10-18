@@ -436,7 +436,6 @@
           '<div class="plan-price">' +
             '<p class="q-label" style="margin-top:0">' + c.priceLabel + '</p>' +
             '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '<span class="price-tag__interval">/' + WS.BILLING_INTERVAL + '</span></p>' +
-            '<p class="plan-price__sub">' + c.priceSub + '</p>' +
           '</div>' +
         '</div>';
       },
@@ -466,13 +465,20 @@
         var isGroup = a.mode === "group";
         var stake = isGroup ? (a.cohortPreview ? a.cohortPreview.buyIn : null) : a.stake_amount;
         var stakeDollarLabel = stake ? centsLabel(stake * 100) : "";
-        var stakeRowValue = stake ? stakeDollarLabel : c.stakeRowDeferred;
+        // Defaults to deferred (unchecked): the row and the toggle both start
+        // in the "pay later" state, and only switch to showing the dollar
+        // amount once the visitor opts in.
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="charge-breakdown">' +
             '<div class="charge-breakdown__row"><span>' + c.membershipRowLabel + '</span><strong>' + centsLabel(WS.PLAN_PRICE_CENTS) + '/' + WS.BILLING_INTERVAL + '</strong></div>' +
-            '<div class="charge-breakdown__row' + (stake ? '' : ' is-deferred') + '" id="stakeChargeRow"><span>' + c.stakeRowLabel + '</span><strong id="stakeChargeAmount">' + stakeRowValue + '</strong></div>' +
+            '<div class="charge-breakdown__row is-deferred" id="stakeChargeRow"><span>' + c.stakeRowLabel + '</span><strong id="stakeChargeAmount">' + c.stakeRowDeferred + '</strong></div>' +
           '</div>' +
+          (stake ? (
+            '<label class="checkline checkline--tight"><input type="checkbox" id="stakeToggle"> ' +
+              c.stakeToggleLabel.replace("{stake}", stakeDollarLabel) + '</label>' +
+            '<p class="q-hint">' + c.stakeToggleHint + '</p>'
+          ) : '') +
           '<p class="q-hint">' + c.billingNote + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
@@ -480,18 +486,13 @@
           '</ul></div>' +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
-          (stake ? (
-            '<label class="checkline"><input type="checkbox" id="stakeToggle" checked> ' +
-              c.stakeToggleLabel.replace("{stake}", stakeDollarLabel) + '</label>' +
-            '<p class="q-hint">' + c.stakeToggleHint + '</p>'
-          ) : '') +
           '<label class="checkline"><input type="checkbox" id="agreeCheck"> ' + c.agreePrefix +
             ' <a href="' + c.legalLinks.terms + '" target="_blank" rel="noopener">' + c.agreeTermsText + '</a> ' + c.agreeJoiner +
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           (WS.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCta + '</button>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCtaNoStake + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
@@ -505,7 +506,14 @@
         var stakeToggle = root.querySelector("#stakeToggle");
         var stakeChargeRow = root.querySelector("#stakeChargeRow");
         var stakeChargeAmount = root.querySelector("#stakeChargeAmount");
-        var stakeDollarLabel = stakeChargeAmount ? stakeChargeAmount.textContent : "$0";
+        // Recomputed rather than read from the DOM: the row shows the
+        // deferred label by default now (toggle starts unchecked), so its
+        // live textContent is never a safe source for the real amount.
+        var isGroupBind = state.answers.mode === "group";
+        var stakeAmountBind = isGroupBind
+          ? (state.answers.cohortPreview ? state.answers.cohortPreview.buyIn : null)
+          : state.answers.stake_amount;
+        var stakeDollarLabel = stakeAmountBind ? centsLabel(stakeAmountBind * 100) : "$0";
 
         var stripeClient = null, elements = null;
         var initiated = false, mounted = false, alreadyActive = false;

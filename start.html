@@ -203,6 +203,11 @@ fbq('track', 'PageView');
   .checkline{display:flex;align-items:flex-start;gap:10px;font-size:.88rem;color:var(--ink-soft);margin-top:18px;cursor:pointer}
   .checkline input{margin-top:3px;flex:none}
   .checkline a{color:var(--sage);text-decoration:underline}
+  /* Sits right under the charge breakdown it controls, not floating down
+     near the terms checkbox -- tighter top margin, and its own hint loses
+     the usual q-hint top margin so the two read as one unit. */
+  .checkline--tight{margin-top:10px}
+  .checkline--tight + .q-hint{margin-top:2px;margin-left:28px}
 
   .walk-card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r-card);padding:20px;margin:20px 0}
   .walk-card__title{font-family:var(--display);font-weight:700;font-size:1.05rem;margin-bottom:6px}
@@ -222,7 +227,6 @@ fbq('track', 'PageView');
   .plan-price{text-align:center;background:var(--sage-tint);border-radius:var(--r-inner);padding:18px 16px 16px;margin-top:20px}
   .plan-price .q-label{margin-top:0;margin-bottom:4px;text-align:center;color:#2F6B4C}
   .plan-price .price-tag{margin:0}
-  .plan-price__sub{font-size:.82rem;color:var(--sage-deep);margin-top:6px}
   .price-tag__interval{font-size:1.05rem;font-weight:600;color:var(--ink-soft);margin-left:2px}
 
   /* ---------- checkout step: charge breakdown + optional stake toggle ---------- */

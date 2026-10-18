@@ -268,7 +268,6 @@ window.WALKA_START = (function () {
         soloTitle: "Your own private challenge",
         soloBody: "Just you, your pace, starting the day you join.",
         priceLabel: "Your membership",
-        priceSub: "Keeps your plan, coach and crew going. Cancel anytime.",
         continueCta: "Continue to checkout"
       },
 
@@ -289,8 +288,8 @@ window.WALKA_START = (function () {
         nameLabel: "First name",
         emailLabel: "Email",
         /* {stake} is replaced with the dollar amount, e.g. "$25". */
-        stakeToggleLabel: "Also lock in my {stake} stake now",
-        stakeToggleHint: "Leave this unchecked to pay it later, when you join in the app instead.",
+        stakeToggleLabel: "Lock in my {stake} stake now instead",
+        stakeToggleHint: "By default you'll pay this later, when you join in the app.",
         billingNote: "The membership is billed monthly, cancel anytime. The stake, if you lock it in now, is a one-time charge, refunded in full when you finish.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
