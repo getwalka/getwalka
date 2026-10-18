@@ -41,6 +41,23 @@
     });
   }
 
+  /* supabase-js's FunctionsHttpError.message is always the generic "Edge
+     Function returned a non-2xx status code" -- the Edge Function's own
+     { error: "..." } body (set by this project's jsonResponse() helper on
+     every function) is only reachable via error.context, the raw fetch
+     Response. Reads it so checkout can show (and dev tools can log) the
+     real reason a call failed instead of that one indistinguishable string. */
+  function describeFunctionError(err) {
+    if (err && err.context && typeof err.context.json === "function") {
+      return err.context.json().then(function (body) {
+        return new Error((body && body.error) || (err && err.message) || "Request failed");
+      }).catch(function () {
+        return err instanceof Error ? err : new Error("Request failed");
+      });
+    }
+    return Promise.resolve(err instanceof Error ? err : new Error(String((err && err.message) || "Request failed")));
+  }
+
   /* ---------------- plan math (mirrors lib/recommendation.ts; see start-copy.js) ---------------- */
 
   function roundToHalfK(n) { return Math.round(n / 500) * 500; }
@@ -554,9 +571,11 @@
             refreshButton();
             track(EVENTS.checkoutStarted, { local_id: state.localId, mode: state.answers.mode });
           }).catch(function (e) {
-            console.warn("[start checkout] create-start-subscription-intent failed", e);
-            showError(c.genericError);
-            track(EVENTS.checkoutFailed, { reason: "subscription_intent_error" });
+            describeFunctionError(e).then(function (described) {
+              console.warn("[start checkout] create-start-subscription-intent failed", described);
+              showError(described.message || c.genericError);
+              track(EVENTS.checkoutFailed, { reason: "subscription_intent_error" });
+            });
           });
         }
 
@@ -603,6 +622,9 @@
                 });
               }
               throw new Error("Stake charge did not complete (status: " + data.status + ")");
+            })
+            .catch(function (e) {
+              return describeFunctionError(e).then(function (described) { throw described; });
             });
         }
 
