@@ -66,7 +66,6 @@ window.WALKA_COUCH6K = (function () {
   var PROGRAM_WEEKS = 6;
   var PROGRAM_DURATION_DAYS = 42; // 6 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
   var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 30 -- the actual scored days (weekends are free)
-  var EXAMPLE_MISSED_DAYS = 5; // just for the illustrative "miss N days" example on the paywall
 
   /* THE single source of truth for the weekly step-goal ramp. Fixed for
      every user, independent of onboarding answers -- the average-steps
@@ -86,8 +85,13 @@ window.WALKA_COUCH6K = (function () {
   /* Manually curated to match whatever the operator actually sets as the
      real manually-created challenge's start_date (see the implementation
      plan -- this funnel has no live cohort-preview API to read a real date
-     from). Keep this in step by hand when the real start date is set. */
-  var COHORT_START_DATE_LABEL = "Mon, Oct 26";
+     from). ONE value, a real parseable date -- couch6k-app.js derives the
+     displayed start label AND the end/refund-date label from this single
+     ISO string, so the two can never drift apart. Keep this in step by
+     hand when the real start date is set; it only applies to group mode
+     (solo starts whenever the user joins, so app.js shows a different
+     line for solo instead of this date). */
+  var COHORT_START_DATE_ISO = "2026-10-26";
 
   /* Publishable keys are not secret, safe to ship in client code. Same
      Stripe account as /start and /moms -- shared project, one key per mode. */
@@ -242,48 +246,72 @@ window.WALKA_COUCH6K = (function () {
         body: "We're turning what you told us into a 6-week ramp."
       },
 
-      /* Screen 8, the paywall. No "made for you" framing: the ramp below is
-         fixed for everyone, not personalized from onboarding answers (the
-         baseline-steps question is analytics only). Order on screen:
-         header, ramp, coach/format/schedule line, stake explanation, price
-         breakdown, health card, button. {placeholders} are filled in by
-         couch6k-app.js from WS's config constants, never hardcoded twice. */
+      /* Screen 8, the paywall. No "made for you"/personalized framing
+         anywhere -- the ramp, stake and fee are the same for every user;
+         the baseline-steps answer is analytics only. Order on screen:
+         headline, ramp, money card, coach card, one-liners, rules
+         accordion, "why 6,000" row, sticky total+button bar.
+         {placeholders} are filled in by couch6k-app.js from WS's config
+         constants (never hardcoded twice, so this screen can't diverge
+         from checkout). */
       results: {
-        title: "Here's your 6-week plan.",
+        /* 1. Headline + subline */
+        headline: "Go from {rampStart} to {rampEnd} steps a day in 6 weeks.",
+        subline: "Hit your daily goal and keep your money. Miss a day and lose {perDay}.",
 
-        rampHeadline: "Add 1,000 steps a week until you reach {finalTarget}.",
+        /* 2. Ramp chart */
         rampWeekLabel: "Week",
+        rampStartLabelGroup: "You start here",
+        rampStartDateGroup: "{startDate}",
+        rampStartLabelSolo: "You start here",
+        rampStartDateSolo: "The day you join",
 
-        coachPrefix: "Coach",
-        groupFormatLabel: "Shared 6-week cohort",
-        groupStartsLabel: "starts {startDate}",
-        soloFormatLabel: "Solo challenge",
-        scheduleLine: "Mon-Fri tracked, weekends free",
-        /* Only rendered when a real paidCount is wired in -- there is no
-           live data source for this manually-created test cohort today
-           (see couch6k-app.js's results step comment). */
-        joinedLabel: "already joined",
+        /* 3. Money card + slider */
+        moneyFinishLine: "Finish every day and you pay only the {fee} coach fee. Your {stake} comes back.",
+        sliderLabel: "If I miss {misses} days",
+        sliderBack: "You get back {back}.",
+        sliderLose: "You lose {lose}.",
 
-        stakeHeadline: "{stake} stake. Lose {perDay} for each missed weekday. The rest comes back to you.",
-        stakeExample: "Finish all {totalDays} days: {stake} back. Miss {exampleDays} days: {exampleBack} back.",
-        stakeNoteGroup: "Missed-day money goes to group members who finished.",
-        stakeNoteSolo: "Missed-day money goes to Walka.",
+        /* 4. Coach card. Sample messages are real lines already shipped in
+           lib/coach.ts (one per style), not invented for this page -- see
+           couch6k-app.js's COACH_SAMPLES. Caption is deliberately neutral:
+           the coach is free for every user in the app (CLAUDE.md), so
+           nothing here claims the fee pays specifically for coaching. */
+        coachCardLabel: "Your coach",
+        coachCardStyleGroup: "coach_style", // internal key, not displayed
+        coachCardCaption: "Included with your program fee, not an extra charge.",
 
-        stakeRowLabel: "Stake (refundable)",
-        feeRowLabel: "Coach fee (non-refundable)",
-        totalRowLabel: "Due today",
+        /* 5. Three one-liners */
+        lineGoal: "Reach your goal by 11:59 pm your time, Mon-Fri. Weekends are free.",
+        lineMaxLoss: "Most you can lose from your stake: {stake}.",
+        lineRefund: "Refund by {refundDate}. Missed-day money {payoutFragment}.",
+        payoutFragmentGroup: "goes to group members who finished",
+        payoutFragmentSolo: "goes to Walka",
 
-        healthStatTitle: "Why 6,000 steps?",
-        /* FIXED copy: the previous wording said "40% higher mortality" for
-           the lower-step group, which misreads the hazard ratio (0.60 is
-           the HIGHER-step group's hazard relative to the lower one, i.e.
-           that group's risk is 40% LOWER, not the other way round). */
-        healthStatBody: "In a meta-analysis of 15 studies, people averaging about 5,800 steps a day had roughly 40% lower risk of death from any cause than people averaging about 3,550.",
-        healthStatCitation: "Paluch et al., Lancet Public Health, 2022. Association, not causation: this doesn't prove walking more causes lower mortality.",
+        /* 6. "Rules in detail" accordion */
+        rulesLabel: "Rules in detail",
+        ruleStepSource: { title: "Where your steps come from", body: "Apple Health or Google Fit, synced automatically from your phone. No manual entry, nothing to remember to log." },
+        ruleTimeZone: { title: "Time zones", body: "Your day runs midnight to midnight in your phone's time zone. If you travel, your day follows your phone, not the cohort's home zone." },
+        ruleCancellation: { title: "Cancellation policy", body: "If this program doesn't reach enough participants, or the organizer cancels before it starts, every participant gets a full refund automatically. Once the program has started, your stake follows the miss-day rule above instead of a cancellation refund." },
+        rulePayout: { title: "Payout rule", body: "Each missed weekday costs {perDay} from your stake, capped at your full {stake} stake, so you can never lose more than you put in. {payoutDetail}" },
+        rulePayoutDetailGroup: "That missed-day money is split evenly between everyone in your group who finishes.",
+        rulePayoutDetailSolo: "That missed-day money goes to Walka; solo challenges have no group to split it with.",
+        ruleEdgeCases: { title: "Edge cases", body: "Something not syncing, a day that looks wrong, or a question this page doesn't answer? Email susan@getwalka.com and we'll sort it out before it affects your payout." },
 
-        /* {total} is filled from WS.TOTAL_CENTS, same source the price
-           breakdown rows use, so the button can never diverge from them. */
-        continueCta: "Lock in my plan · {total}"
+        /* 7. "Why 6,000?" row, collapsed by default */
+        whyLabel: "Why 6,000?",
+        whyBody: "People averaging about 5,800 steps a day had roughly 40% lower risk of death from any cause than people averaging about 3,550 (15 cohorts, about 47,000 adults). Association, not proof of cause. Paluch et al., Lancet Public Health, 2022.",
+
+        /* 8. Sticky bottom bar */
+        totalLine: "Today: {total} ({stake} refundable)",
+        continueCta: "Lock in my plan",
+        afterButtonNote: "Secure payment via Stripe · Next: download the app and connect Apple Health / Google Fit.",
+
+        /* 9. Cancellation line + "joined"/countdown -- only shown when real
+           data backs them. Neither exists for this manually-created
+           one-off cohort today (no live preview API), so couch6k-app.js
+           omits both rather than showing a fake number. */
+        cancellationLine: "Full refund automatically if this program is cancelled or doesn't fill before it starts."
       },
 
       /* Screen 9 */
@@ -370,9 +398,8 @@ window.WALKA_COUCH6K = (function () {
     PROGRAM_WEEKS: PROGRAM_WEEKS,
     PROGRAM_DURATION_DAYS: PROGRAM_DURATION_DAYS,
     TRACKED_WEEKDAYS: TRACKED_WEEKDAYS,
-    EXAMPLE_MISSED_DAYS: EXAMPLE_MISSED_DAYS,
     WEEKLY_TARGETS: WEEKLY_TARGETS,
-    COHORT_START_DATE_LABEL: COHORT_START_DATE_LABEL,
+    COHORT_START_DATE_ISO: COHORT_START_DATE_ISO,
     STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,

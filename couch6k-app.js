@@ -98,21 +98,89 @@
     }, str);
   }
 
-  /* Six bars/dots, one per WS.WEEKLY_TARGETS entry, height scaled between
-     the schedule's own min/max so the ramp reads at a glance. */
-  function rampBars(targets) {
+  /* Six bars, one per WS.WEEKLY_TARGETS entry, height scaled between the
+     schedule's own min/max so the ramp reads at a glance. Week 1 carries a
+     distinct "you start here" label + the real start date (group) or "the
+     day you join" (solo) instead of a plain week number. Bars fill in on
+     load via CSS animation (--fill custom property, staggered --i delay);
+     @media (prefers-reduced-motion:reduce) in couch6k.html shows the final
+     height immediately instead. */
+  function rampBars(targets, startLabel, startDateText) {
     var min = Math.min.apply(null, targets);
     var max = Math.max.apply(null, targets);
     return '<div class="ramp-bars">' +
       targets.map(function (steps, i) {
         var pct = max === min ? 100 : Math.round(10 + 90 * ((steps - min) / (max - min)));
+        var weekLine = i === 0
+          ? '<p class="ramp-bar__week ramp-bar__week--start">' + escapeAttr(startLabel) + '</p><p class="ramp-bar__date">' + escapeAttr(startDateText) + '</p>'
+          : '<p class="ramp-bar__week">' + COPY.steps.results.rampWeekLabel + ' ' + (i + 1) + '</p>';
         return '<div class="ramp-bar">' +
-          '<div class="ramp-bar__track"><div class="ramp-bar__fill" style="height:' + pct + '%"></div></div>' +
+          '<div class="ramp-bar__track"><div class="ramp-bar__fill" style="--fill:' + pct + '%;--i:' + i + '"></div></div>' +
           '<p class="ramp-bar__value">' + steps.toLocaleString() + '</p>' +
-          '<p class="ramp-bar__week">' + COPY.steps.results.rampWeekLabel + ' ' + (i + 1) + '</p>' +
+          weekLine +
         '</div>';
       }).join("") +
     '</div>';
+  }
+
+  /* ---------------- cohort dates: ONE source (WS.COHORT_START_DATE_ISO), ---------------- *
+   * both the start label and the refund/end label are derived from it so
+   * they can never drift apart by hand-editing one and not the other. */
+
+  var DATE_FORMAT_OPTS = { weekday: "short", month: "short", day: "numeric" };
+
+  function formatDateLabel(date) {
+    return date.toLocaleDateString("en-US", DATE_FORMAT_OPTS);
+  }
+
+  function cohortDates() {
+    var start = new Date(WS.COHORT_START_DATE_ISO + "T00:00:00");
+    var end = new Date(start);
+    // Friday of the final week: (PROGRAM_WEEKS - 1) full weeks forward, +4
+    // days to land on that week's Friday.
+    end.setDate(start.getDate() + (WS.PROGRAM_WEEKS - 1) * 7 + 4);
+    return { startLabel: formatDateLabel(start), endLabel: formatDateLabel(end) };
+  }
+
+  /* ---------------- coach card: real, already-shipped sample lines ---------------- *
+   * Pulled from lib/coach.ts's own MESSAGES pool (one representative line
+   * per style) rather than invented for this page, so the preview matches
+   * what actually gets sent. */
+  var COACH_META = {
+    princess: {
+      name: "Coach Serena",
+      descriptor: "Warm and encouraging",
+      emoji: "👑",
+      sample: "Look at you go, over halfway there! 💪"
+    },
+    tough: {
+      name: "Coach Tim",
+      descriptor: "Blunt, no excuses",
+      emoji: "🔥",
+      sample: "Halfway. Don’t you dare quit now."
+    }
+  };
+
+  /* ---------------- accordion: independent, multi-item expand/collapse ---------------- *
+   * Sibling to disclosureMarkup/bindDisclosure (the mode step's single
+   * tap-to-expand), but supports several items open/closed independently. */
+  function accordionItem(id, title, body) {
+    return '<div class="accordion-item">' +
+      '<button type="button" class="accordion-toggle" data-accordion="' + id + '" aria-expanded="false">' +
+        '<span>' + escapeAttr(title) + '</span><span class="accordion-toggle__caret" aria-hidden="true">+</span>' +
+      '</button>' +
+      '<div class="accordion-body" id="accordion-' + id + '" hidden>' + body + '</div>' +
+    '</div>';
+  }
+  function bindAccordion(root) {
+    root.querySelectorAll(".accordion-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var body = root.querySelector("#accordion-" + btn.getAttribute("data-accordion"));
+        var open = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", String(!open));
+        if (body) body.hidden = open;
+      });
+    });
   }
 
   /* ---------------- state ---------------- */
@@ -229,15 +297,19 @@
   /* New: tap-to-expand disclosure, sibling to pillOption/pillOptionWithSub.
      Plain click/aria-expanded toggle -- no :hover dependency anywhere, this
      funnel is mobile-first. */
+  /* Used by both the mode step's "what's the difference" and the results
+     step's "why 6,000" row -- IDs are plain (not step-prefixed) and safe
+     to reuse since only one step's DOM exists at a time. A step with more
+     than one disclosure would need per-instance IDs; neither does today. */
   function disclosureMarkup(label, body) {
-    return '<button type="button" class="disclosure-toggle" id="modeDisclosureToggle" aria-expanded="false">' +
+    return '<button type="button" class="disclosure-toggle" id="pageDisclosureToggle" aria-expanded="false">' +
         escapeAttr(label) +
       '</button>' +
-      '<div class="disclosure-body" id="modeDisclosureBody" hidden>' + body + '</div>';
+      '<div class="disclosure-body" id="pageDisclosureBody" hidden>' + body + '</div>';
   }
   function bindDisclosure(root) {
-    var btn = root.querySelector("#modeDisclosureToggle");
-    var body = root.querySelector("#modeDisclosureBody");
+    var btn = root.querySelector("#pageDisclosureToggle");
+    var body = root.querySelector("#pageDisclosureBody");
     if (!btn || !body) return;
     btn.addEventListener("click", function () {
       var open = btn.getAttribute("aria-expanded") === "true";
@@ -442,68 +514,136 @@
       }
     },
 
-    /* The paywall. Screen order: header, fixed ramp, coach/format/schedule
-       line, stake explanation, price breakdown, health card, button. No
-       "made for you" framing and no per-user ramp math: WS.WEEKLY_TARGETS
-       is the one schedule every user gets, independent of onboarding
-       answers. "N already joined" is left out entirely -- there's no real
-       data source for a manually-created one-off cohort (wiring a real
-       count would mean a get-weekly-cohort-preview-style Edge Function
-       call scoped to this cohort's actual challenge row, which doesn't
-       exist yet; flagged here rather than faked). */
+    /* The paywall. Screen order: headline, ramp, money card (slider),
+       coach card, one-liners, rules accordion, "why 6,000" row, sticky
+       total+button bar. No "made for you" framing and no per-user ramp
+       math anywhere: WS.WEEKLY_TARGETS is the one schedule every user
+       gets, independent of onboarding answers. "N already joined" and any
+       countdown are left out entirely -- there's no real data source for
+       a manually-created one-off cohort (wiring a real count would mean a
+       get-weekly-cohort-preview-style Edge Function call scoped to this
+       cohort's actual challenge row, which doesn't exist yet; flagged
+       here rather than faked).
+
+       Its own sticky bottom bar drives navigation (hideContinue:true
+       hides the shared flownav's Continue button; Back stays visible). */
     results: {
       flownavVariant: "tight",
+      hideContinue: true,
       render: function (a) {
         var c = COPY.steps.results;
         var isGroup = a.mode === "group";
         var targets = WS.WEEKLY_TARGETS;
-        var coachLabel = (a.coach_style === "princess" ? "Serena" : "Tim");
-        var exampleBackCents = WS.STAKE_CENTS - (WS.EXAMPLE_MISSED_DAYS * WS.MISS_LOSS_CENTS_PER_DAY);
+        var coach = COACH_META[a.coach_style] || COACH_META.princess;
+        var dates = cohortDates();
 
-        var planLine = c.coachPrefix + " " + coachLabel + " · " +
-          (isGroup
-            ? c.groupFormatLabel + ", " + templ(c.groupStartsLabel, { startDate: WS.COHORT_START_DATE_LABEL })
-            : c.soloFormatLabel) +
-          " · " + c.scheduleLine;
+        var startLabel = isGroup ? c.rampStartLabelGroup : c.rampStartLabelSolo;
+        var startDateText = isGroup
+          ? templ(c.rampStartDateGroup, { startDate: dates.startLabel })
+          : c.rampStartDateSolo;
+
+        var payoutFragment = isGroup ? c.payoutFragmentGroup : c.payoutFragmentSolo;
+        var payoutDetail = isGroup ? c.rulePayoutDetailGroup : c.rulePayoutDetailSolo;
 
         return '<div class="stagger">' +
-          '<h2 class="q-title">' + c.title + '</h2>' +
 
-          '<p class="ramp-headline">' + templ(c.rampHeadline, { finalTarget: targets[targets.length - 1].toLocaleString() }) + '</p>' +
-          rampBars(targets) +
+          /* 1. Headline + subline */
+          '<h2 class="q-title">' + templ(c.headline, {
+            rampStart: targets[0].toLocaleString(),
+            rampEnd: targets[targets.length - 1].toLocaleString()
+          }) + '</h2>' +
+          '<p class="q-body">' + templ(c.subline, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
 
-          '<p class="plan-line">' + planLine + '</p>' +
+          /* 2. Ramp chart */
+          rampBars(targets, startLabel, startDateText) +
 
-          '<div class="stake-block">' +
-            '<p class="stake-block__headline">' + templ(c.stakeHeadline, {
+          /* 3. Money card + slider */
+          '<div class="money-card">' +
+            '<p class="money-card__finish">' + templ(c.moneyFinishLine, { fee: centsLabel(WS.FEE_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
+            '<p class="money-card__slider-label" id="missSliderLabel">' + templ(c.sliderLabel, { misses: "0" }) + '</p>' +
+            '<input type="range" id="missSlider" class="money-card__slider" min="0" max="' + WS.TRACKED_WEEKDAYS + '" step="1" value="0" aria-label="' + escapeAttr(c.sliderLabel.replace("{misses}", "")) + '">' +
+            '<div class="money-card__outputs">' +
+              '<p class="money-card__back" id="missSliderBack">' + templ(c.sliderBack, { back: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
+              '<p class="money-card__lose" id="missSliderLose">' + templ(c.sliderLose, { lose: centsLabelExact(0) }) + '</p>' +
+            '</div>' +
+          '</div>' +
+
+          /* 4. Coach card */
+          '<div class="coach-card">' +
+            '<div class="coach-card__avatar" aria-hidden="true">' + coach.emoji + '</div>' +
+            '<div class="coach-card__text">' +
+              '<p class="coach-card__name">' + c.coachCardLabel + ': ' + coach.name + '</p>' +
+              '<p class="coach-card__style">' + coach.descriptor + '</p>' +
+              '<p class="coach-card__sample">“' + coach.sample + '”</p>' +
+            '</div>' +
+          '</div>' +
+          '<p class="coach-card__caption">' + c.coachCardCaption + '</p>' +
+
+          /* 5. Three one-liners */
+          '<ul class="fact-lines">' +
+            '<li>' + c.lineGoal + '</li>' +
+            '<li>' + templ(c.lineMaxLoss, { stake: centsLabel(WS.STAKE_CENTS) }) + '</li>' +
+            '<li>' + templ(c.lineRefund, { refundDate: dates.endLabel, payoutFragment: payoutFragment }) + '</li>' +
+          '</ul>' +
+
+          /* 6. "Rules in detail" accordion */
+          '<p class="q-label">' + c.rulesLabel + '</p>' +
+          '<div class="accordion">' +
+            accordionItem("step-source", c.ruleStepSource.title, '<p>' + c.ruleStepSource.body + '</p>') +
+            accordionItem("time-zone", c.ruleTimeZone.title, '<p>' + c.ruleTimeZone.body + '</p>') +
+            accordionItem("cancellation", c.ruleCancellation.title, '<p>' + c.ruleCancellation.body + '</p>') +
+            accordionItem("payout", c.rulePayout.title, '<p>' + templ(c.rulePayout.body, {
+              perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY),
               stake: centsLabel(WS.STAKE_CENTS),
-              perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY)
-            }) + '</p>' +
-            '<p class="stake-block__example">' + templ(c.stakeExample, {
-              totalDays: WS.TRACKED_WEEKDAYS,
-              stake: centsLabel(WS.STAKE_CENTS),
-              exampleDays: WS.EXAMPLE_MISSED_DAYS,
-              exampleBack: centsLabel(exampleBackCents)
-            }) + '</p>' +
-            '<p class="stake-block__note">' + (isGroup ? c.stakeNoteGroup : c.stakeNoteSolo) + '</p>' +
+              payoutDetail: payoutDetail
+            }) + '</p>') +
+            accordionItem("edge-cases", c.ruleEdgeCases.title, '<p>' + c.ruleEdgeCases.body + '</p>') +
           '</div>' +
 
-          '<div class="charge-breakdown">' +
-            '<div class="charge-breakdown__row"><span>' + c.stakeRowLabel + '</span><strong>' + centsLabelExact(WS.STAKE_CENTS) + '</strong></div>' +
-            '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabelExact(WS.FEE_CENTS) + '</strong></div>' +
-            '<div class="charge-breakdown__row charge-breakdown__row--total"><span>' + c.totalRowLabel + '</span><strong>' + centsLabelExact(WS.TOTAL_CENTS) + '</strong></div>' +
-          '</div>' +
+          /* 7. "Why 6,000?" row, collapsed by default */
+          '<div class="why-row">' + disclosureMarkup(c.whyLabel, '<p>' + c.whyBody + '</p>') + '</div>' +
 
-          '<div class="health-stat-card health-stat-card--compact">' +
-            '<p class="health-stat-card__title">' + c.healthStatTitle + '</p>' +
-            '<p class="health-stat-card__body">' + c.healthStatBody + '</p>' +
-            '<p class="health-stat-card__citation">' + c.healthStatCitation + '</p>' +
+          /* 9. Cancellation line. "Joined"/countdown omitted: no real data
+             source for this manually-created one-off cohort. */
+          '<p class="q-hint cancellation-line">' + c.cancellationLine + '</p>' +
+
+          '<div class="sticky-bar-spacer" aria-hidden="true"></div>' +
+        '</div>' +
+
+        /* 8. Sticky bottom bar -- fixed to the viewport, outside the
+           staggered-fade-in content above. */
+        '<div class="sticky-bar">' +
+          '<div class="sticky-bar__row">' +
+            '<p class="sticky-bar__total">' + templ(c.totalLine, { total: centsLabelExact(WS.TOTAL_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
+            '<button type="button" class="btn btn--ink sticky-bar__btn" id="resultsContinueBtn">' + c.continueCta + '</button>' +
           '</div>' +
+          '<p class="sticky-bar__note">' + c.afterButtonNote + '</p>' +
         '</div>';
       },
-      bind: function () {},
+      bind: function (root) {
+        var c = COPY.steps.results;
+        bindDisclosure(root); // the "why 6,000" row
+        bindAccordion(root);
+
+        var slider = root.querySelector("#missSlider");
+        var label = root.querySelector("#missSliderLabel");
+        var backEl = root.querySelector("#missSliderBack");
+        var loseEl = root.querySelector("#missSliderLose");
+        if (slider) {
+          slider.addEventListener("input", function () {
+            var misses = Number(slider.value);
+            var loseCents = Math.min(misses * WS.MISS_LOSS_CENTS_PER_DAY, WS.STAKE_CENTS);
+            var backCents = WS.STAKE_CENTS - loseCents;
+            label.textContent = templ(c.sliderLabel, { misses: String(misses) });
+            backEl.textContent = templ(c.sliderBack, { back: centsLabelExact(backCents) });
+            loseEl.textContent = templ(c.sliderLose, { lose: centsLabelExact(loseCents) });
+          });
+        }
+
+        var stickyBtn = root.querySelector("#resultsContinueBtn");
+        if (stickyBtn) stickyBtn.addEventListener("click", function () { goNext(); });
+      },
       canAdvance: function () { return true; },
-      continueLabel: function () { return templ(COPY.steps.results.continueCta, { total: centsLabel(WS.TOTAL_CENTS) }); },
       onEnter: function (a) {
         track(EVENTS.resultsViewed, { local_id: state.localId });
         syncLead();

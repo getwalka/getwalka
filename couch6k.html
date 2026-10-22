@@ -223,65 +223,94 @@ fbq('track', 'PageView');
   .walk-card__desc{font-size:.88rem;color:var(--ink-soft);margin-bottom:0}
   .walk-card__progress{font-size:.84rem;color:#2F6B4C;font-weight:600;margin:4px 0 0}
 
-  /* ---------- results step: one-glance plan-facts list ---------- */
-  .plan-summary{background:var(--cream);border-radius:var(--r-inner);padding:0 18px;margin:20px 0}
-  .plan-summary__row{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)}
-  .plan-summary__row:last-child{border-bottom:none}
-  .plan-summary__icon{font-size:1.3rem;line-height:1.3;flex:none;width:26px;text-align:center}
-  .plan-summary__text{flex:1;min-width:0}
-  .plan-summary__label{font-family:var(--display);font-weight:700;font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
-  .plan-summary__value{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--ink);line-height:1.3}
-  .plan-summary__sub{font-size:.84rem;color:var(--ink-soft);margin-top:3px}
-
-  /* ---------- results step: fixed 6-week ramp, six bars ---------- */
-  .ramp-headline{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--ink);margin-bottom:14px}
+  /* ---------- results step: fixed 6-week ramp, six bars, fills in on load ---------- */
   .ramp-bars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;background:var(--cream);border-radius:var(--r-inner);padding:16px 12px 14px;margin-bottom:18px}
   .ramp-bar{display:flex;flex-direction:column;align-items:center;gap:6px}
   .ramp-bar__track{width:100%;max-width:26px;height:64px;background:var(--cream-deep);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}
-  .ramp-bar__fill{width:100%;background:var(--sage);border-radius:6px 6px 0 0;min-height:6%}
+  .ramp-bar__fill{width:100%;height:0;background:var(--sage);border-radius:6px 6px 0 0;animation:rampFill .6s ease forwards;animation-delay:calc(var(--i) * 80ms)}
+  @keyframes rampFill{from{height:0}to{height:var(--fill)}}
+  @media (prefers-reduced-motion:reduce){.ramp-bar__fill{animation:none;height:var(--fill)}}
   .ramp-bar__value{font-family:var(--display);font-weight:700;font-size:.72rem;color:var(--ink);margin:0;line-height:1.2;text-align:center}
   .ramp-bar__week{font-size:.66rem;color:var(--ink-soft);margin:0;text-align:center}
+  .ramp-bar__week--start{font-weight:700;color:#2F6B4C}
+  .ramp-bar__date{font-size:.64rem;color:var(--ink-soft);margin:0;text-align:center}
 
-  /* ---------- results step: merged coach/format/schedule line ---------- */
-  .plan-line{font-size:.92rem;color:var(--ink-soft);margin-bottom:18px;line-height:1.5}
+  /* ---------- results step: money card + slider ---------- */
+  .money-card{background:var(--amber-tint);border-radius:var(--r-inner);padding:16px 18px;margin-bottom:18px}
+  .money-card__finish{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:14px;line-height:1.4}
+  .money-card__slider-label{font-size:.82rem;color:var(--ink-soft);margin-bottom:8px}
+  .money-card__slider{
+    -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;
+    background:var(--cream-deep);margin-bottom:14px;cursor:pointer;
+  }
+  .money-card__slider::-webkit-slider-thumb{
+    -webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--sage);
+    border:3px solid #fff;box-shadow:0 2px 6px rgba(43,46,74,.3);cursor:pointer;
+  }
+  .money-card__slider::-moz-range-thumb{
+    width:22px;height:22px;border-radius:50%;background:var(--sage);border:3px solid #fff;
+    box-shadow:0 2px 6px rgba(43,46,74,.3);cursor:pointer;
+  }
+  .money-card__outputs{display:flex;justify-content:space-between;gap:10px}
+  .money-card__back,.money-card__lose{font-family:var(--display);font-weight:700;font-size:.9rem;margin:0}
+  .money-card__back{color:#2F6B4C}
+  .money-card__lose{color:var(--rose-ink)}
 
-  /* ---------- results step: stake explanation ---------- */
-  .stake-block{background:var(--amber-tint);border-radius:var(--r-inner);padding:16px 18px;margin-bottom:18px}
-  .stake-block__headline{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:6px;line-height:1.4}
-  .stake-block__example{font-size:.84rem;color:var(--ink-soft);margin-bottom:6px;line-height:1.5}
-  .stake-block__note{font-size:.78rem;color:var(--ink-soft);margin-bottom:0;opacity:.9}
+  /* ---------- results step: coach card ---------- */
+  .coach-card{display:flex;gap:14px;align-items:flex-start;margin-bottom:6px}
+  .coach-card__avatar{
+    flex:none;width:48px;height:48px;border-radius:50%;background:var(--sage-tint);
+    display:flex;align-items:center;justify-content:center;font-size:1.4rem;
+  }
+  .coach-card__text{flex:1;min-width:0}
+  .coach-card__name{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:2px}
+  .coach-card__style{font-size:.78rem;color:var(--ink-soft);margin-bottom:8px}
+  .coach-card__sample{font-size:.86rem;color:var(--ink);font-style:italic;margin-bottom:0;line-height:1.45}
+  .coach-card__caption{font-size:.76rem;color:var(--ink-soft);margin:6px 0 18px;padding-left:62px}
 
-  /* ---------- results step: real health-stat card (also used, compact, below the price breakdown) ---------- */
-  .health-stat-card{background:var(--lavender);border-radius:var(--r-inner);padding:18px 20px;margin:4px 0 20px}
-  .health-stat-card__figure{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--ink);margin-bottom:6px}
-  .health-stat-card__title{font-family:var(--display);font-weight:700;font-size:.88rem;color:var(--ink);margin-bottom:5px}
-  .health-stat-card__body{font-size:.86rem;color:var(--ink-soft);margin-bottom:8px;line-height:1.5}
-  .health-stat-card__citation{font-size:.74rem;color:var(--ink-soft);line-height:1.5;opacity:.85}
-  .health-stat-card--compact{padding:13px 16px;margin:0 0 4px}
-  .health-stat-card--compact .health-stat-card__title{font-size:.8rem;margin-bottom:4px}
-  .health-stat-card--compact .health-stat-card__body{font-size:.8rem;margin-bottom:6px}
-  .health-stat-card--compact .health-stat-card__citation{font-size:.7rem}
+  /* ---------- results step: three fact one-liners, each self-contained ---------- */
+  .fact-lines{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+  .fact-lines li{
+    font-size:.86rem;color:var(--ink-soft);line-height:1.5;padding:10px 14px;
+    background:var(--cream);border-radius:10px;
+  }
 
-  .plan-price{text-align:center;background:var(--sage-tint);border-radius:var(--r-inner);padding:18px 16px 16px;margin-top:20px}
-  .plan-price .q-label{margin-top:0;margin-bottom:4px;text-align:center;color:#2F6B4C}
-  .plan-price .price-tag{margin:0}
-  .price-tag__interval{font-size:1.05rem;font-weight:600;color:var(--ink-soft);margin-left:2px}
+  /* ---------- results step: "rules in detail" accordion ---------- */
+  .accordion{border:1px solid var(--line);border-radius:var(--r-inner);overflow:hidden;margin-bottom:16px}
+  .accordion-item+.accordion-item{border-top:1px solid var(--line)}
+  .accordion-toggle{
+    width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;
+    font-family:var(--display);font-weight:600;font-size:.86rem;color:var(--ink);
+    background:none;border:none;padding:12px 14px;cursor:pointer;text-align:left;
+  }
+  .accordion-toggle__caret{color:var(--ink-soft);font-weight:400;transition:transform .15s ease}
+  .accordion-toggle[aria-expanded="true"] .accordion-toggle__caret{transform:rotate(45deg)}
+  .accordion-body{padding:0 14px 14px;font-size:.82rem;color:var(--ink-soft);line-height:1.55}
 
-  /* ---------- checkout + results: charge breakdown ---------- */
+  /* ---------- results step: "why 6,000" collapsed row ---------- */
+  .why-row{margin-bottom:14px}
+
+  .cancellation-line{margin-top:0}
+
+  /* ---------- results step: sticky bottom bar ---------- */
+  .sticky-bar-spacer{height:112px}
+  .sticky-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:var(--card);border-top:1px solid var(--line);
+    box-shadow:0 -12px 30px -12px rgba(43,46,74,.18);
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .sticky-bar__row{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:640px;margin:0 auto}
+  .sticky-bar__total{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin:0;flex:none}
+  .sticky-bar__btn{flex:none;padding:.75rem 1.5rem}
+  .sticky-bar__note{font-size:.7rem;color:var(--ink-soft);text-align:center;margin:8px 0 0;max-width:640px;margin-left:auto;margin-right:auto}
+
+  /* ---------- checkout: charge breakdown ---------- */
   .charge-breakdown{background:var(--cream);border-radius:var(--r-inner);padding:4px 18px;margin:16px 0}
   .charge-breakdown__row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:.95rem}
   .charge-breakdown__row:last-child{border-bottom:none}
   .charge-breakdown__row span{color:var(--ink-soft)}
   .charge-breakdown__row strong{font-family:var(--display);color:var(--ink)}
-  /* The "Due today" row reads as the one number that matters: larger and
-     bolder than the Stake/Coach fee rows above it. */
-  .charge-breakdown__row--total span{color:var(--ink);font-weight:700}
-  .charge-breakdown__row--total strong{font-size:1.25rem}
-
-  .price-tag{
-    font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
-    margin:10px 0 2px;
-  }
 
   .preparing{text-align:center;padding:24px 8px}
   .preparing__dots{display:flex;justify-content:center;gap:10px;margin-bottom:22px}
@@ -323,6 +352,7 @@ fbq('track', 'PageView');
     .answer-card{font-size:.88rem;padding:.65rem .85rem}
     .ramp-bars{padding:14px 8px 12px;gap:5px}
     .ramp-bar__track{max-width:20px}
+    .coach-card__caption{padding-left:0}
     /* The paywall's Continue/pay button is the one action that matters on
        a small screen -- full width, and the Back link moves below it
        rather than squeezing both into one row. Applies to every step's
@@ -331,6 +361,12 @@ fbq('track', 'PageView');
     .flownav__right{width:100%}
     #continueBtn{width:100%}
     #backBtn{align-self:center}
+    /* Sticky bar: total stacks above a full-width button rather than
+       squeezing both into one row at narrow widths. */
+    .sticky-bar__row{flex-direction:column;align-items:stretch;gap:10px}
+    .sticky-bar__total{text-align:center}
+    .sticky-bar__btn{width:100%}
+    .sticky-bar-spacer{height:148px}
   }
 </style>
 </head>
