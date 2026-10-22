@@ -164,7 +164,7 @@ window.WALKA_COUCH6K = (function () {
        as a running distance, not a step count. */
     introHeader: {
       title: "From couch to 6K steps in 6 weeks.",
-      body: "Put {stake} on the line. Hit your daily goal and keep it. Miss a day and lose {perDay}. A coach messages you every day.",
+      body: "Put a stake on the line. Hit your daily goal and keep it. Miss a day and you lose a little of it. A coach messages you every day.",
       features: [
         { icon: "🎯", label: "Starts at {startSteps} steps" },
         { icon: "💰", label: "Keep your stake when you walk" },

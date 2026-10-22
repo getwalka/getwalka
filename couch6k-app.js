@@ -1028,10 +1028,7 @@
     var startSteps = WS.WEEKLY_TARGETS[0].toLocaleString();
     introHeaderEl.innerHTML =
       '<h1 class="intro-header__title">' + headlineText + '</h1>' +
-      '<p class="intro-header__body">' + templ(COPY.introHeader.body, {
-        stake: centsLabel(WS.STAKE_CENTS),
-        perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY)
-      }) + '</p>' +
+      '<p class="intro-header__body">' + COPY.introHeader.body + '</p>' +
       '<div class="intro-header__features">' +
         COPY.introHeader.features.map(function (f) {
           return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(templ(f.label, { startSteps: startSteps })) + '</span>';
