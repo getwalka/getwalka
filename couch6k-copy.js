@@ -91,7 +91,7 @@ window.WALKA_COUCH6K = (function () {
      hand when the real start date is set; it only applies to group mode
      (solo starts whenever the user joins, so app.js shows a different
      line for solo instead of this date). */
-  var COHORT_START_DATE_ISO = "2026-10-26";
+  var COHORT_START_DATE_ISO = "2026-11-02";
 
   /* Publishable keys are not secret, safe to ship in client code. Same
      Stripe account as /start and /moms -- shared project, one key per mode. */
@@ -256,7 +256,7 @@ window.WALKA_COUCH6K = (function () {
          from checkout). */
       results: {
         /* 1. Headline + subline */
-        headline: "Go from {rampStart} to {rampEnd} steps a day in 6 weeks.",
+        headline: "Your {weeks}-week plan",
         subline: "Hit your daily goal and keep your money. Miss a day and lose {perDay}.",
 
         /* 2. Ramp chart */
@@ -281,16 +281,12 @@ window.WALKA_COUCH6K = (function () {
         coachCardStyleGroup: "coach_style", // internal key, not displayed
         coachCardCaption: "Included with your program fee, not an extra charge.",
 
-        /* 5. Three one-liners */
+        /* 5. Fact one-liner(s) */
         lineGoal: "Reach your goal by 11:59 pm your time, Mon-Fri. Weekends are free.",
-        lineMaxLoss: "Most you can lose from your stake: {stake}.",
-        lineRefund: "Refund by {refundDate}. Missed-day money {payoutFragment}.",
-        payoutFragmentGroup: "goes to group members who finished",
-        payoutFragmentSolo: "goes to Walka",
 
         /* 6. "Rules in detail" accordion */
         rulesLabel: "Rules in detail",
-        ruleStepSource: { title: "Where your steps come from", body: "Apple Health or Google Fit, synced automatically from your phone. No manual entry, nothing to remember to log." },
+        ruleStepSource: { title: "Where your steps come from", body: "Apple Health, synced automatically from your phone. No manual entry, nothing to remember to log. Walka is iOS-only right now, so this is an iPhone-only program." },
         ruleTimeZone: { title: "Time zones", body: "Your day runs midnight to midnight in your phone's time zone. If you travel, your day follows your phone, not the cohort's home zone." },
         ruleCancellation: { title: "Cancellation policy", body: "If this program doesn't reach enough participants, or the organizer cancels before it starts, every participant gets a full refund automatically. Once the program has started, your stake follows the miss-day rule above instead of a cancellation refund." },
         rulePayout: { title: "Payout rule", body: "Each missed weekday costs {perDay} from your stake, capped at your full {stake} stake, so you can never lose more than you put in. {payoutDetail}" },
@@ -298,20 +294,17 @@ window.WALKA_COUCH6K = (function () {
         rulePayoutDetailSolo: "That missed-day money goes to Walka; solo challenges have no group to split it with.",
         ruleEdgeCases: { title: "Edge cases", body: "Something not syncing, a day that looks wrong, or a question this page doesn't answer? Email susan@getwalka.com and we'll sort it out before it affects your payout." },
 
-        /* 7. "Why 6,000?" row, collapsed by default */
-        whyLabel: "Why 6,000?",
-        whyBody: "People averaging about 5,800 steps a day had roughly 40% lower risk of death from any cause than people averaging about 3,550 (15 cohorts, about 47,000 adults). Association, not proof of cause. Paluch et al., Lancet Public Health, 2022.",
-
         /* 8. Sticky bottom bar */
         totalLine: "Today: {total} ({stake} refundable)",
         continueCta: "Lock in my plan",
-        afterButtonNote: "Secure payment via Stripe · Next: download the app and connect Apple Health / Google Fit.",
+        afterButtonNote: "Secure payment via Stripe · Next: download the app and connect Apple Health."
 
-        /* 9. Cancellation line + "joined"/countdown -- only shown when real
-           data backs them. Neither exists for this manually-created
-           one-off cohort today (no live preview API), so couch6k-app.js
-           omits both rather than showing a fake number. */
-        cancellationLine: "Full refund automatically if this program is cancelled or doesn't fill before it starts."
+        /* 9. "Joined"/countdown -- only shown when backed by real data.
+           Neither exists for this manually-created one-off cohort today
+           (no live preview API), so couch6k-app.js omits both rather than
+           showing a fake number. The standalone cancellation line was
+           removed too; the full policy is still in the "Rules in detail"
+           accordion's Cancellation policy item above. */
       },
 
       /* Screen 9 */

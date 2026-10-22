@@ -123,9 +123,7 @@
     '</div>';
   }
 
-  /* ---------------- cohort dates: ONE source (WS.COHORT_START_DATE_ISO), ---------------- *
-   * both the start label and the refund/end label are derived from it so
-   * they can never drift apart by hand-editing one and not the other. */
+  /* ---------------- cohort dates: ONE source, WS.COHORT_START_DATE_ISO ---------------- */
 
   var DATE_FORMAT_OPTS = { weekday: "short", month: "short", day: "numeric" };
 
@@ -135,11 +133,7 @@
 
   function cohortDates() {
     var start = new Date(WS.COHORT_START_DATE_ISO + "T00:00:00");
-    var end = new Date(start);
-    // Friday of the final week: (PROGRAM_WEEKS - 1) full weeks forward, +4
-    // days to land on that week's Friday.
-    end.setDate(start.getDate() + (WS.PROGRAM_WEEKS - 1) * 7 + 4);
-    return { startLabel: formatDateLabel(start), endLabel: formatDateLabel(end) };
+    return { startLabel: formatDateLabel(start) };
   }
 
   /* ---------------- coach card: real, already-shipped sample lines ---------------- *
@@ -542,16 +536,12 @@
           ? templ(c.rampStartDateGroup, { startDate: dates.startLabel })
           : c.rampStartDateSolo;
 
-        var payoutFragment = isGroup ? c.payoutFragmentGroup : c.payoutFragmentSolo;
         var payoutDetail = isGroup ? c.rulePayoutDetailGroup : c.rulePayoutDetailSolo;
 
         return '<div class="stagger">' +
 
           /* 1. Headline + subline */
-          '<h2 class="q-title">' + templ(c.headline, {
-            rampStart: targets[0].toLocaleString(),
-            rampEnd: targets[targets.length - 1].toLocaleString()
-          }) + '</h2>' +
+          '<h2 class="q-title">' + templ(c.headline, { weeks: String(WS.PROGRAM_WEEKS) }) + '</h2>' +
           '<p class="q-body">' + templ(c.subline, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
 
           /* 2. Ramp chart */
@@ -579,11 +569,9 @@
           '</div>' +
           '<p class="coach-card__caption">' + c.coachCardCaption + '</p>' +
 
-          /* 5. Three one-liners */
+          /* 5. Fact one-liner(s) */
           '<ul class="fact-lines">' +
             '<li>' + c.lineGoal + '</li>' +
-            '<li>' + templ(c.lineMaxLoss, { stake: centsLabel(WS.STAKE_CENTS) }) + '</li>' +
-            '<li>' + templ(c.lineRefund, { refundDate: dates.endLabel, payoutFragment: payoutFragment }) + '</li>' +
           '</ul>' +
 
           /* 6. "Rules in detail" accordion */
@@ -600,13 +588,8 @@
             accordionItem("edge-cases", c.ruleEdgeCases.title, '<p>' + c.ruleEdgeCases.body + '</p>') +
           '</div>' +
 
-          /* 7. "Why 6,000?" row, collapsed by default */
-          '<div class="why-row">' + disclosureMarkup(c.whyLabel, '<p>' + c.whyBody + '</p>') + '</div>' +
-
-          /* 9. Cancellation line. "Joined"/countdown omitted: no real data
-             source for this manually-created one-off cohort. */
-          '<p class="q-hint cancellation-line">' + c.cancellationLine + '</p>' +
-
+          /* "Joined"/countdown omitted: no real data source for this
+             manually-created one-off cohort. */
           '<div class="sticky-bar-spacer" aria-hidden="true"></div>' +
         '</div>' +
 
@@ -622,7 +605,6 @@
       },
       bind: function (root) {
         var c = COPY.steps.results;
-        bindDisclosure(root); // the "why 6,000" row
         bindAccordion(root);
 
         var slider = root.querySelector("#missSlider");
