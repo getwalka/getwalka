@@ -757,7 +757,7 @@
           state.answers.checkout_status = "completed_unverified";
           saveState();
           track(EVENTS.checkoutCompleted, { local_id: state.localId });
-          window.location.href = "/couch6k-success";
+          window.location.href = "/myplan-success";
         }
 
         function handleCheckoutError(e) {
@@ -777,7 +777,7 @@
             ? Promise.resolve()
             : stripeClient.confirmPayment({
                 elements: elements,
-                confirmParams: { return_url: window.location.origin + "/couch6k-success" },
+                confirmParams: { return_url: window.location.origin + "/myplan-success" },
                 redirect: "if_required"
               }).then(function (result) {
                 if (result.error) throw result.error;

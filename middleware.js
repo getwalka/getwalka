@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Vercel Edge Middleware: tags each /moms, /start, or /couch6k request with
+   Vercel Edge Middleware: tags each /moms, /start, or /myplan request with
    the visitor's country, read from Vercel's own edge geolocation (the
    x-vercel-ip-country request header, present automatically on every
    request Vercel's network handles; empty for local dev / vercel dev
@@ -23,7 +23,7 @@
    ========================================================================== */
 
 export const config = {
-  matcher: ["/moms", "/start", "/couch6k"]
+  matcher: ["/moms", "/start", "/myplan"]
 };
 
 export default function middleware(request) {
