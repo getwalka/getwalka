@@ -20,22 +20,49 @@ window.WALKA_START = (function () {
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
-   * 2. PAYMENTS: Stripe, recurring membership (USD only for v1 -- no geo
-   *    gate, no CAD price; add both together later if this expands beyond
-   *    the US).
+   * 1b. GEO GATE: US/Canada only
+   *    middleware.js (Vercel Edge Middleware) stamps a walka_geo_country
+   *    cookie from Vercel's own IP geolocation on every /start request.
+   *    start-app.js reads that cookie and blocks checkout for anyone
+   *    outside this list, showing COPY.geoGate instead of the flow. Same
+   *    mechanism as the moms funnel's gate (moms-copy.js).
    *
-   *    Checkout charges TWO things off the one card entered: the $9.99/mo
-   *    membership (via create-start-subscription-intent, a Stripe
-   *    Subscription) and, immediately after, the refundable stake (via
-   *    create-start-stake-intent, a one-time PaymentIntent against the same
-   *    saved payment method -- no Payment Link fallback for this funnel,
-   *    since a Payment Link can't carry the second charge).
+   *    Fails OPEN: if the cookie is missing or empty (middleware didn't
+   *    run, e.g. local dev), the visitor is let through rather than
+   *    blocked, so a detection hiccup never costs a real US/CA signup.
+   *    The ?preview=1 override bypasses this gate too, same as the
+   *    feature-flag gate, so QA can test from anywhere.
    *
-   *    In the Stripe dashboard: Products > create "Walka Start Membership" >
-   *    Recurring, Monthly, USD, 9.99 > copy its Price id into
-   *    START_MEMBERSHIP_PRICE_ID_USD below (set as the
-   *    START_MEMBERSHIP_PRICE_ID_USD env var on the create-start-subscription-intent
-   *    Edge Function, NOT here -- the price id itself is read server-side).
+   *    Every visitor's country (allowed, blocked, or unknown) is still
+   *    logged to Supabase (start_leads.country) and PostHog so you can see
+   *    the actual country breakdown, not just who got through.
+   * ------------------------------------------------------------------ */
+  var GEO_ALLOWED_COUNTRIES = ["US", "CA"];
+
+  /* ------------------------------------------------------------------ *
+   * 2. PAYMENTS: Stripe, recurring membership, priced per currency.
+   *
+   *    Checkout charges the $24.99/mo membership only (via
+   *    create-start-subscription-intent, a Stripe Subscription). The stake
+   *    is removed from this funnel for now -- see git history for the old
+   *    `stake` step and the stake UI in the `results`/`checkout` steps of
+   *    start-app.js. create-start-stake-intent and SOLO_STAKE_OPTIONS below
+   *    are unused while it's off.
+   *
+   *    Same numeral, two currencies: $24.99 USD for US visitors, $24.99 CAD
+   *    for Canadian visitors (not a currency conversion of one price into
+   *    the other -- two separate Stripe Prices, each literally 2499 minor
+   *    units in its own currency). getwalka only ever serves US/CA for this
+   *    funnel (see GEO_ALLOWED_COUNTRIES above), so those are the only two
+   *    currencies this needs.
+   *
+   *    In the Stripe dashboard, for EACH currency: Products > "Walka Start
+   *    Membership" (existing product, or create it) > + Add another price >
+   *    Recurring, Monthly, pick the currency, 24.99 > copy its Price id into
+   *    the matching env var on the create-start-subscription-intent Edge
+   *    Function (NOT here -- price ids are read server-side):
+   *      USD -> START_MEMBERSHIP_PRICE_ID_USD
+   *      CAD -> START_MEMBERSHIP_PRICE_ID_CAD
    * ------------------------------------------------------------------ */
   /* Temporarily "live", NOT because checkout has been verified end to end --
      it hasn't yet. The shared STRIPE_SECRET_KEY on this Supabase project is
@@ -44,19 +71,20 @@ window.WALKA_START = (function () {
      not a test/live pair), so a "test" publishable key here would mount
      Stripe Elements against a live-mode clientSecret and fail silently.
      Testing the actual checkout therefore means a real card and a real
-     (small, refundable-stake) charge -- cancel/refund it in the Stripe
-     dashboard afterward. Revisit if this funnel gets its own test-mode
-     secret key later. */
+     (small, refundable) charge -- cancel/refund it in the Stripe dashboard
+     afterward. Revisit if this funnel gets its own test-mode secret key
+     later. */
   var STRIPE_MODE = "live"; // "test" | "live"
 
-  var PLAN_PRICE_CENTS = 999; // $9.99
+  var PLAN_PRICE_CENTS = 2499; // $24.99
   var BILLING_INTERVAL = "month";
   var PLAN_DURATION_DAYS = 5; // matches SOLO_DURATION_DAYS (lib/soloChallenge.ts) and the cohort's DURATION_DAYS (seed-weekly-cohort)
 
-  /* MUST match SOLO_STAKE_OPTIONS in lib/soloOffer.ts and the
-     enforce_solo_stake() trigger (20260925000003_solo_stake_bounds.sql). The
-     group path never uses this -- its real stake comes from
-     get-weekly-cohort-preview instead. */
+  /* Unused while the stake is removed from this funnel (see the PAYMENTS
+     note above). Left defined, still mirroring SOLO_STAKE_OPTIONS in
+     lib/soloOffer.ts and the enforce_solo_stake() trigger
+     (20260925000003_solo_stake_bounds.sql), so re-adding a stake step
+     doesn't require re-deriving these numbers. */
   var SOLO_STAKE_OPTIONS = [15, 25, 50, 100];
 
   /* Publishable keys are not secret, safe to ship in client code. From the
@@ -129,7 +157,7 @@ window.WALKA_START = (function () {
    * ------------------------------------------------------------------ */
   var COPY = {
     metaTitle: "Walka",
-    metaDescription: "A step goal, a coach, and a little money on the line, built around how you actually walk.",
+    metaDescription: "A step goal and a coach built around how you actually walk.",
 
     continueLabel: "Continue",
     skipLabel: "Skip for now",
@@ -141,6 +169,12 @@ window.WALKA_START = (function () {
       cta: "Back to getwalka.com"
     },
 
+    geoGate: {
+      title: "Not available in your country yet.",
+      body: "This program is currently only open to the US and Canada. Check back as we expand to more places.",
+      cta: "Back to getwalka.com"
+    },
+
     nav: { back: "Save & exit" },
     resumeBanner: "Welcome back. Picking up where you left off.",
 
@@ -148,11 +182,11 @@ window.WALKA_START = (function () {
 
     introHeader: {
       title: "A plan that actually fits how you walk.",
-      body: "Six quick questions, then we'll build your plan: a daily goal, a coach in your corner, and a little money on the line to keep you honest.",
+      body: "Some quick questions, then we'll build your plan: a daily goal and a coach in your corner.",
       features: [
         { icon: "🎯", label: "Your own goal" },
         { icon: "🧑‍🏫", label: "A coach, your style" },
-        { icon: "💵", label: "Money back if you finish" }
+        { icon: "👥", label: "Solo or group, your choice" }
       ]
     },
 
@@ -195,7 +229,7 @@ window.WALKA_START = (function () {
       coach: {
         title: "Pick your coach.",
         options: [
-          { value: "princess", label: "Princess treatment", sub: "Warm, encouraging, Coach Serena" },
+          { value: "princess", label: "Gentle coach", sub: "Princess treatment: warm and encouraging, Coach Serena" },
           { value: "tough", label: "Tough coach", sub: "Blunt, no excuses, Coach Tim" }
         ]
       },
@@ -209,17 +243,7 @@ window.WALKA_START = (function () {
         ]
       },
 
-      /* Screen 6, solo only -- skipped entirely for group (see start-app.js).
-         The group path's real stake comes from the actual cohort, not a pick. */
-      stake: {
-        title: "How much are you willing to put on the line?",
-        hint: "Yours back in full the moment you finish.",
-        options: SOLO_STAKE_OPTIONS.map(function (amount) {
-          return { value: String(amount), label: "$" + amount };
-        })
-      },
-
-      /* Screen 7: first name + email, captured before the paywall/checkout so
+      /* Screen 6: first name + email, captured before the paywall/checkout so
          a dropoff there still leaves a reachable lead (same reasoning as the
          moms funnel's contact step). */
       contact: {
@@ -237,26 +261,23 @@ window.WALKA_START = (function () {
         ]
       },
 
-      /* Screen 8: brief timed transition, no question. */
+      /* Screen 7: brief timed transition, no question. */
       preparing: {
         title: "Building your plan",
         body: "We're turning what you told us into an actual plan."
       },
 
-      /* Screen 9, the paywall -- "Made for you". A short plan-facts list (one
-         row per fact, icon + label + value) plus one clearly separated price
-         at the bottom, rather than two same-sized numbers competing for
-         attention. Mostly built from state in start-app.js, not static
-         strings here. */
+      /* Screen 8, the paywall -- "Made for you". A short plan-facts list (one
+         row per fact: your goal, your coach, your format) plus one clearly
+         separated price at the bottom. The stake is left out here for now
+         (see start-app.js); re-add its planRow if it comes back. Mostly
+         built from state in start-app.js, not static strings here. */
       results: {
         eyebrow: "Made for you",
         title: "Here's your plan.",
         dailyGoalLabel: "Daily goal",
         coachLabel: "Coach",
         formatLabel: "Format",
-        stakeLabel: "Stake",
-        stakeNote: "refunded in full when you finish",
-        stakeDeferredNote: "choose at checkout",
         groupTitle: "A shared weekly cohort",
         groupSub: "Starting Monday",
         /* Shown only when paidCount > 0 -- social proof ("3 people already
@@ -271,10 +292,10 @@ window.WALKA_START = (function () {
         continueCta: "Continue to checkout"
       },
 
-      /* Screen 10 */
+      /* Screen 9 */
       checkout: {
         title: "Lock in your plan.",
-        intro: "Your membership charges today. The stake is optional, pay it now or when you join.",
+        intro: "Your membership charges today.",
         includedLabel: "What's included",
         includedItems: [
           "Your personal step goal, built from your answers",
@@ -283,14 +304,9 @@ window.WALKA_START = (function () {
           "Free tracking, history and leaderboards, always"
         ],
         membershipRowLabel: "Membership",
-        stakeRowLabel: "Stake, for your first challenge (refundable)",
-        stakeRowDeferred: "Pay later, in the app",
         nameLabel: "First name",
         emailLabel: "Email",
-        /* {stake} is replaced with the dollar amount, e.g. "$25". */
-        stakeToggleLabel: "Lock in my {stake} stake now instead",
-        stakeToggleHint: "By default you'll pay this later, when you join in the app.",
-        billingNote: "The membership is billed monthly, cancel anytime. The stake, if you lock it in now, is a one-time charge, refunded in full when you finish.",
+        billingNoteBase: "The membership is billed monthly, cancel anytime.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -298,8 +314,7 @@ window.WALKA_START = (function () {
         cardLabel: "Card details",
         paymentPlaceholder: "Complete the fields above to enter payment details.",
         paymentLoading: "Loading payment details...",
-        confirmCta: "Subscribe & lock in my stake",
-        confirmCtaNoStake: "Subscribe",
+        confirmCta: "Subscribe",
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         genericError: "Something went wrong. Please try again.",
@@ -311,11 +326,11 @@ window.WALKA_START = (function () {
       title: "You're all set.",
       subtitle: "Your plan is ready and waiting for you in the app.",
       downloadLabel: "Download the app",
-      downloadBody: "Sign up with {email} and your plan, coach and stake will already be there, no setup needed.",
+      downloadBody: "Sign up with {email} and your plan and coach will already be there, no setup needed.",
       downloadCta: "Download on the App Store",
       nextTitle: "What happens next",
       nextSteps: [
-        { title: "Check your inbox", body: "Watch for a receipt from Stripe confirming today's charges." },
+        { title: "Check your inbox", body: "Watch for a receipt from Stripe confirming today's charge." },
         { title: "Download Walka", body: "Sign up with the same email you just used, and your plan loads in automatically." },
         { title: "Start walking", body: "Your coach's first message lands within the hour." }
       ],
@@ -341,7 +356,8 @@ window.WALKA_START = (function () {
     checkoutViewed: "start_checkout_viewed",
     checkoutStarted: "start_checkout_started",
     checkoutCompleted: "start_checkout_completed",
-    checkoutFailed: "start_checkout_failed"
+    checkoutFailed: "start_checkout_failed",
+    geoBlocked: "start_geo_blocked"
   };
 
   return {
@@ -349,6 +365,7 @@ window.WALKA_START = (function () {
     FORCE_FLOW_ENABLED: FORCE_FLOW_ENABLED,
     PREVIEW_STORAGE_KEY: PREVIEW_STORAGE_KEY,
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
+    GEO_ALLOWED_COUNTRIES: GEO_ALLOWED_COUNTRIES,
     STRIPE_MODE: STRIPE_MODE,
     PLAN_PRICE_CENTS: PLAN_PRICE_CENTS,
     BILLING_INTERVAL: BILLING_INTERVAL,

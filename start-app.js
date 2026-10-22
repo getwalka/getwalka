@@ -13,8 +13,11 @@
   var EVENTS = WS.EVENTS;
   var STORAGE_KEY = "walka_start_state_v1";
   var PREPARING_DELAY_MS = 3000;
+  // "stake" is removed from this list for now (see the PAYMENTS note in
+  // start-copy.js) -- its step definition, copy, and the checkout stake
+  // toggle/charge are gone too; check git history to restore all of it.
   var STEP_IDS = [
-    "goal", "baseline", "difficulty", "coach", "mode", "stake", "contact", "preparing", "results", "checkout"
+    "goal", "baseline", "difficulty", "coach", "mode", "contact", "preparing", "results", "checkout"
   ];
 
   /* ---------------- utilities ---------------- */
@@ -39,6 +42,20 @@
     return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  }
+
+  function getCookie(name) {
+    var match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  /* Same $24.99 numeral, charged in the visitor's own currency -- not a
+     converted equivalent, two separate Stripe prices. getwalka only ever
+     serves US/CA for this funnel (geoBlocked() below), so usd/cad are the
+     only two cases; anything else (unknown country, local dev with no geo
+     cookie) falls back to usd rather than leaving checkout without a price. */
+  function checkoutCurrency(a) {
+    return a.country === "CA" ? "cad" : "usd";
   }
 
   /* supabase-js's FunctionsHttpError.message is always the generic "Edge
@@ -120,6 +137,8 @@
     var row = Object.assign({
       local_id: state.localId,
       updated_at: new Date().toISOString(),
+      country: a.country || null,
+      billing_currency: checkoutCurrency(a),
       goal: a.goal || null,
       fitness_goal: a.goal ? (WS.GOAL_TO_FITNESS_GOAL[a.goal] || null) : null,
       baseline_bucket: a.baseline_bucket || null,
@@ -127,7 +146,7 @@
       difficulty: a.difficulty || null,
       coach_style: a.coach_style || null,
       mode: a.mode || null,
-      stake_amount: a.mode === "solo" ? (a.stake_amount || null) : null,
+      stake_amount: null, // stake is off for this funnel right now; see start-copy.js's PAYMENTS note
       plan_step_goal: a.plan_step_goal || null,
       plan_duration_days: WS.PLAN_DURATION_DAYS,
       first_name: a.first_name || null,
@@ -159,6 +178,7 @@
           localId: row.local_id,
           stepIndex: idx >= 0 ? idx : 0,
           answers: {
+            country: row.country || null,
             goal: row.goal || null,
             baseline_bucket: row.baseline_bucket || null,
             difficulty: row.difficulty || null,
@@ -191,9 +211,7 @@
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML, bind(root) attach listeners, canAdvance()
      -> bool, onEnter()/onLeave() optional, skip(a) optional (bypassed
-     entirely in both directions when it returns true -- used to hide the
-     `stake` step for a group signup, since the real cohort stake isn't a
-     pick). */
+     entirely in both directions when it returns true). */
 
   var steps = {
 
@@ -309,32 +327,6 @@
       canAdvance: function (a) { return !!a.mode; }
     },
 
-    /* Solo only. A group signup's real stake is the cohort's, shown (not
-       picked) on the results screen -- see get-weekly-cohort-preview. */
-    stake: {
-      hideContinue: true,
-      skip: function (a) { return a.mode !== "solo"; },
-      render: function (a) {
-        var c = COPY.steps.stake;
-        var opts = c.options.map(function (o) {
-          return pillOption("stake_value", o.value, o.label, String(a.stake_amount) === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="answer-grid" id="stakeOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#stakeOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.stake_amount = Number(b.getAttribute("data-value"));
-            root.querySelectorAll('#stakeOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            autoAdvance();
-          });
-        });
-      },
-      canAdvance: function (a) { return a.mode !== "solo" || !!a.stake_amount; }
-    },
-
     contact: {
       render: function (a) {
         var c = COPY.steps.contact;
@@ -387,23 +379,22 @@
       }
     },
 
-    /* The "Made for you" paywall. For `group`, fetches the REAL cohort terms
-       (never the stake the visitor picked, since they didn't pick one -- the
-       `stake` step is skipped for this path). For `solo`, uses the chosen
-       stake and the illustrative plan_step_goal computed on `preparing`.
-
-       One plan-facts list (icon + label + value, same row height, same
-       alignment throughout) reads at a glance; the recurring price is the
-       only large number on the screen, so it doesn't compete with the
-       stake for attention -- the stake is just another fact in the list. */
+    /* The "Made for you" paywall. For `group`, fetches the REAL cohort terms.
+       For `solo`, uses the illustrative plan_step_goal computed on
+       `preparing`. Three plan-facts rows (goal, coach, format), same row
+       height and alignment throughout, read at a glance; the recurring
+       price is the only large number on the screen. The stake row is
+       removed from here for now (see start-copy.js's PAYMENTS note) --
+       re-add a fourth planRow("💵", ...) sourced from `stake` below (solo:
+       a.stake_amount, group: cohort.buyIn) to bring it back. */
     results: {
       flownavVariant: "tight",
       render: function (a) {
         var c = COPY.steps.results;
         var isGroup = a.mode === "group";
+        var currency = checkoutCurrency(a);
         var cohort = a.cohortPreview;
         var stepGoal = isGroup && cohort ? cohort.stepGoal : a.plan_step_goal;
-        var stake = isGroup ? (cohort ? cohort.buyIn : null) : a.stake_amount;
         var coachLabel = a.coach_style === "princess" ? "Coach Serena" : "Coach Tim";
 
         var goalValue = stepGoal
@@ -421,9 +412,6 @@
           formatSub = c.soloBody;
         }
 
-        var stakeValue = stake ? centsLabel(stake * 100) : "You choose at checkout";
-        var stakeSub = stake ? c.stakeNote : c.stakeDeferredNote;
-
         return '<div class="stagger">' +
           '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
@@ -431,11 +419,10 @@
             planRow("🎯", c.dailyGoalLabel, goalValue) +
             planRow("🧑‍🏫", c.coachLabel, coachLabel) +
             planRow(isGroup ? "👥" : "🚶", c.formatLabel, formatValue, formatSub) +
-            planRow("💵", c.stakeLabel, stakeValue, stakeSub) +
           '</div>' +
           '<div class="plan-price">' +
             '<p class="q-label" style="margin-top:0">' + c.priceLabel + '</p>' +
-            '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + '<span class="price-tag__interval">/' + WS.BILLING_INTERVAL + '</span></p>' +
+            '<p class="price-tag">' + centsLabel(WS.PLAN_PRICE_CENTS) + ' ' + currency.toUpperCase() + '<span class="price-tag__interval">/' + WS.BILLING_INTERVAL + '</span></p>' +
           '</div>' +
         '</div>';
       },
@@ -462,24 +449,13 @@
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
-        var isGroup = a.mode === "group";
-        var stake = isGroup ? (a.cohortPreview ? a.cohortPreview.buyIn : null) : a.stake_amount;
-        var stakeDollarLabel = stake ? centsLabel(stake * 100) : "";
-        // Defaults to deferred (unchecked): the row and the toggle both start
-        // in the "pay later" state, and only switch to showing the dollar
-        // amount once the visitor opts in.
+        var currency = checkoutCurrency(a);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="charge-breakdown">' +
-            '<div class="charge-breakdown__row"><span>' + c.membershipRowLabel + '</span><strong>' + centsLabel(WS.PLAN_PRICE_CENTS) + '/' + WS.BILLING_INTERVAL + '</strong></div>' +
-            '<div class="charge-breakdown__row is-deferred" id="stakeChargeRow"><span>' + c.stakeRowLabel + '</span><strong id="stakeChargeAmount">' + c.stakeRowDeferred + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + c.membershipRowLabel + '</span><strong>' + centsLabel(WS.PLAN_PRICE_CENTS) + ' ' + currency.toUpperCase() + '/' + WS.BILLING_INTERVAL + '</strong></div>' +
           '</div>' +
-          (stake ? (
-            '<label class="checkline checkline--tight"><input type="checkbox" id="stakeToggle"> ' +
-              c.stakeToggleLabel.replace("{stake}", stakeDollarLabel) + '</label>' +
-            '<p class="q-hint">' + c.stakeToggleHint + '</p>'
-          ) : '') +
-          '<p class="q-hint">' + c.billingNote + '</p>' +
+          '<p class="q-hint">' + c.billingNoteBase + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
             c.includedItems.map(function (t) { return '<li>' + t + '</li>'; }).join("") +
@@ -492,7 +468,7 @@
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           (WS.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCtaNoStake + '</button>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCta + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
@@ -500,30 +476,13 @@
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
         var paymentContainer = root.querySelector("#paymentElementContainer");
-        // Only present when a real stake exists to pick from (both group and
-        // solo always have one by the time checkout renders); still guarded
-        // below since render() only emits it when `stake` was truthy.
-        var stakeToggle = root.querySelector("#stakeToggle");
-        var stakeChargeRow = root.querySelector("#stakeChargeRow");
-        var stakeChargeAmount = root.querySelector("#stakeChargeAmount");
-        // Recomputed rather than read from the DOM: the row shows the
-        // deferred label by default now (toggle starts unchecked), so its
-        // live textContent is never a safe source for the real amount.
-        var isGroupBind = state.answers.mode === "group";
-        var stakeAmountBind = isGroupBind
-          ? (state.answers.cohortPreview ? state.answers.cohortPreview.buyIn : null)
-          : state.answers.stake_amount;
-        var stakeDollarLabel = stakeAmountBind ? centsLabel(stakeAmountBind * 100) : "$0";
 
         var stripeClient = null, elements = null;
         var initiated = false, mounted = false, alreadyActive = false;
         var debounceTimer = null;
 
-        function wantsStake() {
-          return !!(stakeToggle && stakeToggle.checked);
-        }
         function confirmLabel() {
-          return wantsStake() ? c.confirmCta : c.confirmCtaNoStake;
+          return c.confirmCta;
         }
         function fieldsValid() {
           return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
@@ -537,15 +496,6 @@
           err.hidden = false;
         }
 
-        if (stakeToggle) {
-          stakeToggle.addEventListener("change", function () {
-            var deferred = !wantsStake();
-            stakeChargeRow.classList.toggle("is-deferred", deferred);
-            stakeChargeAmount.textContent = deferred ? c.stakeRowDeferred : stakeDollarLabel;
-            pay.textContent = confirmLabel();
-          });
-        }
-
         function startInlineCheckout() {
           var pk = WS.STRIPE_PUBLISHABLE_KEY[WS.STRIPE_MODE];
           if (!window.Stripe || !pk) {
@@ -553,9 +503,10 @@
             track(EVENTS.checkoutFailed, { reason: "missing_publishable_key" });
             return;
           }
+          var currency = checkoutCurrency(state.answers);
           stripeClient = window.Stripe(pk);
           sbClient.functions.invoke("create-start-subscription-intent", {
-            body: { local_id: state.localId, email: email.value.trim(), name: name.value.trim() }
+            body: { local_id: state.localId, email: email.value.trim(), name: name.value.trim(), currency: currency }
           }).then(function (res) {
             if (res.error) throw res.error;
             var data = res.data || {};
@@ -578,7 +529,7 @@
             mounted = true;
             err.hidden = true;
             refreshButton();
-            track(EVENTS.checkoutStarted, { local_id: state.localId, mode: state.answers.mode });
+            track(EVENTS.checkoutStarted, { local_id: state.localId, mode: state.answers.mode, currency: currency });
           }).catch(function (e) {
             describeFunctionError(e).then(function (described) {
               console.warn("[start checkout] create-start-subscription-intent failed", described);
@@ -618,24 +569,10 @@
         email.addEventListener("input", function () { state.answers.email = email.value; refreshButton(); scheduleInit(); });
         agree.addEventListener("change", function () { refreshButton(); scheduleInit(); });
 
-        function chargeStake() {
-          return sbClient.functions.invoke("create-start-stake-intent", { body: { local_id: state.localId } })
-            .then(function (res) {
-              if (res.error) throw res.error;
-              var data = res.data || {};
-              if (data.error) throw new Error(data.error);
-              if (data.status === "succeeded" || data.alreadyCharged) return;
-              if (data.status === "requires_action" && data.clientSecret) {
-                return stripeClient.handleNextAction({ clientSecret: data.clientSecret }).then(function (actionResult) {
-                  if (actionResult.error) throw actionResult.error;
-                });
-              }
-              throw new Error("Stake charge did not complete (status: " + data.status + ")");
-            })
-            .catch(function (e) {
-              return describeFunctionError(e).then(function (described) { throw described; });
-            });
-        }
+        // Stake charging (create-start-stake-intent) is removed from this
+        // funnel for now -- see start-copy.js's PAYMENTS note. A prior
+        // chargeStake() helper lived here; restore it alongside the
+        // checkout UI if the stake comes back.
 
         function finishCheckout() {
           state.answers.checkout_status = "completed_unverified";
@@ -653,7 +590,6 @@
 
         pay.addEventListener("click", function () {
           if (!(mounted || alreadyActive)) return;
-          var chargeStakeNow = wantsStake();
           pay.disabled = true;
           pay.textContent = c.processingCta;
           err.hidden = true;
@@ -669,8 +605,6 @@
               });
 
           subscriptionConfirmed
-            .then(function () { return chargeStakeNow ? chargeStake() : Promise.resolve(); })
-            .then(function () { state.answers.stake_deferred = !chargeStakeNow; })
             .then(finishCheckout)
             .catch(handleCheckoutError);
         });
@@ -819,6 +753,24 @@
       '<a class="btn btn--ink" href="/">' + COPY.gate.cta + '</a>';
   }
 
+  function showGeoGate() {
+    loadingEl.hidden = true;
+    gateEl.hidden = false;
+    gateEl.innerHTML = '<h1 class="q-title">' + COPY.geoGate.title + '</h1>' +
+      '<p class="q-body">' + COPY.geoGate.body + '</p>' +
+      '<a class="btn btn--ink" href="/">' + COPY.geoGate.cta + '</a>';
+  }
+
+  /* Vercel's middleware.js sets this from its own edge geolocation on every
+     /start request. Empty if middleware didn't run (e.g. local dev without
+     `vercel dev`), in which case the gate below fails OPEN. */
+  function geoBlocked() {
+    var country = getCookie("walka_geo_country");
+    state.answers.country = country || state.answers.country || null;
+    if (!country) return false; // unknown: let through, log as unknown
+    return WS.GEO_ALLOWED_COUNTRIES.indexOf(country) === -1;
+  }
+
   function startFlow() {
     loadingEl.hidden = true;
     state.onboardingStarted = true;
@@ -835,7 +787,23 @@
   }
 
   function initGate() {
+    /* Always resolves + records state.answers.country as a side effect
+       (used for checkout currency and analytics), even in preview mode --
+       only the BLOCKING behavior below is skipped for preview, same as
+       the feature-flag gate. Without this, a QA tester using ?preview=1
+       would never see CAD pricing regardless of their real location,
+       since country would stay unset. */
+    var blocked = geoBlocked();
+
     if (previewOverrideActive()) { startFlow(); return; }
+
+    if (blocked) {
+      track(EVENTS.geoBlocked, { country: state.answers.country });
+      syncLead({ last_step: "geo_blocked" });
+      showGeoGate();
+      return;
+    }
+
     if (WS.FORCE_FLOW_ENABLED) { startFlow(); return; }
     if (!window.posthog) { showGate(); return; }
 
