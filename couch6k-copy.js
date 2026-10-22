@@ -62,7 +62,15 @@ window.WALKA_COUCH6K = (function () {
   var STAKE_CENTS = 9000;   // $90.00
   var FEE_CENTS = 2999;     // $29.99
   var TOTAL_CENTS = STAKE_CENTS + FEE_CENTS; // $119.99
-  var MISS_LOSS_CENTS_PER_DAY = 300; // $3/missed weekday, capped at the stake
+  var MISS_LOSS_CENTS_PER_DAY = 300; // $3/missed weekday, capped at the stake -- GROUP ONLY, see SOLO_LOSER_REFUND_PCT below
+  /* Solo's real mechanic, mirrored exactly from process-payouts' own
+     SOLO_LOSER_REFUND_PCT constant: binary, not prorated. Solo instances
+     run with miss_limit 0 and $90 isn't in miss_loss_options()'s supported
+     stake tiers (15/25/50/100), so a solo couch6k participant gets the
+     legacy rule -- miss even one day and 90% of the stake is forfeited to
+     Walka, 10% comes back as wallet credit. Perfect completion still
+     returns the full stake either way. */
+  var SOLO_LOSER_REFUND_PCT = 0.1;
   var PROGRAM_WEEKS = 6;
   var PROGRAM_DURATION_DAYS = 42; // 6 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
   var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 30 -- the actual scored days (weekends are free)
@@ -118,7 +126,6 @@ window.WALKA_COUCH6K = (function () {
    *    vocabulary exactly, same reasoning as start-copy.js's identical map.
    * ------------------------------------------------------------------ */
   var GOAL_TO_FITNESS_GOAL = {
-    get_moving: "start_small",
     stay_consistent: "habit",
     build_habit: "habit",
     lose_weight: "lose_weight"
@@ -150,24 +157,34 @@ window.WALKA_COUCH6K = (function () {
     nav: { back: "Save & exit" },
     resumeBanner: "Welcome back. Picking up where you left off.",
 
+    /* The landing/quiz first screen, tuned for ad traffic. title is a prop
+       (couch6k-app.js reads a ?headline= override so each ad creative can
+       swap it without a redeploy) -- this is just the default when no
+       override is present. Always "steps", never a bare "6K": that reads
+       as a running distance, not a step count. */
     introHeader: {
-      title: "From couch to 6K, in 6 weeks.",
-      body: "A few quick questions, then we'll build your plan: a daily goal that ramps up week by week, and a coach in your corner.",
+      title: "From couch to 6K steps in 6 weeks.",
+      body: "Put {stake} on the line. Hit your daily goal and keep it. Miss a day and lose {perDay}. A coach messages you every day.",
       features: [
-        { icon: "🎯", label: "A goal that ramps up" },
-        { icon: "🧑‍🏫", label: "A coach, your style" },
-        { icon: "👥", label: "Solo or group, your choice" }
+        { icon: "🎯", label: "Starts at {startSteps} steps" },
+        { icon: "💰", label: "Keep your stake when you walk" },
+        { icon: "🧑‍🏫", label: "A coach in your style" }
       ]
     },
 
+    /* Shown under the card, first step only. True today: checkout is the
+       literal last step, nothing charges before it -- if that ever
+       changes, drop the second sentence rather than let it go stale. */
+    belowCardNote: "Takes about 2 minutes. No payment until the last step.",
+
     steps: {
-      /* Screen 1 */
+      /* Screen 1. No intro line inside the card (introHeader above already
+         covers it, saying it twice read as filler) -- instead a reassurance
+         line rendered under the card, first step only: belowCardNote. */
       goal: {
-        intro: "A few quick questions to build your plan.",
         title: "What's your goal right now?",
         options: [
-          { value: "get_moving", label: "Just get moving" },
-          { value: "build_habit", label: "Build a daily walking habit." },
+          { value: "build_habit", label: "Build a daily walking habit" },
           { value: "lose_weight", label: "Lose some weight" },
           { value: "stay_consistent", label: "Finally stay consistent" }
         ]
@@ -256,8 +273,16 @@ window.WALKA_COUCH6K = (function () {
          from checkout). */
       results: {
         /* 1. Headline + subline */
-        headline: "Your {weeks}-week plan",
-        subline: "Hit your daily goal and keep your money. Miss a day and lose {perDay}.",
+        headline: "From couch to {finalK}K steps",
+        /* Solo's real mechanic is binary, not the group's prorated per-day
+           loss: solo instances run with miss_limit 0 and no per-day penalty
+           support for a $90 stake (miss_loss_options() only covers 15/25/
+           50/100), so missing even one day forfeits 90% of the stake to
+           Walka (the legacy SOLO_LOSER_REFUND_PCT rule, process-payouts),
+           not a $3/day deduction. Keep these two sublines genuinely
+           different, not a shared template with a swapped number. */
+        sublineGroup: "Hit your daily goal and keep your money. Miss a day and lose {perDay}.",
+        sublineSolo: "Hit your daily goal and keep your money. Miss just one day solo and you lose 90% of your stake to Walka, not {perDay} a day.",
 
         /* 2. Ramp chart */
         rampWeekLabel: "Week",
@@ -266,11 +291,18 @@ window.WALKA_COUCH6K = (function () {
         rampStartLabelSolo: "You start here",
         rampStartDateSolo: "The day you join",
 
-        /* 3. Money card + slider */
-        moneyFinishLine: "Finish every day and you pay only the {fee} coach fee. Your {stake} comes back.",
+        /* 3. Money card. Group gets the interactive slider (its loss is
+           genuinely prorated day by day). Solo's mechanic is binary -- see
+           the SOLO_LOSER_REFUND_PCT comment in the config section -- so it
+           gets a static two-line outcome instead of a slider that would
+           otherwise sit flat at one value for every miss count from 1 to
+           {totalDays}, which would read as broken, not intentional. */
+        moneyFinishLine: "Finish every day and the only money that stays with Walka is the {fee} program fee. Your {stake} comes back in full.",
         sliderLabel: "If I miss {misses} days",
         sliderBack: "You get back {back}.",
         sliderLose: "You lose {lose}.",
+        soloOutcomePerfect: "Finish every day: {stake} back, in full.",
+        soloOutcomeMiss: "Miss even one day: only {refund} back. {forfeit} goes to Walka, not split with anyone.",
 
         /* 4. Coach card. Sample messages are real lines already shipped in
            lib/coach.ts (one per style), not invented for this page -- see
@@ -282,7 +314,7 @@ window.WALKA_COUCH6K = (function () {
         coachCardCaption: "Included with your program fee, not an extra charge.",
 
         /* 5. Fact one-liner(s) */
-        lineGoal: "Reach your goal by 11:59 pm your time, Mon-Fri. Weekends are free.",
+        lineGoal: "Reach your goal by 11:59 pm your time, Mon-Fri. Weekends are grace days.",
 
         /* 6. "Rules in detail" accordion */
         rulesLabel: "Rules in detail",
@@ -388,6 +420,7 @@ window.WALKA_COUCH6K = (function () {
     FEE_CENTS: FEE_CENTS,
     TOTAL_CENTS: TOTAL_CENTS,
     MISS_LOSS_CENTS_PER_DAY: MISS_LOSS_CENTS_PER_DAY,
+    SOLO_LOSER_REFUND_PCT: SOLO_LOSER_REFUND_PCT,
     PROGRAM_WEEKS: PROGRAM_WEEKS,
     PROGRAM_DURATION_DAYS: PROGRAM_DURATION_DAYS,
     TRACKED_WEEKDAYS: TRACKED_WEEKDAYS,

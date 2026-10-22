@@ -268,7 +268,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, introHeaderEl;
+  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, introHeaderEl, belowCardNoteEl;
 
   /* ---------------- small render helpers ---------------- */
 
@@ -328,7 +328,6 @@
           return pillOption("goal_value", o.value, o.label, a.goal === o.value);
         }).join("");
         return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.intro + '</p>' +
           '<div class="answer-grid" id="goalOpts">' + opts + '</div>';
       },
       bind: function (root) {
@@ -540,22 +539,38 @@
 
         return '<div class="stagger">' +
 
-          /* 1. Headline + subline */
-          '<h2 class="q-title">' + templ(c.headline, { weeks: String(WS.PROGRAM_WEEKS) }) + '</h2>' +
-          '<p class="q-body">' + templ(c.subline, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
+          /* 1. Headline + subline. Solo's mechanic is genuinely different
+             (binary 90% forfeit, not a per-day loss) -- see the copy
+             comment on sublineGroup/sublineSolo, not just a swapped number. */
+          '<h2 class="q-title">' + templ(c.headline, { finalK: String(targets[targets.length - 1] / 1000) }) + '</h2>' +
+          '<p class="q-body">' + templ(isGroup ? c.sublineGroup : c.sublineSolo, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
 
           /* 2. Ramp chart */
           rampBars(targets, startLabel, startDateText) +
 
-          /* 3. Money card + slider */
+          /* 3. Money card. Group: interactive slider (genuinely prorated).
+             Solo: static binary outcome (see the copy comment on
+             soloOutcomePerfect/soloOutcomeMiss -- a slider would otherwise
+             sit flat for every miss count from 1 upward, reading as
+             broken rather than intentional). */
           '<div class="money-card">' +
             '<p class="money-card__finish">' + templ(c.moneyFinishLine, { fee: centsLabel(WS.FEE_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
-            '<p class="money-card__slider-label" id="missSliderLabel">' + templ(c.sliderLabel, { misses: "0" }) + '</p>' +
-            '<input type="range" id="missSlider" class="money-card__slider" min="0" max="' + WS.TRACKED_WEEKDAYS + '" step="1" value="0" aria-label="' + escapeAttr(c.sliderLabel.replace("{misses}", "")) + '">' +
-            '<div class="money-card__outputs">' +
-              '<p class="money-card__back" id="missSliderBack">' + templ(c.sliderBack, { back: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
-              '<p class="money-card__lose" id="missSliderLose">' + templ(c.sliderLose, { lose: centsLabelExact(0) }) + '</p>' +
-            '</div>' +
+            (isGroup ? (
+              '<p class="money-card__slider-label" id="missSliderLabel">' + templ(c.sliderLabel, { misses: "0" }) + '</p>' +
+              '<input type="range" id="missSlider" class="money-card__slider" min="0" max="' + WS.TRACKED_WEEKDAYS + '" step="1" value="0" aria-label="' + escapeAttr(c.sliderLabel.replace("{misses}", "")) + '">' +
+              '<div class="money-card__outputs">' +
+                '<p class="money-card__back" id="missSliderBack">' + templ(c.sliderBack, { back: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
+                '<p class="money-card__lose" id="missSliderLose">' + templ(c.sliderLose, { lose: centsLabelExact(0) }) + '</p>' +
+              '</div>'
+            ) : (
+              '<div class="money-card__outputs money-card__outputs--solo">' +
+                '<p class="money-card__back">' + templ(c.soloOutcomePerfect, { stake: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
+                '<p class="money-card__lose">' + templ(c.soloOutcomeMiss, {
+                  refund: centsLabelExact(Math.round(WS.STAKE_CENTS * WS.SOLO_LOSER_REFUND_PCT)),
+                  forfeit: centsLabelExact(Math.round(WS.STAKE_CENTS * (1 - WS.SOLO_LOSER_REFUND_PCT)))
+                }) + '</p>' +
+              '</div>'
+            )) +
           '</div>' +
 
           /* 4. Coach card */
@@ -831,6 +846,7 @@
     screenEl.classList.add("card--enter");
     flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
     introHeaderEl.hidden = id !== "goal";
+    belowCardNoteEl.hidden = id !== "goal";
     progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
     progressLabel.textContent = (id === "goal") ? COPY.firstStepProgressLabel : "Step " + (state.stepIndex + 1);
     backBtn.hidden = state.stepIndex === 0;
@@ -897,6 +913,16 @@
 
   function getQueryParam(name) {
     return new URLSearchParams(window.location.search).get(name);
+  }
+
+  /* Lets each ad creative swap the landing headline via ?headline=... on
+     the shared /myplan link, instead of a separate page per campaign.
+     Escaped the same way any other untrusted string on this page is
+     (escapeAttr) before it ever reaches innerHTML -- this is the one piece
+     of page content that comes from the URL, not from couch6k-copy.js. */
+  function getHeadlineOverride() {
+    var h = getQueryParam("headline");
+    return h ? escapeAttr(h) : null;
   }
 
   function previewOverrideActive() {
@@ -992,19 +1018,26 @@
     exitLink = document.getElementById("exitLink");
     flownavEl = document.querySelector(".flownav");
     introHeaderEl = document.getElementById("introHeader");
+    belowCardNoteEl = document.getElementById("belowCardNote");
 
     continueBtn.addEventListener("click", function () { goNext(); });
     backBtn.addEventListener("click", goBack);
     resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
 
+    var headlineText = getHeadlineOverride() || COPY.introHeader.title;
+    var startSteps = WS.WEEKLY_TARGETS[0].toLocaleString();
     introHeaderEl.innerHTML =
-      '<h1 class="intro-header__title">' + COPY.introHeader.title + '</h1>' +
-      '<p class="intro-header__body">' + COPY.introHeader.body + '</p>' +
+      '<h1 class="intro-header__title">' + headlineText + '</h1>' +
+      '<p class="intro-header__body">' + templ(COPY.introHeader.body, {
+        stake: centsLabel(WS.STAKE_CENTS),
+        perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY)
+      }) + '</p>' +
       '<div class="intro-header__features">' +
         COPY.introHeader.features.map(function (f) {
-          return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(f.label) + '</span>';
+          return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(templ(f.label, { startSteps: startSteps })) + '</span>';
         }).join("") +
       '</div>';
+    belowCardNoteEl.textContent = COPY.belowCardNote;
 
     maybeRehydrateFromLink().then(function () { initGate(); });
   });

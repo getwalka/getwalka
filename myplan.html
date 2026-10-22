@@ -146,6 +146,9 @@ fbq('track', 'PageView');
   .q-label{font-family:var(--display);font-weight:700;font-size:.92rem;margin:20px 0 10px}
   .q-note{background:var(--sage-tint);color:var(--sage-deep);border-radius:var(--r-inner);padding:14px 16px;font-size:.9rem;margin-top:14px}
   .q-hint{color:var(--ink-soft);font-size:.82rem;margin-top:10px}
+  /* Sits between the card and the flownav, first step only -- reassurance
+     copy ("takes about 2 minutes"), not a question or an action. */
+  .below-card-note{color:var(--ink-soft);font-size:.82rem;text-align:center;margin:10px 0 0}
   .recap{background:var(--cream);border-radius:var(--r-inner);padding:16px 18px;margin-bottom:18px}
   .recap__title{font-family:var(--display);font-weight:700;font-size:.85rem;margin-bottom:8px}
   .recap__list{list-style:none;display:flex;flex-direction:column;gap:6px}
@@ -255,6 +258,11 @@ fbq('track', 'PageView');
   .money-card__back,.money-card__lose{font-family:var(--display);font-weight:700;font-size:.9rem;margin:0}
   .money-card__back{color:#2F6B4C}
   .money-card__lose{color:var(--rose-ink)}
+  /* Solo's two lines are full sentences, not short dollar labels -- stack
+     them instead of squeezing side by side like the slider's outputs. */
+  .money-card__outputs--solo{flex-direction:column;gap:8px}
+  .money-card__outputs--solo .money-card__back,
+  .money-card__outputs--solo .money-card__lose{font-size:.86rem;line-height:1.45}
 
   /* ---------- results step: coach card ---------- */
   .coach-card{display:flex;gap:14px;align-items:flex-start;margin-bottom:6px}
@@ -392,6 +400,7 @@ fbq('track', 'PageView');
         <button type="button" class="resume-banner__dismiss" id="resumeBannerDismiss" aria-label="Dismiss">&times;</button>
       </div>
       <div class="card" id="screen"></div>
+      <p class="below-card-note" id="belowCardNote" hidden></p>
       <div class="flownav">
         <button type="button" class="link" id="backBtn" hidden>Back</button>
         <div class="flownav__right">
