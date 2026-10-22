@@ -233,23 +233,50 @@ fbq('track', 'PageView');
   .plan-summary__value{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--ink);line-height:1.3}
   .plan-summary__sub{font-size:.84rem;color:var(--ink-soft);margin-top:3px}
 
-  /* ---------- results step: real health-stat card ---------- */
+  /* ---------- results step: fixed 6-week ramp, six bars ---------- */
+  .ramp-headline{font-family:var(--display);font-weight:700;font-size:1.02rem;color:var(--ink);margin-bottom:14px}
+  .ramp-bars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;background:var(--cream);border-radius:var(--r-inner);padding:16px 12px 14px;margin-bottom:18px}
+  .ramp-bar{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .ramp-bar__track{width:100%;max-width:26px;height:64px;background:var(--cream-deep);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}
+  .ramp-bar__fill{width:100%;background:var(--sage);border-radius:6px 6px 0 0;min-height:6%}
+  .ramp-bar__value{font-family:var(--display);font-weight:700;font-size:.72rem;color:var(--ink);margin:0;line-height:1.2;text-align:center}
+  .ramp-bar__week{font-size:.66rem;color:var(--ink-soft);margin:0;text-align:center}
+
+  /* ---------- results step: merged coach/format/schedule line ---------- */
+  .plan-line{font-size:.92rem;color:var(--ink-soft);margin-bottom:18px;line-height:1.5}
+
+  /* ---------- results step: stake explanation ---------- */
+  .stake-block{background:var(--amber-tint);border-radius:var(--r-inner);padding:16px 18px;margin-bottom:18px}
+  .stake-block__headline{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-bottom:6px;line-height:1.4}
+  .stake-block__example{font-size:.84rem;color:var(--ink-soft);margin-bottom:6px;line-height:1.5}
+  .stake-block__note{font-size:.78rem;color:var(--ink-soft);margin-bottom:0;opacity:.9}
+
+  /* ---------- results step: real health-stat card (also used, compact, below the price breakdown) ---------- */
   .health-stat-card{background:var(--lavender);border-radius:var(--r-inner);padding:18px 20px;margin:4px 0 20px}
   .health-stat-card__figure{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--ink);margin-bottom:6px}
+  .health-stat-card__title{font-family:var(--display);font-weight:700;font-size:.88rem;color:var(--ink);margin-bottom:5px}
   .health-stat-card__body{font-size:.86rem;color:var(--ink-soft);margin-bottom:8px;line-height:1.5}
   .health-stat-card__citation{font-size:.74rem;color:var(--ink-soft);line-height:1.5;opacity:.85}
+  .health-stat-card--compact{padding:13px 16px;margin:0 0 4px}
+  .health-stat-card--compact .health-stat-card__title{font-size:.8rem;margin-bottom:4px}
+  .health-stat-card--compact .health-stat-card__body{font-size:.8rem;margin-bottom:6px}
+  .health-stat-card--compact .health-stat-card__citation{font-size:.7rem}
 
   .plan-price{text-align:center;background:var(--sage-tint);border-radius:var(--r-inner);padding:18px 16px 16px;margin-top:20px}
   .plan-price .q-label{margin-top:0;margin-bottom:4px;text-align:center;color:#2F6B4C}
   .plan-price .price-tag{margin:0}
   .price-tag__interval{font-size:1.05rem;font-weight:600;color:var(--ink-soft);margin-left:2px}
 
-  /* ---------- checkout step: charge breakdown ---------- */
+  /* ---------- checkout + results: charge breakdown ---------- */
   .charge-breakdown{background:var(--cream);border-radius:var(--r-inner);padding:4px 18px;margin:16px 0}
   .charge-breakdown__row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:.95rem}
   .charge-breakdown__row:last-child{border-bottom:none}
   .charge-breakdown__row span{color:var(--ink-soft)}
   .charge-breakdown__row strong{font-family:var(--display);color:var(--ink)}
+  /* The "Due today" row reads as the one number that matters: larger and
+     bolder than the Stake/Coach fee rows above it. */
+  .charge-breakdown__row--total span{color:var(--ink);font-weight:700}
+  .charge-breakdown__row--total strong{font-size:1.25rem}
 
   .price-tag{
     font-family:var(--display);font-weight:700;font-size:2.2rem;letter-spacing:-.01em;
@@ -290,9 +317,20 @@ fbq('track', 'PageView');
   .footer a:hover{color:var(--cream)}
 
   @media (max-width:480px){
-    .card{padding:26px 20px}
+    main{padding:40px 16px calc(40px + env(safe-area-inset-bottom, 0px))}
+    .card{padding:24px 16px}
     .q-title{font-size:1.35rem}
     .answer-card{font-size:.88rem;padding:.65rem .85rem}
+    .ramp-bars{padding:14px 8px 12px;gap:5px}
+    .ramp-bar__track{max-width:20px}
+    /* The paywall's Continue/pay button is the one action that matters on
+       a small screen -- full width, and the Back link moves below it
+       rather than squeezing both into one row. Applies to every step's
+       flownav for consistency, not just results. */
+    .flownav{flex-direction:column-reverse;align-items:stretch;gap:12px}
+    .flownav__right{width:100%}
+    #continueBtn{width:100%}
+    #backBtn{align-self:center}
   }
 </style>
 </head>

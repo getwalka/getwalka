@@ -80,39 +80,38 @@
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  /* ---------------- ramp preview (marketing display only, never stored) ---------------- *
-   * Pure function of baseline_bucket. Mirrors nothing in lib/ on purpose --
-   * confirmed with the user that the real tracked goal lives on the
-   * manually-created challenge row, and this ramp is illustrative only. */
-
-  var RAMP_START_GOAL = {
-    under_2k: 3000,
-    two_to_three: 3200,
-    three_to_five: 3500,
-    five_to_seven: 4000
-  };
-  var RAMP_END_GOAL = 6000;
-
-  function computeRampPreview(baselineBucket) {
-    var startGoal = RAMP_START_GOAL[baselineBucket] || 3500;
-    var weeks = WS.PROGRAM_WEEKS;
-    var out = [];
-    for (var i = 0; i < weeks; i++) {
-      out.push(Math.round(startGoal + (RAMP_END_GOAL - startGoal) * (i / (weeks - 1))));
-    }
-    return out;
+  /* Always two decimals -- for the itemized price-breakdown rows only,
+     where "$90.00" reads as a real line item next to "$29.99"/"$119.99"
+     rather than the looser "$90" prose elsewhere on the page. */
+  function centsLabelExact(cents) {
+    return "$" + (cents / 100).toFixed(2);
   }
 
-  /* One row of the results step's plan-facts list: icon, label, value, and
-     an optional smaller sub-line. */
-  function planRow(icon, label, value, sub) {
-    return '<div class="plan-summary__row">' +
-      '<span class="plan-summary__icon" aria-hidden="true">' + icon + '</span>' +
-      '<div class="plan-summary__text">' +
-        '<p class="plan-summary__label">' + escapeAttr(label) + '</p>' +
-        '<p class="plan-summary__value">' + escapeAttr(value) + '</p>' +
-        (sub ? '<p class="plan-summary__sub">' + escapeAttr(sub) + '</p>' : '') +
-      '</div>' +
+  /* ---------------- plan-facts rendering (paywall + checkout) ---------------- *
+   * The weekly ramp is ONE fixed schedule for every user (WS.WEEKLY_TARGETS),
+   * never computed from onboarding answers -- the baseline-steps question is
+   * analytics only (see syncLead below) and must never feed this. */
+
+  function templ(str, map) {
+    return Object.keys(map).reduce(function (s, key) {
+      return s.replace("{" + key + "}", map[key]);
+    }, str);
+  }
+
+  /* Six bars/dots, one per WS.WEEKLY_TARGETS entry, height scaled between
+     the schedule's own min/max so the ramp reads at a glance. */
+  function rampBars(targets) {
+    var min = Math.min.apply(null, targets);
+    var max = Math.max.apply(null, targets);
+    return '<div class="ramp-bars">' +
+      targets.map(function (steps, i) {
+        var pct = max === min ? 100 : Math.round(10 + 90 * ((steps - min) / (max - min)));
+        return '<div class="ramp-bar">' +
+          '<div class="ramp-bar__track"><div class="ramp-bar__fill" style="height:' + pct + '%"></div></div>' +
+          '<p class="ramp-bar__value">' + steps.toLocaleString() + '</p>' +
+          '<p class="ramp-bar__week">' + COPY.steps.results.rampWeekLabel + ' ' + (i + 1) + '</p>' +
+        '</div>';
+      }).join("") +
     '</div>';
   }
 
@@ -438,51 +437,73 @@
       bind: function () {},
       canAdvance: function () { return true; },
       onEnter: function (a) {
-        a.ramp_preview = computeRampPreview(a.baseline_bucket);
         clearTimeout(pendingAdvanceTimer);
         pendingAdvanceTimer = setTimeout(function () { goNext(); }, PREPARING_DELAY_MS);
       }
     },
 
-    /* The "Made for you" paywall. Goal/coach/format rows, then schedule and
-       stake facts, then one real health-stat card, then the one-time total
-       due today. No "N already joined" line -- there's no real joinable
-       cohort to source that from for a manually-created one-off. */
+    /* The paywall. Screen order: header, fixed ramp, coach/format/schedule
+       line, stake explanation, price breakdown, health card, button. No
+       "made for you" framing and no per-user ramp math: WS.WEEKLY_TARGETS
+       is the one schedule every user gets, independent of onboarding
+       answers. "N already joined" is left out entirely -- there's no real
+       data source for a manually-created one-off cohort (wiring a real
+       count would mean a get-weekly-cohort-preview-style Edge Function
+       call scoped to this cohort's actual challenge row, which doesn't
+       exist yet; flagged here rather than faked). */
     results: {
       flownavVariant: "tight",
       render: function (a) {
         var c = COPY.steps.results;
         var isGroup = a.mode === "group";
-        var ramp = a.ramp_preview || computeRampPreview(a.baseline_bucket);
-        var goalValue = ramp[0].toLocaleString() + " to " + ramp[ramp.length - 1].toLocaleString() + " steps/day over " + WS.PROGRAM_WEEKS + " weeks";
-        var coachLabel = a.coach_style === "princess" ? "Coach Serena" : "Coach Tim";
-        var formatValue = isGroup ? c.groupTitle : c.soloTitle;
-        var formatSub = isGroup ? c.groupSub : c.soloBody;
+        var targets = WS.WEEKLY_TARGETS;
+        var coachLabel = (a.coach_style === "princess" ? "Serena" : "Tim");
+        var exampleBackCents = WS.STAKE_CENTS - (WS.EXAMPLE_MISSED_DAYS * WS.MISS_LOSS_CENTS_PER_DAY);
+
+        var planLine = c.coachPrefix + " " + coachLabel + " · " +
+          (isGroup
+            ? c.groupFormatLabel + ", " + templ(c.groupStartsLabel, { startDate: WS.COHORT_START_DATE_LABEL })
+            : c.soloFormatLabel) +
+          " · " + c.scheduleLine;
 
         return '<div class="stagger">' +
-          '<p class="eyebrow">' + c.eyebrow + '</p>' +
           '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="plan-summary">' +
-            planRow("🎯", c.dailyGoalLabel, goalValue) +
-            planRow("🧑‍🏫", c.coachLabel, coachLabel) +
-            planRow(isGroup ? "👥" : "🚶", c.formatLabel, formatValue, formatSub) +
-            planRow("📅", c.scheduleLabel, c.scheduleValue) +
-            planRow("💵", c.stakeLabel, c.stakeValue) +
+
+          '<p class="ramp-headline">' + templ(c.rampHeadline, { finalTarget: targets[targets.length - 1].toLocaleString() }) + '</p>' +
+          rampBars(targets) +
+
+          '<p class="plan-line">' + planLine + '</p>' +
+
+          '<div class="stake-block">' +
+            '<p class="stake-block__headline">' + templ(c.stakeHeadline, {
+              stake: centsLabel(WS.STAKE_CENTS),
+              perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY)
+            }) + '</p>' +
+            '<p class="stake-block__example">' + templ(c.stakeExample, {
+              totalDays: WS.TRACKED_WEEKDAYS,
+              stake: centsLabel(WS.STAKE_CENTS),
+              exampleDays: WS.EXAMPLE_MISSED_DAYS,
+              exampleBack: centsLabel(exampleBackCents)
+            }) + '</p>' +
+            '<p class="stake-block__note">' + (isGroup ? c.stakeNoteGroup : c.stakeNoteSolo) + '</p>' +
           '</div>' +
-          '<div class="health-stat-card">' +
-            '<p class="health-stat-card__figure">' + c.healthStatFigure + '</p>' +
+
+          '<div class="charge-breakdown">' +
+            '<div class="charge-breakdown__row"><span>' + c.stakeRowLabel + '</span><strong>' + centsLabelExact(WS.STAKE_CENTS) + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabelExact(WS.FEE_CENTS) + '</strong></div>' +
+            '<div class="charge-breakdown__row charge-breakdown__row--total"><span>' + c.totalRowLabel + '</span><strong>' + centsLabelExact(WS.TOTAL_CENTS) + '</strong></div>' +
+          '</div>' +
+
+          '<div class="health-stat-card health-stat-card--compact">' +
+            '<p class="health-stat-card__title">' + c.healthStatTitle + '</p>' +
             '<p class="health-stat-card__body">' + c.healthStatBody + '</p>' +
             '<p class="health-stat-card__citation">' + c.healthStatCitation + '</p>' +
-          '</div>' +
-          '<div class="plan-price">' +
-            '<p class="q-label" style="margin-top:0">' + c.totalLabel + '</p>' +
-            '<p class="price-tag">' + centsLabel(WS.TOTAL_CENTS) + '</p>' +
           '</div>' +
         '</div>';
       },
       bind: function () {},
       canAdvance: function () { return true; },
-      continueLabel: function () { return COPY.steps.results.continueCta; },
+      continueLabel: function () { return templ(COPY.steps.results.continueCta, { total: centsLabel(WS.TOTAL_CENTS) }); },
       onEnter: function (a) {
         track(EVENTS.resultsViewed, { local_id: state.localId });
         syncLead();
@@ -497,9 +518,9 @@
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="charge-breakdown">' +
             '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabel(WS.FEE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
-            '<div class="charge-breakdown__row"><span>' + c.stakeRowLabel + '</span><strong>' + centsLabel(WS.STAKE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + templ(c.stakeRowLabel, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</span><strong>' + centsLabel(WS.STAKE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
           '</div>' +
-          '<p class="q-hint">' + c.billingNoteBase + '</p>' +
+          '<p class="q-hint">' + templ(c.billingNoteBase, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
             c.includedItems.map(function (t) { return '<li>' + t + '</li>'; }).join("") +
@@ -511,7 +532,7 @@
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           (WS.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCta + '</button>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + templ(c.confirmCta, { total: centsLabel(WS.TOTAL_CENTS) }) + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
@@ -523,13 +544,14 @@
         var stripeClient = null, elements = null;
         var initiated = false, mounted = false, alreadyActive = false;
         var debounceTimer = null;
+        var confirmCtaText = templ(c.confirmCta, { total: centsLabel(WS.TOTAL_CENTS) });
 
         function fieldsValid() {
           return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
         }
         function refreshButton() {
           pay.disabled = !((mounted || alreadyActive) && fieldsValid());
-          if (!pay.disabled || pay.textContent !== c.processingCta) pay.textContent = c.confirmCta;
+          if (!pay.disabled || pay.textContent !== c.processingCta) pay.textContent = confirmCtaText;
         }
         function showError(msg) {
           err.textContent = msg;
@@ -618,7 +640,7 @@
 
         function handleCheckoutError(e) {
           showError((e && e.message) || c.genericError);
-          pay.textContent = c.confirmCta;
+          pay.textContent = confirmCtaText;
           refreshButton();
           track(EVENTS.checkoutFailed, { reason: "confirm_error" });
         }

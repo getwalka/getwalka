@@ -65,6 +65,29 @@ window.WALKA_COUCH6K = (function () {
   var MISS_LOSS_CENTS_PER_DAY = 300; // $3/missed weekday, capped at the stake
   var PROGRAM_WEEKS = 6;
   var PROGRAM_DURATION_DAYS = 42; // 6 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
+  var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 30 -- the actual scored days (weekends are free)
+  var EXAMPLE_MISSED_DAYS = 5; // just for the illustrative "miss N days" example on the paywall
+
+  /* THE single source of truth for the weekly step-goal ramp. Fixed for
+     every user, independent of onboarding answers -- the average-steps
+     question is analytics only (see couch6k-app.js's syncLead) and must
+     never feed this array. Used by the paywall's ramp display and
+     checkout's copy; there is nowhere else in THIS funnel that needs it.
+     FLAG: the real in-app challenge (the manually-created row + its
+     step_goal) can only hold ONE flat goal -- the app's challenge schema
+     has no per-week goal field (confirmed when this funnel was built; see
+     the implementation plan's "per-week ramp storage" non-goal). Wiring
+     this exact ramp into real day-by-day in-app enforcement is a backend
+     change this file deliberately does NOT make -- flag for the operator:
+     either pick one representative flat step_goal for the manually-created
+     challenge row, or scope a real backend change later. */
+  var WEEKLY_TARGETS = [2000, 3000, 4000, 5000, 6000, 6000];
+
+  /* Manually curated to match whatever the operator actually sets as the
+     real manually-created challenge's start_date (see the implementation
+     plan -- this funnel has no live cohort-preview API to read a real date
+     from). Keep this in step by hand when the real start date is set. */
+  var COHORT_START_DATE_LABEL = "Mon, Oct 26";
 
   /* Publishable keys are not secret, safe to ship in client code. Same
      Stripe account as /start and /moms -- shared project, one key per mode. */
@@ -219,28 +242,48 @@ window.WALKA_COUCH6K = (function () {
         body: "We're turning what you told us into a 6-week ramp."
       },
 
-      /* Screen 8, the paywall -- "Made for you". Goal/coach/format rows plus
-         schedule and stake facts, then one real health stat, then the
-         total due today. */
+      /* Screen 8, the paywall. No "made for you" framing: the ramp below is
+         fixed for everyone, not personalized from onboarding answers (the
+         baseline-steps question is analytics only). Order on screen:
+         header, ramp, coach/format/schedule line, stake explanation, price
+         breakdown, health card, button. {placeholders} are filled in by
+         couch6k-app.js from WS's config constants, never hardcoded twice. */
       results: {
-        eyebrow: "Made for you",
-        title: "Here's your plan.",
-        dailyGoalLabel: "Week-by-week goal",
-        coachLabel: "Coach",
-        formatLabel: "Format",
-        scheduleLabel: "Schedule",
-        scheduleValue: "Mon-Fri tracked, weekends free",
-        stakeLabel: "Stake",
-        stakeValue: "$90, refundable minus $3 per missed weekday",
-        groupTitle: "A shared 6-week cohort",
-        groupSub: "Starting together",
-        soloTitle: "Your own private challenge",
-        soloBody: "Just you, your pace, same 6 weeks.",
-        healthStatFigure: "~3,550 vs ~5,800 steps/day",
-        healthStatBody: "People averaging about 3,550 steps a day had roughly 40% higher all-cause mortality than people averaging about 5,800 (hazard ratio 0.60, lowest vs second step-count quartile).",
-        healthStatCitation: "Paluch AE et al., Lancet Public Health, 2022. Meta-analysis of 15 cohorts, about 47,000 adults. Association, not causation: this doesn't prove walking more causes lower mortality, only that the two are correlated.",
-        totalLabel: "Due today",
-        continueCta: "Continue to checkout"
+        title: "Here's your 6-week plan.",
+
+        rampHeadline: "Add 1,000 steps a week until you reach {finalTarget}.",
+        rampWeekLabel: "Week",
+
+        coachPrefix: "Coach",
+        groupFormatLabel: "Shared 6-week cohort",
+        groupStartsLabel: "starts {startDate}",
+        soloFormatLabel: "Solo challenge",
+        scheduleLine: "Mon-Fri tracked, weekends free",
+        /* Only rendered when a real paidCount is wired in -- there is no
+           live data source for this manually-created test cohort today
+           (see couch6k-app.js's results step comment). */
+        joinedLabel: "already joined",
+
+        stakeHeadline: "{stake} stake. Lose {perDay} for each missed weekday. The rest comes back to you.",
+        stakeExample: "Finish all {totalDays} days: {stake} back. Miss {exampleDays} days: {exampleBack} back.",
+        stakeNoteGroup: "Missed-day money goes to group members who finished.",
+        stakeNoteSolo: "Missed-day money goes to Walka.",
+
+        stakeRowLabel: "Stake (refundable)",
+        feeRowLabel: "Coach fee (non-refundable)",
+        totalRowLabel: "Due today",
+
+        healthStatTitle: "Why 6,000 steps?",
+        /* FIXED copy: the previous wording said "40% higher mortality" for
+           the lower-step group, which misreads the hazard ratio (0.60 is
+           the HIGHER-step group's hazard relative to the lower one, i.e.
+           that group's risk is 40% LOWER, not the other way round). */
+        healthStatBody: "In a meta-analysis of 15 studies, people averaging about 5,800 steps a day had roughly 40% lower risk of death from any cause than people averaging about 3,550.",
+        healthStatCitation: "Paluch et al., Lancet Public Health, 2022. Association, not causation: this doesn't prove walking more causes lower mortality.",
+
+        /* {total} is filled from WS.TOTAL_CENTS, same source the price
+           breakdown rows use, so the button can never diverge from them. */
+        continueCta: "Lock in my plan · {total}"
       },
 
       /* Screen 9 */
@@ -255,10 +298,10 @@ window.WALKA_COUCH6K = (function () {
           "Free tracking, history and leaderboards, always"
         ],
         feeRowLabel: "Program fee (non-refundable)",
-        stakeRowLabel: "Stake (refundable, minus $3/missed weekday)",
+        stakeRowLabel: "Stake (refundable, minus {perDay}/missed weekday)",
         nameLabel: "First name",
         emailLabel: "Email",
-        billingNoteBase: "Charged once today, no subscription. The stake is refunded in full if you finish, minus $3 for every weekday you miss.",
+        billingNoteBase: "Charged once today, no subscription. The stake is refunded in full if you finish, minus {perDay} for every weekday you miss.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -266,7 +309,7 @@ window.WALKA_COUCH6K = (function () {
         cardLabel: "Card details",
         paymentPlaceholder: "Complete the fields above to enter payment details.",
         paymentLoading: "Loading payment details...",
-        confirmCta: "Pay $119.99 and start",
+        confirmCta: "Pay {total} and start",
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         genericError: "Something went wrong. Please try again.",
@@ -326,6 +369,10 @@ window.WALKA_COUCH6K = (function () {
     MISS_LOSS_CENTS_PER_DAY: MISS_LOSS_CENTS_PER_DAY,
     PROGRAM_WEEKS: PROGRAM_WEEKS,
     PROGRAM_DURATION_DAYS: PROGRAM_DURATION_DAYS,
+    TRACKED_WEEKDAYS: TRACKED_WEEKDAYS,
+    EXAMPLE_MISSED_DAYS: EXAMPLE_MISSED_DAYS,
+    WEEKLY_TARGETS: WEEKLY_TARGETS,
+    COHORT_START_DATE_LABEL: COHORT_START_DATE_LABEL,
     STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
