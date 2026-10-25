@@ -247,10 +247,22 @@
       exampleSteps: h.exampleSteps.toLocaleString(),
       remaining: remaining.toLocaleString()
     });
-    var headlineHtml = escapeAttr(templ(h.headline, vars));
-    var highlight = escapeAttr(h.headlineHighlight);
-    if (headlineHtml.indexOf(highlight) !== -1) {
-      headlineHtml = headlineHtml.replace(highlight, '<mark class="hl-mark">' + highlight + '</mark>');
+    /* Force the highlighted phrase onto its own line with an explicit
+       <br> rather than leaving it to wrap naturally: left to itself, the
+       highlight's last word or two lands on the line above (next to
+       plain text) and the rest alone below, so box-decoration-break:clone
+       paints two uneven background fragments stacked close together --
+       which reads as the highlight overlapping the line above it, not
+       as one clean highlighted line like the mockup. */
+    var headlineRaw = templ(h.headline, vars);
+    var highlightIndex = headlineRaw.indexOf(h.headlineHighlight);
+    var headlineHtml;
+    if (highlightIndex !== -1) {
+      var before = escapeAttr(headlineRaw.slice(0, highlightIndex).trim());
+      var highlight = escapeAttr(headlineRaw.slice(highlightIndex));
+      headlineHtml = before + '<br>' + '<mark class="hl-mark">' + highlight + '</mark>';
+    } else {
+      headlineHtml = escapeAttr(headlineRaw);
     }
 
     return '<section class="sec sec--hero">' +
