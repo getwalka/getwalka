@@ -266,7 +266,6 @@
             '<p class="lede">' + h.body + '</p>' +
             '<div class="hero__cta-row">' +
               '<button type="button" class="btn btn--ink js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
-              '<p class="price-line">' + templ(h.priceLine, vars) + '</p>' +
             '</div>' +
           '</div>' +
           '<div class="example-card">' +

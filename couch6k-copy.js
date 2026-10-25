@@ -152,7 +152,6 @@ window.WALKA_COUCH6K = (function () {
           headlineHighlight: "buy-in back.",
           body: "Join a cohort, put in your buy-in at checkout, and pick the coach who gets you out the door. Saturday and Sunday are grace days.",
           ctaLabel: "Join the {month} challenge",
-          priceLine: "{fee} entry fee · {stake} buy-in",
           exampleEyebrow: "AN EXAMPLE MONDAY, 6:45 PM",
           exampleSteps: 8412,
           examplePrincessLabel: "PRINCESS TREATMENT",
