@@ -22,7 +22,12 @@
   var WS = window.WALKA_COUCH6K;
   var COPY = WS.COPY;
   var EVENTS = WS.EVENTS;
-  var STORAGE_KEY = "walka_couch6k_state_v1";
+  /* v2: the step schema changed (9-step quiz -> home+checkout -> this
+     landing-page redesign). Bumped so a phone that tested an earlier
+     version doesn't load a stepIndex that no longer maps to a real step
+     -- see the loadState() bounds check below for why that used to crash
+     straight past the homepage into a stuck "Welcome back" banner. */
+  var STORAGE_KEY = "walka_couch6k_state_v2";
   var STEP_IDS = ["home", "checkout"];
 
   /* ---------------- utilities ---------------- */
@@ -159,7 +164,12 @@
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && parsed.localId) return parsed;
+        // A stepIndex that no longer maps to a real step (left over from a
+        // step schema this funnel no longer has) must never be trusted --
+        // it would otherwise make renderStep() call .render() on
+        // undefined and crash before the page ever paints, visible only
+        // as a stuck resume banner over a blank screen.
+        if (parsed && parsed.localId && parsed.stepIndex >= 0 && parsed.stepIndex < STEP_IDS.length) return parsed;
       }
     } catch (e) { /* ignore corrupt storage */ }
     return { localId: uuidv4(), stepIndex: 0, answers: {}, startedAt: Date.now(), isResumed: false };
