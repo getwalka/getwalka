@@ -1,20 +1,20 @@
 /* ==========================================================================
-   Walka Couch to 6K: paid 6-week test-cohort funnel, ENGINE
+   Walka "November challenge" funnel, ENGINE
    Two-screen flow (home -> checkout), gate, resume-from-localStorage,
    analytics events, Supabase sync, one-time combined-charge Stripe
    checkout. All copy/config lives in couch6k-copy.js. Structure mirrors
    start-app.js; see that file's comments for the parts that are identical
-   (uuid/state/sync/gate plumbing). Deviations from start-app.js are called
-   out inline where they happen: the homepage's inline coach/mode toggles
-   (not a quiz step -- just pills on the one screen, pre-selected so
-   nothing is a forced choice), the always-tagged-with-mode track()
-   wrapper, and the one-time combined-PaymentIntent checkout (no
-   subscription, no deferred/optional stake).
+   (uuid/state/sync/gate plumbing).
 
-   Was previously a 9-step onboarding quiz (goal, baseline, waitlist,
-   coach, mode, contact, preparing, results, checkout). Flattened to one
-   homepage that summarizes the offer and leads straight into checkout --
-   see couch6k-copy.js's header comment for what that drops.
+   The homepage is a full marketing-style landing page (hero, your-week
+   grid, coach preview, how-it-works, community preview, pricing, final
+   CTA), not a quiz card -- it renders its own full-bleed sections and
+   escapes the narrow centered "shell" that checkout still uses (see
+   body.is-home in myplan.html's CSS). The coach toggle on the homepage is
+   a non-binding preview only: clicking it swaps the sample-message panel
+   in place (no full re-render, so scroll position never jumps) but never
+   writes to state.answers or Supabase -- coach is chosen in the app,
+   after purchase.
    ========================================================================== */
 (function () {
   "use strict";
@@ -37,14 +37,10 @@
     return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-" + hex.slice(12, 16) + "-" + hex.slice(16, 20) + "-" + hex.slice(20);
   }
 
-  /* Always merges `mode` into every event's props, from whatever state.answers
-     holds at call time -- a structural fix rather than auditing each call
-     site, since start-app.js's own track() is inconsistent about which
-     calls include mode (CLAUDE.md flag item 4). */
   function track(event, props) {
     try {
       if (window.posthog && window.posthog.capture) {
-        posthog.capture(event, Object.assign({ mode: (state.answers && state.answers.mode) || null }, props || {}));
+        posthog.capture(event, props || {});
       }
     } catch (e) { /* analytics should never break the flow */ }
   }
@@ -83,79 +79,56 @@
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
-  /* Always two decimals -- for the itemized price-breakdown rows only,
-     where "$90.00" reads as a real line item next to "$29.99"/"$119.99"
-     rather than the looser "$90" prose elsewhere on the page. */
+  /* Always two decimals -- for itemized price rows/stat cards, where
+     "$20.00" reads as a real line item next to "$19.99"/"$39.99" rather
+     than the looser "$20" prose elsewhere on the page. */
   function centsLabelExact(cents) {
     return "$" + (cents / 100).toFixed(2);
   }
 
-  /* ---------------- plan-facts rendering (homepage + checkout) ---------------- *
-   * The weekly ramp is ONE fixed schedule for every user (WS.WEEKLY_TARGETS),
-   * never personalized. */
-
   function templ(str, map) {
     return Object.keys(map).reduce(function (s, key) {
-      return s.replace("{" + key + "}", map[key]);
+      return s.split("{" + key + "}").join(map[key]);
     }, str);
   }
 
-  /* Six bars, one per WS.WEEKLY_TARGETS entry, height scaled between the
-     schedule's own min/max so the ramp reads at a glance. Week 1 carries a
-     distinct "you start here" label + the real start date (group) or "the
-     day you join" (solo) instead of a plain week number. Bars fill in on
-     load via CSS animation (--fill custom property, staggered --i delay);
-     @media (prefers-reduced-motion:reduce) in myplan.html shows the final
-     height immediately instead. */
-  function rampBars(targets, startLabel, startDateText) {
-    var min = Math.min.apply(null, targets);
-    var max = Math.max.apply(null, targets);
-    return '<div class="ramp-bars">' +
-      targets.map(function (steps, i) {
-        var pct = max === min ? 100 : Math.round(10 + 90 * ((steps - min) / (max - min)));
-        var weekLine = i === 0
-          ? '<p class="ramp-bar__week ramp-bar__week--start">' + escapeAttr(startLabel) + '</p><p class="ramp-bar__date">' + escapeAttr(startDateText) + '</p>'
-          : '<p class="ramp-bar__week">' + COPY.steps.home.rampWeekLabel + ' ' + (i + 1) + '</p>';
-        return '<div class="ramp-bar">' +
-          '<div class="ramp-bar__track"><div class="ramp-bar__fill" style="--fill:' + pct + '%;--i:' + i + '"></div></div>' +
-          '<p class="ramp-bar__value">' + steps.toLocaleString() + '</p>' +
-          weekLine +
-        '</div>';
-      }).join("") +
-    '</div>';
-  }
+  /* ---------------- cohort date formatting: ONE source, WS.COHORT_START_DATE_ISO ---------------- */
 
-  /* ---------------- cohort dates: ONE source, WS.COHORT_START_DATE_ISO ---------------- */
-
-  var DATE_FORMAT_OPTS = { weekday: "short", month: "short", day: "numeric" };
-
-  function formatDateLabel(date) {
-    return date.toLocaleDateString("en-US", DATE_FORMAT_OPTS);
-  }
+  var SHORT_DATE_OPTS = { weekday: "short", month: "short", day: "numeric" };
+  var LONG_DATE_OPTS = { weekday: "long", month: "long", day: "numeric" };
+  var MONTH_OPTS = { month: "long" };
+  var NUMBER_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 
   function cohortDates() {
     var start = new Date(WS.COHORT_START_DATE_ISO + "T00:00:00");
-    return { startLabel: formatDateLabel(start) };
+    return {
+      shortLabel: start.toLocaleDateString("en-US", SHORT_DATE_OPTS).toUpperCase(), // "MON, NOV 2"
+      longLabel: start.toLocaleDateString("en-US", LONG_DATE_OPTS), // "Monday, November 2"
+      month: start.toLocaleDateString("en-US", MONTH_OPTS) // "November"
+    };
   }
 
-  /* ---------------- coach card: real, already-shipped sample lines ---------------- *
-   * Pulled from lib/coach.ts's own MESSAGES pool (one representative line
-   * per style) rather than invented for this page, so the preview matches
-   * what actually gets sent. */
-  var COACH_META = {
-    princess: {
-      name: "Coach Serena",
-      descriptor: "Warm and encouraging",
-      emoji: "👑",
-      sample: "Look at you go, over halfway there! 💪"
-    },
-    tough: {
-      name: "Coach Tim",
-      descriptor: "Blunt, no excuses",
-      emoji: "🔥",
-      sample: "Halfway. Don’t you dare quit now."
-    }
-  };
+  /* Every placeholder the homepage's copy templates reference, derived
+     straight from WS's config constants so the page can never show a
+     number that disagrees with what checkout actually charges. */
+  function commonVars() {
+    var dates = cohortDates();
+    return {
+      weeks: String(WS.PROGRAM_WEEKS), // numeral, for the compact hero badge only
+      weeksWord: NUMBER_WORDS[WS.PROGRAM_WEEKS] || String(WS.PROGRAM_WEEKS), // spelled out, sentence-initial ("Four weeks is...")
+      weeksWordLower: (NUMBER_WORDS[WS.PROGRAM_WEEKS] || String(WS.PROGRAM_WEEKS)).toLowerCase(), // spelled out, mid-sentence ("...for four weeks.")
+      goal: WS.DAILY_GOAL_STEPS.toLocaleString(),
+      fee: centsLabel(WS.FEE_CENTS),
+      stake: centsLabel(WS.STAKE_CENTS),
+      total: centsLabelExact(WS.TOTAL_CENTS),
+      perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY),
+      trackedWeekdays: String(WS.TRACKED_WEEKDAYS),
+      month: dates.month,
+      monthUpper: dates.month.toUpperCase(),
+      startDateShort: dates.shortLabel,
+      startDateLong: dates.longLabel
+    };
+  }
 
   /* ---------------- accordion: independent, multi-item expand/collapse ---------------- */
   function accordionItem(id, title, body) {
@@ -211,8 +184,6 @@
       updated_at: new Date().toISOString(),
       country: a.country || null,
       billing_currency: checkoutCurrency(a),
-      coach_style: a.coach_style || null,
-      mode: a.mode || null,
       first_name: a.first_name || null,
       email: a.email || null,
       last_step: STEP_IDS[state.stepIndex] || null,
@@ -240,8 +211,6 @@
           stepIndex: idx >= 0 ? idx : 0,
           answers: {
             country: row.country || null,
-            coach_style: row.coach_style || null,
-            mode: row.mode || null,
             first_name: row.first_name || null,
             email: row.email || null,
             checkout_status: row.checkout_status || "not_started"
@@ -261,244 +230,327 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, introHeaderEl;
+  var screenEl, continueBtn, backBtn, skipBtn, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, navEl, footerEl;
 
-  /* ---------------- small render helpers ---------------- */
+  /* ====================================================================
+     HOME step: section renderers. One function per section on the page,
+     top to bottom, each taking the home copy block and the shared
+     template vars from commonVars(). Keeping these as separate functions
+     (rather than one giant template literal) is what makes each section
+     independently readable/editable.
+     ==================================================================== */
 
-  function pillOptionWithSub(name, value, label, sub, active) {
-    return '<button type="button" class="answer-card' + (active ? " is-active" : "") +
-      '" data-value="' + value + '" data-name="' + name + '">' +
-      '<span class="answer-card__label">' + label + (sub ? ('<br><span style="font-weight:400;color:var(--ink-soft);font-size:.82em">' + escapeAttr(sub) + '</span>') : '') + '</span>' +
-      '<span class="answer-card__indicator" aria-hidden="true"></span>' +
-      '</button>';
-  }
-
-  /* Tap-to-expand disclosure. Plain click/aria-expanded toggle -- no
-     :hover dependency anywhere, this funnel is mobile-first. IDs are
-     plain (not step-prefixed) since only one step's DOM exists at a time. */
-  function disclosureMarkup(label, body) {
-    return '<button type="button" class="disclosure-toggle" id="pageDisclosureToggle" aria-expanded="false">' +
-        escapeAttr(label) +
-      '</button>' +
-      '<div class="disclosure-body" id="pageDisclosureBody" hidden>' + body + '</div>';
-  }
-  function bindDisclosure(root) {
-    var btn = root.querySelector("#pageDisclosureToggle");
-    var body = root.querySelector("#pageDisclosureBody");
-    if (!btn || !body) return;
-    btn.addEventListener("click", function () {
-      var open = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", String(!open));
-      body.hidden = open;
+  function renderHero(c, vars) {
+    var h = c.hero;
+    var remaining = WS.DAILY_GOAL_STEPS - h.exampleSteps;
+    var exampleVars = Object.assign({}, vars, {
+      exampleSteps: h.exampleSteps.toLocaleString(),
+      remaining: remaining.toLocaleString()
     });
+    var headlineHtml = escapeAttr(templ(h.headline, vars));
+    var highlight = escapeAttr(h.headlineHighlight);
+    if (headlineHtml.indexOf(highlight) !== -1) {
+      headlineHtml = headlineHtml.replace(highlight, '<mark class="hl-mark">' + highlight + '</mark>');
+    }
+
+    return '<section class="sec sec--hero">' +
+      '<div class="sec__in hero__in">' +
+        '<div class="hero__top">' +
+          '<span class="wordmark">walka</span>' +
+          '<span class="badge badge--yellow">' + templ(h.badge, vars) + '</span>' +
+        '</div>' +
+        '<div class="hero__grid">' +
+          '<div class="hero__copy">' +
+            '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + templ(h.eyebrow, { weeks: vars.weeks, month: vars.monthUpper }) + '</p>' +
+            '<h1 class="display display--xl">' + headlineHtml + '</h1>' +
+            '<p class="lede">' + h.body + '</p>' +
+            '<div class="hero__cta-row">' +
+              '<button type="button" class="btn btn--ink js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
+              '<p class="price-line">' + templ(h.priceLine, vars) + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="example-card">' +
+            '<p class="eyebrow eyebrow--mono">' + h.exampleEyebrow + '</p>' +
+            '<p class="example-card__steps">' + h.exampleSteps.toLocaleString() + ' <span>/ ' + vars.goal + ' steps</span></p>' +
+            '<div class="example-card__bar"><div class="example-card__bar-fill" style="width:' + Math.round((h.exampleSteps / WS.DAILY_GOAL_STEPS) * 100) + '%"></div></div>' +
+            '<div class="example-bubble example-bubble--pink">' +
+              '<p class="example-bubble__label">' + h.examplePrincessLabel + '</p>' +
+              '<p class="example-bubble__text">' + templ(h.examplePrincessLine, exampleVars) + '</p>' +
+            '</div>' +
+            '<div class="example-bubble example-bubble--blue">' +
+              '<p class="example-bubble__label">' + h.exampleToughLabel + '</p>' +
+              '<p class="example-bubble__text">' + templ(h.exampleToughLine, exampleVars) + '</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function renderWeek(c) {
+    var w = c.week;
+    var goCards = w.weekdayLabels.map(function (label) {
+      return '<div class="week-card week-card--go">' +
+        '<p class="week-card__label">' + label + '</p>' +
+        '<p class="week-card__value">' + WS.DAILY_GOAL_STEPS.toLocaleString() + '</p>' +
+        '<p class="week-card__unit">' + w.weekdayUnit + '</p>' +
+      '</div>';
+    }).join("");
+    var graceCards = w.graceLabels.map(function (label) {
+      return '<div class="week-card week-card--grace">' +
+        '<p class="week-card__label">' + label + '</p>' +
+        '<p class="week-card__value">' + w.graceValue + '</p>' +
+        '<p class="week-card__unit">' + w.graceUnit + '</p>' +
+      '</div>';
+    }).join("");
+
+    return '<section class="sec sec--cream">' +
+      '<div class="sec__in">' +
+        '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + w.eyebrow + '</p>' +
+        '<h2 class="display display--lg">' + w.headline + '</h2>' +
+        '<p class="lede">' + w.body + '</p>' +
+        '<div class="week-grid">' + goCards + graceCards + '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  /* Coach preview: a non-binding toggle, local to this screen only -- see
+     this file's header comment. coachPreviewMarkup() is shared between the
+     initial render and the click handler that swaps it in place. */
+  function coachPreviewMarkup(value, c) {
+    var opt = c.coach.options[value];
+    var bubbles = opt.schedule.map(function (m) {
+      return '<div class="chat-bubble">' +
+        '<p class="chat-bubble__time">' + m.time + '</p>' +
+        '<p class="chat-bubble__text">' + escapeAttr(m.text) + '</p>' +
+      '</div>';
+    }).join("");
+    return '<p class="eyebrow eyebrow--mono eyebrow--rose" id="coachPreviewEyebrow">' +
+        templ(c.coach.previewEyebrow, { coachTitle: opt.previewTitle }) +
+      '</p>' +
+      '<div class="chat-stack">' + bubbles + '</div>';
+  }
+
+  function renderCoach(c) {
+    var co = c.coach;
+    var keys = Object.keys(co.options);
+    var optionsHtml = keys.map(function (key) {
+      var opt = co.options[key];
+      var active = key === "princess";
+      return '<button type="button" class="coach-option' + (active ? " is-active" : "") + '" data-coach="' + key + '">' +
+        '<p class="coach-option__kicker">' + (active ? co.previewingLabel : co.tapToPreviewLabel) + '</p>' +
+        '<p class="coach-option__title">' + opt.title + '</p>' +
+        '<p class="coach-option__body">' + opt.body + '</p>' +
+      '</button>';
+    }).join("");
+
+    return '<section class="sec sec--pink">' +
+      '<div class="sec__in coach__in">' +
+        '<div class="coach__copy">' +
+          '<p class="eyebrow eyebrow--mono eyebrow--rose">' + co.eyebrow + '</p>' +
+          '<h2 class="display display--lg">' + co.headline + '</h2>' +
+          '<p class="lede">' + co.body + '</p>' +
+          '<div class="coach-options" id="coachOptions">' + optionsHtml + '</div>' +
+        '</div>' +
+        '<div class="coach__preview" id="coachPreview">' + coachPreviewMarkup("princess", c) + '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function renderHowItWorks(c, vars) {
+    var h = c.howItWorks;
+    return '<section class="sec sec--cream">' +
+      '<div class="sec__in">' +
+        '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + h.eyebrow + '</p>' +
+        '<h2 class="display display--lg">' + h.headline + '</h2>' +
+        '<div class="steps-grid">' +
+          '<div class="step-card">' +
+            '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + h.step1Label + '</p>' +
+            '<p class="step-card__title">' + h.step1Title + '</p>' +
+            '<p class="step-card__body">' + templ(h.step1Body, vars) + '</p>' +
+          '</div>' +
+          '<div class="step-card">' +
+            '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + h.step2Label + '</p>' +
+            '<p class="step-card__title">' + h.step2Title + '</p>' +
+            '<p class="step-card__body">' + templ(h.step2Body, vars) + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<div class="outcome-grid">' +
+          '<div class="outcome-card outcome-card--hit">' +
+            '<p class="eyebrow eyebrow--mono eyebrow--green">' + h.hitLabel + '</p>' +
+            '<p class="outcome-card__headline">' + templ(h.hitHeadline, vars) + '</p>' +
+          '</div>' +
+          '<div class="outcome-card outcome-card--miss">' +
+            '<p class="eyebrow eyebrow--mono eyebrow--rose">' + h.missLabel + '</p>' +
+            '<p class="outcome-card__headline">' + templ(h.missHeadline, vars) + '</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  /* Static preview of an in-app community feature -- see the
+     couch6k-copy.js comment on COPY.steps.home.community for why the
+     reply controls below are disabled rather than wired to nothing. */
+  function communityCard(block) {
+    var replies = block.replies.map(function (r) {
+      return '<div class="reply">' +
+        '<div class="reply__avatar" aria-hidden="true">' + escapeAttr(r.name.charAt(0).toUpperCase()) + '</div>' +
+        '<div class="reply__body">' +
+          '<p class="reply__meta"><strong>' + escapeAttr(r.name) + '</strong> <span>' + escapeAttr(r.time) + '</span></p>' +
+          '<p class="reply__text">' + escapeAttr(r.text) + '</p>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    return '<div class="community-card">' +
+      '<p class="eyebrow eyebrow--mono eyebrow--gold">' + block.label + '</p>' +
+      '<p class="community-card__text">' + escapeAttr(block.text) + '</p>' +
+      '<div class="vote-row">' +
+        '<span class="vote-pill" aria-hidden="true">&#9650; ' + block.votes + ' &#9660;</span>' +
+        '<span class="vote-count">' + block.replies.length + ' replies</span>' +
+      '</div>' +
+      '<div class="reply-list">' + replies + '</div>' +
+      '<div class="reply-form">' +
+        '<input type="text" class="reply-form__input" placeholder="' + escapeAttr(block.replyPlaceholder) + '" disabled aria-label="' + escapeAttr(block.replyPlaceholder) + '">' +
+        '<button type="button" class="btn btn--ink btn--sm" disabled>' + escapeAttr(block.replyCta) + '</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderCommunity(c) {
+    var co = c.community;
+    return '<section class="sec sec--yellow">' +
+      '<div class="sec__in">' +
+        '<h2 class="display display--lg">' + co.headline + '</h2>' +
+        '<p class="lede">' + co.body + '</p>' +
+        '<div class="community-grid">' + communityCard(co.quote) + communityCard(co.question) + '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  var PRICE_CARD_TONES = ["lavender", "mint", "rose", "gold"];
+
+  function renderPricing(c, vars) {
+    var p = c.pricing;
+    var cards = p.cards.map(function (card, i) {
+      return '<div class="price-card price-card--' + PRICE_CARD_TONES[i % PRICE_CARD_TONES.length] + '">' +
+        '<p class="eyebrow eyebrow--mono">' + card.label + '</p>' +
+        '<p class="price-card__value">' + templ(card.value, vars) + '</p>' +
+        '<p class="price-card__note">' + templ(card.note, vars) + '</p>' +
+      '</div>';
+    }).join("");
+
+    return '<section class="sec sec--cream">' +
+      '<div class="sec__in">' +
+        '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + p.eyebrow + '</p>' +
+        '<h2 class="display display--lg">' + p.headline + '</h2>' +
+        '<p class="lede">' + templ(p.body, vars) + '</p>' +
+        '<div class="price-grid">' + cards + '</div>' +
+        '<div class="total-card">' +
+          '<div class="total-card__figure">' +
+            '<p class="eyebrow eyebrow--mono">' + p.totalLabel + '</p>' +
+            '<p class="total-card__value">' + vars.total + '</p>' +
+          '</div>' +
+          '<p class="total-card__note">' + templ(p.totalNote, vars) + '</p>' +
+        '</div>' +
+        '<p class="q-label" style="margin-top:28px">' + p.rulesLabel + '</p>' +
+        '<div class="accordion">' +
+          accordionItem("step-source", p.ruleStepSource.title, '<p>' + p.ruleStepSource.body + '</p>') +
+          accordionItem("time-zone", p.ruleTimeZone.title, '<p>' + p.ruleTimeZone.body + '</p>') +
+          accordionItem("cancellation", p.ruleCancellation.title, '<p>' + templ(p.ruleCancellation.body, vars) + '</p>') +
+          accordionItem("payout", p.rulePayout.title, '<p>' + templ(p.rulePayout.body, vars) + '</p>') +
+          accordionItem("edge-cases", p.ruleEdgeCases.title, '<p>' + p.ruleEdgeCases.body + '</p>') +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function renderFinalCta(c, vars) {
+    var f = c.finalCta;
+    return '<section class="sec sec--periwinkle">' +
+      '<div class="sec__in final-cta">' +
+        '<div class="final-cta__copy">' +
+          '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + f.eyebrow + '</p>' +
+          '<h2 class="display display--lg">' + templ(f.headline, vars) + '</h2>' +
+          '<p class="lede">' + templ(f.body, vars) + '</p>' +
+        '</div>' +
+        '<button type="button" class="btn btn--ink js-cta">' + templ(f.ctaLabel, vars) + '</button>' +
+      '</div>' +
+      '<div class="final-cta__footer">' +
+        '<span class="wordmark wordmark--sm">walka</span>' +
+        '<div class="final-cta__legal"><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a></div>' +
+        '<span class="final-cta__domain">getwalka.com</span>' +
+      '</div>' +
+    '</section>';
   }
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML, bind(root) attach listeners, canAdvance()
-     -> bool, onEnter()/onLeave() optional. Just two steps now: the
-     homepage (the offer, with coach/mode as inline toggles and a
-     name/email field) and checkout. */
+     -> bool, onEnter()/onLeave() optional. Just two steps: the homepage
+     (a full landing page, not a quiz card -- see renderStep's
+     document.body.classList.toggle("is-home", ...)) and checkout. */
 
   var steps = {
 
-    /* The homepage. Screen order: headline, ramp, money card (with the
-       solo/group toggle inline), coach card (with its own toggle inline),
-       one-liners, rules accordion, "why 6,000" row, a short name/email
-       field, sticky total+button bar. No per-user ramp math anywhere:
-       WS.WEEKLY_TARGETS is the one schedule every user gets. "N already
-       joined" and any countdown are left out entirely -- there's no real
-       data source for a manually-created one-off cohort (wiring a real
-       count would mean a get-weekly-cohort-preview-style Edge Function
-       call scoped to this cohort's actual challenge row, which doesn't
-       exist yet; flagged here rather than faked).
-
-       Its own sticky bottom bar drives navigation to checkout
-       (hideContinue:true hides the shared flownav's Continue button). */
     home: {
-      flownavVariant: "tight",
-      hideContinue: true,
-      onEnter: function (a) {
-        if (!a.mode) a.mode = "group";
-        if (!a.coach_style) a.coach_style = "princess";
+      hideNav: true, // the page carries its own CTA buttons; no shared flownav
+      onEnter: function () {
         track(EVENTS.homeViewed, { local_id: state.localId });
         syncLead();
       },
-      render: function (a) {
+      render: function () {
         var c = COPY.steps.home;
-        var isGroup = a.mode === "group";
-        var targets = WS.WEEKLY_TARGETS;
-        var coach = COACH_META[a.coach_style] || COACH_META.princess;
-        var dates = cohortDates();
-
-        var startLabel = isGroup ? c.rampStartLabelGroup : c.rampStartLabelSolo;
-        var startDateText = isGroup
-          ? templ(c.rampStartDateGroup, { startDate: dates.startLabel })
-          : c.rampStartDateSolo;
-
-        var payoutDetail = isGroup ? c.rulePayoutDetailGroup : c.rulePayoutDetailSolo;
-
-        var modeOpts = c.modeOptions.map(function (o) {
-          return pillOptionWithSub("mode_value", o.value, o.label, o.sub, a.mode === o.value);
-        }).join("");
-
-        var coachOpts = c.coachOptions.map(function (o) {
-          return pillOptionWithSub("coach_value", o.value, o.label, o.sub, a.coach_style === o.value);
-        }).join("");
-
-        return '<div class="stagger">' +
-
-          /* 1. Headline + subline. Solo's mechanic is genuinely different
-             (binary 90% forfeit, not a per-day loss) -- see the copy
-             comment on sublineGroup/sublineSolo, not just a swapped number. */
-          '<h2 class="q-title">' + templ(c.headline, { finalK: String(targets[targets.length - 1] / 1000) }) + '</h2>' +
-          '<p class="q-body">' + templ(isGroup ? c.sublineGroup : c.sublineSolo, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
-
-          /* 2. Ramp chart */
-          rampBars(targets, startLabel, startDateText) +
-
-          /* 3. Money card, with the solo/group toggle inline (pre-selected
-             to "group", not a forced choice). Group: interactive slider
-             (genuinely prorated). Solo: static binary outcome (see the
-             copy comment on soloOutcomePerfect/soloOutcomeMiss -- a slider
-             would otherwise sit flat for every miss count from 1 upward,
-             reading as broken rather than intentional). */
-          '<div class="money-card">' +
-            '<p class="money-card__finish">' + templ(c.moneyFinishLine, { fee: centsLabel(WS.FEE_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
-            (isGroup ? (
-              '<p class="money-card__slider-label" id="missSliderLabel">' + templ(c.sliderLabel, { misses: "0" }) + '</p>' +
-              '<input type="range" id="missSlider" class="money-card__slider" min="0" max="' + WS.TRACKED_WEEKDAYS + '" step="1" value="0" aria-label="' + escapeAttr(c.sliderLabel.replace("{misses}", "")) + '">' +
-              '<div class="money-card__outputs">' +
-                '<p class="money-card__back" id="missSliderBack">' + templ(c.sliderBack, { back: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
-                '<p class="money-card__lose" id="missSliderLose">' + templ(c.sliderLose, { lose: centsLabelExact(0) }) + '</p>' +
-              '</div>'
-            ) : (
-              '<div class="money-card__outputs money-card__outputs--solo">' +
-                '<p class="money-card__back">' + templ(c.soloOutcomePerfect, { stake: centsLabelExact(WS.STAKE_CENTS) }) + '</p>' +
-                '<p class="money-card__lose">' + templ(c.soloOutcomeMiss, {
-                  refund: centsLabelExact(Math.round(WS.STAKE_CENTS * WS.SOLO_LOSER_REFUND_PCT)),
-                  forfeit: centsLabelExact(Math.round(WS.STAKE_CENTS * (1 - WS.SOLO_LOSER_REFUND_PCT)))
-                }) + '</p>' +
-              '</div>'
-            )) +
-            '<p class="q-label" style="margin-top:18px">' + c.modeLabel + '</p>' +
-            '<div class="answer-grid" id="modeOpts">' + modeOpts + '</div>' +
-            (a.mode === "solo" ? '<p class="q-hint">' + c.soloMoneyNote + '</p>' : '') +
-            '<div class="disclosure">' + disclosureMarkup(c.modeDisclosureLabel, c.modeDisclosureBody) + '</div>' +
-          '</div>' +
-
-          /* 4. Coach card, with coach style as an inline toggle
-             (pre-selected to "princess", not a forced choice). */
-          '<div class="coach-card">' +
-            '<div class="coach-card__avatar" aria-hidden="true">' + coach.emoji + '</div>' +
-            '<div class="coach-card__text">' +
-              '<p class="coach-card__name">' + c.coachCardLabel + ': ' + coach.name + '</p>' +
-              '<p class="coach-card__style">' + coach.descriptor + '</p>' +
-              '<p class="coach-card__sample">“' + coach.sample + '”</p>' +
-            '</div>' +
-          '</div>' +
-          '<p class="coach-card__caption">' + c.coachCardCaption + '</p>' +
-          '<div class="answer-grid" id="coachOpts">' + coachOpts + '</div>' +
-
-          /* 5. Fact one-liner(s) */
-          '<ul class="fact-lines">' +
-            '<li>' + c.lineGoal + '</li>' +
-          '</ul>' +
-
-          /* 6. "Rules in detail" accordion */
-          '<p class="q-label">' + c.rulesLabel + '</p>' +
-          '<div class="accordion">' +
-            accordionItem("step-source", c.ruleStepSource.title, '<p>' + c.ruleStepSource.body + '</p>') +
-            accordionItem("time-zone", c.ruleTimeZone.title, '<p>' + c.ruleTimeZone.body + '</p>') +
-            accordionItem("cancellation", c.ruleCancellation.title, '<p>' + c.ruleCancellation.body + '</p>') +
-            accordionItem("payout", c.rulePayout.title, '<p>' + templ(c.rulePayout.body, {
-              perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY),
-              stake: centsLabel(WS.STAKE_CENTS),
-              payoutDetail: payoutDetail
-            }) + '</p>') +
-            accordionItem("edge-cases", c.ruleEdgeCases.title, '<p>' + c.ruleEdgeCases.body + '</p>') +
-          '</div>' +
-
-          /* 7. "Get your plan" name/email, captured before checkout so a
-             dropoff there still leaves a reachable lead. */
-          '<p class="q-label">' + c.leadFormTitle + '</p>' +
-          '<p class="q-body">' + c.leadFormSubtitle + '</p>' +
-          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="homeName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
-          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="homeEmail" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
-
-          '<div class="sticky-bar-spacer" aria-hidden="true"></div>' +
-        '</div>' +
-
-        /* 8. Sticky bottom bar -- fixed to the viewport, outside the
-           staggered-fade-in content above. */
-        '<div class="sticky-bar">' +
-          '<div class="sticky-bar__row">' +
-            '<p class="sticky-bar__total">' + templ(c.totalLine, { total: centsLabelExact(WS.TOTAL_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
-            '<button type="button" class="btn btn--ink sticky-bar__btn" id="homeContinueBtn">' + c.continueCta + '</button>' +
-          '</div>' +
-          '<p class="sticky-bar__note">' + c.afterButtonNote + '</p>' +
-        '</div>';
+        var vars = commonVars();
+        return renderHero(c, vars) +
+          renderWeek(c) +
+          renderCoach(c) +
+          renderHowItWorks(c, vars) +
+          renderCommunity(c) +
+          renderPricing(c, vars) +
+          renderFinalCta(c, vars);
       },
       bind: function (root) {
         bindAccordion(root);
-        bindDisclosure(root);
 
-        root.querySelectorAll('#modeOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.mode = b.getAttribute("data-value");
-            renderStep(false); // re-render to swap the slider/static outcome and the solo money note, without re-tracking a step view
-          });
+        root.querySelectorAll(".js-cta").forEach(function (btn) {
+          btn.addEventListener("click", function () { goNext(); });
         });
 
-        root.querySelectorAll('#coachOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.coach_style = b.getAttribute("data-value");
-            renderStep(false); // re-render to swap the coach card's sample line
+        var co = COPY.steps.home.coach;
+        var preview = root.querySelector("#coachPreview");
+        root.querySelectorAll("#coachOptions .coach-option").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var value = btn.getAttribute("data-coach");
+            root.querySelectorAll("#coachOptions .coach-option").forEach(function (b) {
+              var isActive = b === btn;
+              b.classList.toggle("is-active", isActive);
+              var kicker = b.querySelector(".coach-option__kicker");
+              if (kicker) kicker.textContent = isActive ? co.previewingLabel : co.tapToPreviewLabel;
+            });
+            if (preview) preview.innerHTML = coachPreviewMarkup(value, COPY.steps.home);
+            track(EVENTS.coachPreviewed, { coach: value });
           });
         });
-
-        var c = COPY.steps.home;
-        var slider = root.querySelector("#missSlider");
-        var label = root.querySelector("#missSliderLabel");
-        var backEl = root.querySelector("#missSliderBack");
-        var loseEl = root.querySelector("#missSliderLose");
-        if (slider) {
-          slider.addEventListener("input", function () {
-            var misses = Number(slider.value);
-            var loseCents = Math.min(misses * WS.MISS_LOSS_CENTS_PER_DAY, WS.STAKE_CENTS);
-            var backCents = WS.STAKE_CENTS - loseCents;
-            label.textContent = templ(c.sliderLabel, { misses: String(misses) });
-            backEl.textContent = templ(c.sliderBack, { back: centsLabelExact(backCents) });
-            loseEl.textContent = templ(c.sliderLose, { lose: centsLabelExact(loseCents) });
-          });
-        }
-
-        var name = root.querySelector("#homeName"), email = root.querySelector("#homeEmail");
-        var cta = root.querySelector("#homeContinueBtn");
-        function refreshCta() { cta.disabled = !steps.home.canAdvance(state.answers); }
-        name.addEventListener("input", function () { state.answers.first_name = name.value; refreshCta(); });
-        email.addEventListener("input", function () { state.answers.email = email.value; refreshCta(); });
-        refreshCta();
-        cta.addEventListener("click", function () { goNext(); });
       },
-      canAdvance: function (a) {
-        return !!(a.first_name && a.first_name.trim()) && /\S+@\S+\.\S+/.test((a.email || "").trim());
-      }
+      canAdvance: function () { return true; }
     },
 
     checkout: {
       render: function (a) {
         var c = COPY.steps.checkout;
+        var vars = commonVars();
         var currency = checkoutCurrency(a);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="charge-breakdown">' +
             '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabel(WS.FEE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
-            '<div class="charge-breakdown__row"><span>' + templ(c.stakeRowLabel, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</span><strong>' + centsLabel(WS.STAKE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + templ(c.stakeRowLabel, vars) + '</span><strong>' + centsLabel(WS.STAKE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
           '</div>' +
-          '<p class="q-hint">' + templ(c.billingNoteBase, { perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY) }) + '</p>' +
+          '<p class="q-hint">' + templ(c.billingNoteBase, vars) + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
-            c.includedItems.map(function (t) { return '<li>' + t + '</li>'; }).join("") +
+            c.includedItems.map(function (t) { return '<li>' + templ(t, vars) + '</li>'; }).join("") +
           '</ul></div>' +
           '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
           '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
@@ -507,11 +559,12 @@
             ' <a href="' + c.legalLinks.privacy + '" target="_blank" rel="noopener">' + c.agreePrivacyText + '</a></label>' +
           (WS.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + templ(c.confirmCta, { total: centsLabel(WS.TOTAL_CENTS) }) + '</button>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + templ(c.confirmCta, vars) + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
         var c = COPY.steps.checkout;
+        var vars = commonVars();
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
         var paymentContainer = root.querySelector("#paymentElementContainer");
@@ -519,7 +572,7 @@
         var stripeClient = null, elements = null;
         var initiated = false, mounted = false, alreadyActive = false;
         var debounceTimer = null;
-        var confirmCtaText = templ(c.confirmCta, { total: centsLabel(WS.TOTAL_CENTS) });
+        var confirmCtaText = templ(c.confirmCta, vars);
 
         function fieldsValid() {
           return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
@@ -654,29 +707,22 @@
 
   function currentStepId() { return STEP_IDS[state.stepIndex]; }
 
-  function refreshContinue() {
-    var step = steps[currentStepId()];
-    continueBtn.disabled = !step.canAdvance(state.answers);
-  }
-
   function renderStep(trackView) {
     var id = currentStepId();
     var step = steps[id];
+    document.body.classList.toggle("is-home", id === "home");
+    navEl.hidden = id === "home";
+    footerEl.hidden = id === "home"; // the homepage's final-cta section carries its own Terms/Privacy footer
     screenEl.innerHTML = step.render(state.answers);
     step.bind(screenEl);
-    screenEl.className = "card";
+    screenEl.className = id === "home" ? "landing" : "card";
     void screenEl.offsetWidth;
     screenEl.classList.add("card--enter");
-    flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
-    introHeaderEl.hidden = id !== "home";
+    var hideNav = id === "checkout" ? false : !!step.hideNav;
+    flownavEl.hidden = hideNav;
     backBtn.hidden = state.stepIndex === 0;
-    var hideNav = id === "checkout" || step.hideNav;
-    continueBtn.hidden = hideNav || step.hideContinue;
+    continueBtn.hidden = true; // neither step uses the shared Continue button
     skipBtn.hidden = true; // no optional/skippable questions in this funnel
-    if (!hideNav) {
-      continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : COPY.continueLabel;
-      refreshContinue();
-    }
     if (trackView !== false) {
       track(EVENTS.stepViewed, { step: id, step_index: state.stepIndex });
       if (step.onEnter) step.onEnter(state.answers);
@@ -695,6 +741,7 @@
       state.stepIndex++;
       resumeBanner.hidden = true;
       renderStep();
+      window.scrollTo(0, 0);
     }
   }
 
@@ -703,6 +750,7 @@
       state.stepIndex--;
       resumeBanner.hidden = true;
       renderStep();
+      window.scrollTo(0, 0);
     }
   }
 
@@ -721,16 +769,6 @@
 
   function getQueryParam(name) {
     return new URLSearchParams(window.location.search).get(name);
-  }
-
-  /* Lets each ad creative swap the landing headline via ?headline=... on
-     the shared /myplan link, instead of a separate page per campaign.
-     Escaped the same way any other untrusted string on this page is
-     (escapeAttr) before it ever reaches innerHTML -- this is the one piece
-     of page content that comes from the URL, not from couch6k-copy.js. */
-  function getHeadlineOverride() {
-    var h = getQueryParam("headline");
-    return h ? escapeAttr(h) : null;
   }
 
   function previewOverrideActive() {
@@ -823,22 +861,12 @@
     mainEl = document.getElementById("top");
     exitLink = document.getElementById("exitLink");
     flownavEl = document.querySelector(".flownav");
-    introHeaderEl = document.getElementById("introHeader");
+    navEl = document.querySelector(".nav");
+    footerEl = document.querySelector(".footer");
 
     continueBtn.addEventListener("click", function () { goNext(); });
     backBtn.addEventListener("click", goBack);
     resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
-
-    var headlineText = getHeadlineOverride() || COPY.introHeader.title;
-    var startSteps = WS.WEEKLY_TARGETS[0].toLocaleString();
-    introHeaderEl.innerHTML =
-      '<h1 class="intro-header__title">' + headlineText + '</h1>' +
-      '<p class="intro-header__body">' + COPY.introHeader.body + '</p>' +
-      '<div class="intro-header__features">' +
-        COPY.introHeader.features.map(function (f) {
-          return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(templ(f.label, { startSteps: startSteps })) + '</span>';
-        }).join("") +
-      '</div>';
 
     maybeRehydrateFromLink().then(function () { initGate(); });
   });

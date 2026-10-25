@@ -1,20 +1,26 @@
 /* ==========================================================================
-   Walka Couch to 6K: paid 6-week test-cohort funnel, COPY + CONFIG
+   Walka "November challenge" (internal slug stays couch6k; public URL is
+   getwalka.com/myplan): paid 4-week test-cohort funnel, COPY + CONFIG.
    Separate, feature-flagged funnel -- does NOT touch or replace the live
    /start funnel ($24.99/mo subscription model). Everything editable about
    this experiment lives in this one file. Mirrors start-copy.js's
    structure/conventions; see that file's comments for parts that are
    identical (uuid/state/sync/gate plumbing lives in couch6k-app.js).
 
-   Was previously a 9-screen onboarding quiz (goal -> baseline -> waitlist ->
-   coach -> mode -> contact -> preparing -> results -> checkout). Flattened
-   to a single homepage (the offer, with coach-style and solo/group as
-   inline toggles, plus a name/email field) that leads straight into
-   checkout -- no more step-by-step Q&A. That also drops the baseline-steps
-   question, so there is no more a way to route already-active walkers
-   (7,000+ steps/day) to a waitlist instead of this program; if that
-   targeting is still wanted, it needs a different mechanism (ad targeting,
-   a standalone waitlist page, etc.), not a quiz step.
+   Was previously a 9-screen onboarding quiz, then a single homepage that
+   reused the quiz's 6-week ramp/solo-group framing. Redesigned again: a
+   full marketing-style landing page (hero, your-week grid, coach preview,
+   how-it-works, community preview, pricing breakdown, final CTA) that
+   drops solo entirely (cohort/group only) and moves coach selection into
+   the app, post-purchase -- the toggle on this page is a non-binding
+   preview only, never sent anywhere. Also a real pricing change: $90
+   stake / $29.99 fee / $3 a missed day / 6 weeks is now $20 buy-in /
+   $19.99 fee / $1 a missed day / 4 weeks, flat 10,000-step goal instead
+   of a weekly ramp. The $1/day figure is only honest because
+   20261024000001_couch6k_miss_loss_override.sql lets this one challenge
+   row override the database trigger's hard-coded $3/day -- see that
+   migration before ever changing MISS_LOSS_CENTS_PER_DAY here without
+   also setting miss_loss_per_day_override on the real challenge row.
    ========================================================================== */
 window.WALKA_COUCH6K = (function () {
 
@@ -45,67 +51,45 @@ window.WALKA_COUCH6K = (function () {
   /* ------------------------------------------------------------------ *
    * 2. PAYMENTS: Stripe, ONE combined one-time charge. No subscription.
    *
-   *    Checkout charges ONE PaymentIntent for the $90 refundable stake
-   *    (minus $3 per missed weekday, settled later in the app) plus the
-   *    $29.99 non-refundable program fee -- $119.99 total, via
-   *    create-couch6k-payment-intent. Not framed as an "AI coach fee": this
-   *    cohort gets the same free static princess/tough coach copy
-   *    (lib/coach.ts) as everyone else, so the fee is a neutral program
-   *    fee, never described in this file's copy as paying for the coach.
+   *    Checkout charges ONE PaymentIntent for the $20 refundable buy-in
+   *    (minus $1 per missed weekday, settled later in the app) plus the
+   *    $19.99 non-refundable entry fee -- $39.99 total, via
+   *    create-couch6k-payment-intent.
    *
    *    The amounts below are DISPLAY ONLY, mirrored from the Edge
    *    Function's own hardcoded STAKE_CENTS/FEE_CENTS constants
    *    (supabase/functions/create-couch6k-payment-intent/index.ts) -- keep
    *    the two in step by hand, there is no shared source since this repo
-   *    has no build step to share values between Deno and this file.
+   *    has no build step to share values between Deno and this file. The
+   *    per-day amount also has to be kept in step with the real challenge
+   *    row's miss_loss_per_day_override (see this file's header comment).
    * ------------------------------------------------------------------ */
   /* "live", for the same reason start-copy.js is "live": this Supabase
      project has exactly one STRIPE_SECRET_KEY (the live one; /moms and
      /start already run checkout off it too), not a test/live pair. A
      "test" publishable key here would mount Stripe Elements against a
      live-mode clientSecret and fail. Testing this funnel for real means a
-     real card and a real $119.99 charge -- refund/cancel it in the Stripe
+     real card and a real $39.99 charge -- refund/cancel it in the Stripe
      dashboard afterward. Revisit if this project ever gets its own
      test-mode secret key. */
   var STRIPE_MODE = "live"; // "test" | "live"
 
-  var STAKE_CENTS = 9000;   // $90.00
-  var FEE_CENTS = 2999;     // $29.99
-  var TOTAL_CENTS = STAKE_CENTS + FEE_CENTS; // $119.99
-  var MISS_LOSS_CENTS_PER_DAY = 300; // $3/missed weekday, capped at the stake -- GROUP ONLY, see SOLO_LOSER_REFUND_PCT below
-  /* Solo's real mechanic, mirrored exactly from process-payouts' own
-     SOLO_LOSER_REFUND_PCT constant: binary, not prorated. Solo instances
-     run with miss_limit 0 and $90 isn't in miss_loss_options()'s supported
-     stake tiers (15/25/50/100), so a solo couch6k participant gets the
-     legacy rule -- miss even one day and 90% of the stake is forfeited to
-     Walka, 10% comes back as wallet credit. Perfect completion still
-     returns the full stake either way. */
-  var SOLO_LOSER_REFUND_PCT = 0.1;
-  var PROGRAM_WEEKS = 6;
-  var PROGRAM_DURATION_DAYS = 42; // 6 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
-  var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 30 -- the actual scored days (weekends are free)
-
-  /* THE single source of truth for the weekly step-goal ramp. Fixed for
-     every user -- never personalized. Used by the homepage's ramp display
-     and checkout's copy; there is nowhere else in THIS funnel that needs
-     it. FLAG: the real in-app challenge (the manually-created row + its
-     step_goal) can only hold ONE flat goal -- the app's challenge schema
-     has no per-week goal field (confirmed when this funnel was built; see
-     the implementation plan's "per-week ramp storage" non-goal). Wiring
-     this exact ramp into real day-by-day in-app enforcement is a backend
-     change this file deliberately does NOT make -- flag for the operator:
-     either pick one representative flat step_goal for the manually-created
-     challenge row, or scope a real backend change later. */
-  var WEEKLY_TARGETS = [2000, 3000, 4000, 5000, 6000, 6000];
+  var STAKE_CENTS = 2000;   // $20.00 buy-in
+  var FEE_CENTS = 1999;     // $19.99 entry fee
+  var TOTAL_CENTS = STAKE_CENTS + FEE_CENTS; // $39.99
+  var MISS_LOSS_CENTS_PER_DAY = 100; // $1/missed weekday, capped at the buy-in
+  var PROGRAM_WEEKS = 4;
+  var PROGRAM_DURATION_DAYS = 28; // 4 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
+  var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 20 -- the actual scored days (weekends are free)
+  var DAILY_GOAL_STEPS = 10000; // ONE flat goal, every tracked day -- no weekly ramp anymore
 
   /* Manually curated to match whatever the operator actually sets as the
-     real manually-created challenge's start_date (see the implementation
-     plan -- this funnel has no live cohort-preview API to read a real date
-     from). ONE value, a real parseable date -- couch6k-app.js derives the
-     displayed start label from this single ISO string. Keep this in step
-     by hand when the real start date is set; it only applies to group mode
-     (solo starts whenever the user joins, so app.js shows a different line
-     for solo instead of this date). */
+     real manually-created challenge's start_date (this funnel has no live
+     cohort-preview API to read a real date from). ONE value, a real
+     parseable date -- couch6k-app.js derives the start badge, the hero
+     eyebrow's month name, and the final CTA's date line all from this
+     single ISO string, so none of them can drift apart. Keep this in step
+     by hand when the real start date is set. */
   var COHORT_START_DATE_ISO = "2026-11-02";
 
   /* Publishable keys are not secret, safe to ship in client code. Same
@@ -130,13 +114,14 @@ window.WALKA_COUCH6K = (function () {
 
   /* ------------------------------------------------------------------ *
    * 4. COPY. Warm, plainspoken, no em dashes (brand voice rule, CLAUDE.md).
+   *    {placeholders} are filled in by couch6k-app.js from WS's config
+   *    constants above and from COHORT_START_DATE_ISO, so the page can
+   *    never show a number or date that disagrees with what checkout
+   *    actually charges.
    * ------------------------------------------------------------------ */
   var COPY = {
-    metaTitle: "Walka: Couch to 6K",
-    metaDescription: "From couch to 6,000 steps a day in 6 weeks. A ramping goal, a coach, and a little accountability built in.",
-
-    continueLabel: "Continue",
-    skipLabel: "Skip for now",
+    metaTitle: "Walka: November Challenge",
+    metaDescription: "Walk 10,000 steps a day for 4 weeks and get your buy-in back. A coach in your style, a cohort keeping you honest.",
 
     gate: {
       title: "This page isn't open yet.",
@@ -153,137 +138,169 @@ window.WALKA_COUCH6K = (function () {
     nav: { back: "Save & exit" },
     resumeBanner: "Welcome back. Picking up where you left off.",
 
-    /* The hero, tuned for ad traffic. title is a prop (couch6k-app.js reads
-       a ?headline= override so each ad creative can swap it without a
-       redeploy) -- this is just the default when no override is present.
-       Always "steps", never a bare "6K": that reads as a running distance,
-       not a step count. */
-    introHeader: {
-      title: "From couch to 6K steps in 6 weeks.",
-      body: "Put a stake on the line. Hit your daily goal and keep it. Miss a day and you lose a little of it. A coach messages you every day.",
-      features: [
-        { icon: "🎯", label: "Starts at {startSteps} steps" },
-        { icon: "💰", label: "Keep your stake when you walk" },
-        { icon: "🧑‍🏫", label: "A coach in your style" }
-      ]
-    },
-
     steps: {
-      /* Screen 1: the homepage. One screen, no quiz. Order on screen:
-         headline, ramp, money card (with the solo/group toggle inline),
-         coach card (with its own toggle inline), one-liners, rules
-         accordion, a short "get your plan" name/email field, sticky
-         total+CTA bar. {placeholders} are filled in by couch6k-app.js from
-         WS's config constants (never hardcoded twice, so this screen can't
-         diverge from checkout). */
+      /* The homepage: one long landing page, no quiz. Each key below is
+         one section, top to bottom. ctaLabel/badge/eyebrow all read
+         {month}/{startDateShort}/{startDateLong} filled from
+         COHORT_START_DATE_ISO, so the copy can't go stale relative to the
+         real cohort date. */
       home: {
-        /* 1. Headline + subline */
-        headline: "From couch to {finalK}K steps",
-        /* Solo's real mechanic is binary, not the group's prorated per-day
-           loss: solo instances run with miss_limit 0 and no per-day penalty
-           support for a $90 stake (miss_loss_options() only covers 15/25/
-           50/100), so missing even one day forfeits 90% of the stake to
-           Walka (the legacy SOLO_LOSER_REFUND_PCT rule, process-payouts),
-           not a $3/day deduction. Keep these two sublines genuinely
-           different, not a shared template with a swapped number. */
-        sublineGroup: "Hit your daily goal and keep your money. Miss a day and lose {perDay}.",
-        sublineSolo: "Hit your daily goal and keep your money. Miss just one day solo and you lose 90% of your stake to Walka, not {perDay} a day.",
+        hero: {
+          badge: "{weeks} WEEKS · STARTS {startDateShort}",
+          eyebrow: "THE {weeks}-WEEK {month} CHALLENGE",
+          headline: "Walk {goal} steps. Get your buy-in back.",
+          headlineHighlight: "buy-in back.",
+          body: "Join a cohort, put in your buy-in at checkout, and pick the coach who gets you out the door. Saturday and Sunday are grace days.",
+          ctaLabel: "Join the {month} challenge",
+          priceLine: "{fee} entry fee · {stake} buy-in",
+          exampleEyebrow: "AN EXAMPLE MONDAY, 6:45 PM",
+          exampleSteps: 8412,
+          examplePrincessLabel: "PRINCESS TREATMENT",
+          examplePrincessLine: "{exampleSteps} so far, gorgeous. one gentle lap and you're done.",
+          exampleToughLabel: "TOUGH COACH",
+          exampleToughLine: "{exampleSteps}. {remaining} to go. Move."
+        },
 
-        /* 2. Ramp chart */
-        rampWeekLabel: "Week",
-        rampStartLabelGroup: "You start here",
-        rampStartDateGroup: "{startDate}",
-        rampStartLabelSolo: "You start here",
-        rampStartDateSolo: "The day you join",
+        week: {
+          eyebrow: "YOUR WEEK",
+          headline: "Five days to walk. Two days of grace.",
+          body: "Saturday and Sunday are grace days. Brunch, a wedding, a long drive, a very committed couch session. All fine.",
+          weekdayLabels: ["MON", "TUE", "WED", "THU", "FRI"],
+          weekdayUnit: "steps",
+          graceLabels: ["SAT", "SUN"],
+          graceValue: "Grace",
+          graceUnit: "day"
+        },
 
-        /* 3. Money card, with the solo/group choice as an inline toggle
-           (default "group", no forced tap -- see modeOptions below). Group
-           gets the interactive slider (its loss is genuinely prorated day
-           by day). Solo's mechanic is binary -- see the SOLO_LOSER_REFUND_PCT
-           comment in the config section -- so it gets a static two-line
-           outcome instead of a slider that would otherwise sit flat at one
-           value for every miss count from 1 to {totalDays}, which would
-           read as broken, not intentional. */
-        moneyFinishLine: "Finish every day and the only money that stays with Walka is the {fee} program fee. Your {stake} comes back in full.",
-        sliderLabel: "If I miss {misses} days",
-        sliderBack: "You get back {back}.",
-        sliderLose: "You lose {lose}.",
-        soloOutcomePerfect: "Finish every day: {stake} back, in full.",
-        soloOutcomeMiss: "Miss even one day: only {refund} back. {forfeit} goes to Walka, not split with anyone.",
+        /* Coach is chosen in the app, after purchase -- this toggle is a
+           non-binding preview only (local UI state, never written to
+           state.answers or synced to Supabase). "Tap a coach here to hear
+           how your day sounds" sets that expectation explicitly, so
+           nobody reads this as the real selection. */
+        coach: {
+          eyebrow: "YOUR COACH, YOUR CALL",
+          headline: "You choose your coach.",
+          body: "You pick yours in the app. Same steps, same buy-in, a very different voice in your ear. Tap a coach here to hear how your day sounds.",
+          previewingLabel: "PREVIEWING",
+          tapToPreviewLabel: "TAP TO PREVIEW",
+          previewEyebrow: "A DAY WITH {coachTitle}",
+          options: {
+            princess: {
+              title: "Princess treatment",
+              body: "Gentle, encouraging and a little pampering. Celebrates every lap.",
+              previewTitle: "THE PRINCESS TREATMENT",
+              schedule: [
+                { time: "7:30 AM", text: "good morning, gorgeous. 10,000 steps today, and the sun is out. coffee first, then a little stroll?" },
+                { time: "6:45 PM", text: "you're at 6,420, babe. one cute walk around the block and you're basically there." },
+                { time: "9:10 PM", text: "10,000. look at you. feet up, you earned it." }
+              ]
+            },
+            tough: {
+              title: "Tough coach",
+              body: "Strict, no excuses, drill sergeant. Counts your steps and says so.",
+              previewTitle: "TOUGH COACH",
+              schedule: [
+                { time: "7:30 AM", text: "10,000 steps. that's the job today. first one happens now, not after coffee." },
+                { time: "6:45 PM", text: "6,420. 3,580 left. get up and go get them." },
+                { time: "9:10 PM", text: "10,000. done. do it again tomorrow." }
+              ]
+            }
+          }
+        },
 
-        modeLabel: "Solo, or with a group?",
-        modeOptions: [
-          { value: "group", label: "With a group", sub: "Join this cohort, starting together" },
-          { value: "solo", label: "Solo", sub: "Your own private challenge, same terms" }
-        ],
-        modeDisclosureLabel: "What's the difference?",
-        modeDisclosureBody: "<p>With a group, everyone starts the same week and keeps each other honest. If you miss a day, your $3 gets shared among the people who finish, not kept by Walka.</p>" +
-          "<p>Solo is the same price, same goal, same 6 weeks, just without a group. If you miss a day, that $3 goes to Walka instead of back to a group.</p>",
-        soloMoneyNote: "Solo heads up: missed-day money goes to Walka, not back to you.",
+        howItWorks: {
+          eyebrow: "HOW IT WORKS",
+          headline: "Join your cohort. Get your steps in.",
+          step1Label: "STEP 1",
+          step1Title: "Join your cohort",
+          step1Body: "Join the {month} challenge and pay your {fee} entry fee and {stake} buy-in at checkout. Then choose your coach in the app: Princess treatment or Tough coach.",
+          step2Label: "STEP 2",
+          step2Title: "Get your steps in",
+          step2Body: "{goal} steps, Monday to Friday, for {weeksWordLower} weeks. Saturday and Sunday are grace days, so the weekend is yours.",
+          hitLabel: "YOU HIT EVERY WEEKDAY",
+          hitHeadline: "You get all {stake} back.",
+          missLabel: "YOU MISS A WEEKDAY",
+          missHeadline: "You lose {perDay}. It goes to the people in your cohort who hit theirs."
+        },
 
-        /* 4. Coach card, with coach style as an inline toggle (default
-           "princess"). Sample messages are real lines already shipped in
-           lib/coach.ts (one per style), not invented for this page -- see
-           couch6k-app.js's COACH_SAMPLES. Caption is deliberately neutral:
-           the coach is free for every user in the app (CLAUDE.md), so
-           nothing here claims the fee pays specifically for coaching. */
-        coachCardLabel: "Your coach",
-        coachCardCaption: "Included with your program fee, not an extra charge.",
-        coachOptions: [
-          { value: "princess", label: "Gentle coach", sub: "Princess treatment: warm and encouraging, Coach Serena" },
-          { value: "tough", label: "Tough coach", sub: "Blunt, no excuses, Coach Tim" }
-        ],
+        /* Static preview of an in-app community feature -- sample names,
+           replies and vote counts, not live data. No backend exists for
+           this on the public site, so the reply/vote controls are visual
+           only (no click handlers); nothing typed here is ever sent
+           anywhere. If this becomes a real feature, wire it then rather
+           than fake a working form now. */
+        community: {
+          headline: "Something to talk about between laps.",
+          body: "A quote and a question every day. Vote on what you like and add your reply.",
+          quote: {
+            label: "QUOTE OF THE DAY",
+            text: "The walk you skip on Tuesday is the one you owe on Wednesday.",
+            votes: 12,
+            replyPlaceholder: "Add a reply",
+            replyCta: "Reply",
+            replies: [
+              { name: "mia_b", time: "3h", text: "tuesday me needs to read this" },
+              { name: "jonah.k", time: "1h", text: "ok but what if wednesday me also skips" }
+            ]
+          },
+          question: {
+            label: "QUESTION OF THE DAY",
+            text: "What do you do to get your steps in after a 9-5?",
+            votes: 7,
+            replyPlaceholder: "Add your answer",
+            replyCta: "Reply",
+            replies: [
+              { name: "dee", time: "2h", text: "i take every call walking. a teams meeting with the camera off is basically a lap" },
+              { name: "marcus_r", time: "45m", text: "shoes by the door. if i sit down first it's over" },
+              { name: "priya", time: "20m", text: "walk to the next bart stop instead of the closest one lol" }
+            ]
+          }
+        },
 
-        /* 5. Fact one-liner(s) */
-        lineGoal: "Reach your goal by 11:59 pm your time, Mon-Fri. Weekends are grace days.",
+        pricing: {
+          eyebrow: "THE NUMBERS",
+          headline: "What it costs, and what you can lose.",
+          body: "{weeksWord} weeks is {trackedWeekdays} weekdays. Each one is worth {perDay} of your buy-in.",
+          cards: [
+            { label: "ENTRY FEE", value: "{fee}", note: "Paid once at checkout." },
+            { label: "BUY-IN", value: "{stake}", note: "Your stake for all {weeksWordLower} weeks." },
+            { label: "PER MISSED WEEKDAY", value: "{perDay}", note: "Goes to the people in your cohort who hit theirs." },
+            { label: "SATURDAY AND SUNDAY", value: "$0", note: "Grace days. Nothing to lose." }
+          ],
+          totalLabel: "TOTAL AT CHECKOUT",
+          totalNote: "That is {fee} for the entry fee and {stake} for your buy-in. Hit every weekday and the full {stake} comes back. Miss all {trackedWeekdays} and the {stake} is gone.",
 
-        /* 6. "Rules in detail" accordion */
-        rulesLabel: "Rules in detail",
-        ruleStepSource: { title: "Where your steps come from", body: "Apple Health, synced automatically from your phone. No manual entry, nothing to remember to log. Walka is iOS-only right now, so this is an iPhone-only program." },
-        ruleTimeZone: { title: "Time zones", body: "Your day runs midnight to midnight in your phone's time zone. If you travel, your day follows your phone, not the cohort's home zone." },
-        ruleCancellation: { title: "Cancellation policy", body: "If this program doesn't reach enough participants, or the organizer cancels before it starts, every participant gets a full refund automatically. Once the program has started, your stake follows the miss-day rule above instead of a cancellation refund." },
-        rulePayout: { title: "Payout rule", body: "Each missed weekday costs {perDay} from your stake, capped at your full {stake} stake, so you can never lose more than you put in. {payoutDetail}" },
-        rulePayoutDetailGroup: "That missed-day money is split evenly between everyone in your group who finishes.",
-        rulePayoutDetailSolo: "That missed-day money goes to Walka; solo challenges have no group to split it with.",
-        ruleEdgeCases: { title: "Edge cases", body: "Something not syncing, a day that looks wrong, or a question this page doesn't answer? Email susan@getwalka.com and we'll sort it out before it affects your payout." },
+          rulesLabel: "Rules in detail",
+          ruleStepSource: { title: "Where your steps come from", body: "Apple Health, synced automatically from your phone. No manual entry, nothing to remember to log. Walka is iOS-only right now, so this is an iPhone-only program." },
+          ruleTimeZone: { title: "Time zones", body: "Your day runs midnight to midnight in your phone's time zone. If you travel, your day follows your phone, not the cohort's home zone." },
+          ruleCancellation: { title: "Cancellation policy", body: "If this program doesn't reach enough participants, or the organizer cancels before it starts, every participant gets a full refund automatically. Once the program has started, your buy-in follows the miss-day rule below instead of a cancellation refund." },
+          rulePayout: { title: "Payout rule", body: "Each missed weekday costs {perDay} from your buy-in, capped at your full {stake} buy-in, so you can never lose more than you put in. That missed-weekday money is split evenly between everyone in your cohort who finishes." },
+          ruleEdgeCases: { title: "Edge cases", body: "Something not syncing, a day that looks wrong, or a question this page doesn't answer? Email susan@getwalka.com and we'll sort it out before it affects your payout." }
+        },
 
-        /* 7. "Get your plan" name/email, captured before checkout so a
-           dropoff there still leaves a reachable lead. Replaces the old
-           standalone "contact" quiz step; same two fields, same meaning. */
-        leadFormTitle: "Get your plan",
-        leadFormSubtitle: "We'll use this to get your plan ready and keep you posted, nothing else.",
-        nameLabel: "First name",
-        emailLabel: "Email",
-
-        /* 8. Sticky bottom bar */
-        totalLine: "Today: {total} ({stake} refundable)",
-        continueCta: "Continue to checkout",
-        afterButtonNote: "Secure payment via Stripe · Next: download the app and connect Apple Health."
-
-        /* 9. "Joined"/countdown -- only shown when backed by real data.
-           Neither exists for this manually-created one-off cohort today
-           (no live preview API), so couch6k-app.js omits both rather than
-           showing a fake number. The standalone cancellation line was
-           removed too; the full policy is still in the "Rules in detail"
-           accordion's Cancellation policy item above. */
+        finalCta: {
+          eyebrow: "FOR EVERYONE WHO SAYS THEY WILL WALK TOMORROW",
+          headline: "Starts {startDateLong}.",
+          body: "{weeksWord} weeks. Join your cohort, pick your coach in the app, and get your steps in.",
+          ctaLabel: "Join the {month} challenge"
+        }
       },
 
-      /* Screen 2 */
       checkout: {
         title: "Lock in your plan.",
         intro: "Charged once today. No subscription.",
         includedLabel: "What's included",
         includedItems: [
-          "Your 6-week ramp",
+          "Your spot in the {month} cohort",
           "Daily messages from your coach",
           "Connect with other walkers in your group",
           "Free tracking, history and leaderboards, always"
         ],
-        feeRowLabel: "Program fee (non-refundable)",
-        stakeRowLabel: "Stake (refundable, minus {perDay}/missed weekday)",
+        feeRowLabel: "Entry fee (non-refundable)",
+        stakeRowLabel: "Buy-in (refundable, minus {perDay}/missed weekday)",
         nameLabel: "First name",
         emailLabel: "Email",
-        billingNoteBase: "Charged once today, no subscription. The stake is refunded in full if you finish, minus {perDay} for every weekday you miss.",
+        billingNoteBase: "Charged once today, no subscription. Your buy-in is refunded in full if you finish, minus {perDay} for every weekday you miss.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -303,12 +320,12 @@ window.WALKA_COUCH6K = (function () {
       title: "You're all set.",
       subtitle: "Your plan is ready and waiting for you in the app.",
       downloadLabel: "Download the app",
-      downloadBody: "Sign up with {email} and your plan and coach will already be there, no setup needed.",
+      downloadBody: "Sign up with {email} and your cohort will already be there, no setup needed.",
       downloadCta: "Download on the App Store",
       nextTitle: "What happens next",
       nextSteps: [
         { title: "Check your inbox", body: "Watch for a receipt from Stripe confirming today's charge." },
-        { title: "Download Walka", body: "Sign up with the same email you just used, and your plan loads in automatically." },
+        { title: "Download Walka", body: "Sign up with the same email you just used, and choose your coach." },
         { title: "Start walking", body: "Your coach's first message lands within the hour." }
       ],
       cancelFallback: "Questions about your payment? Email susan@getwalka.com."
@@ -330,6 +347,7 @@ window.WALKA_COUCH6K = (function () {
     stepCompleted: "couch6k_step_completed",
     dropoff: "couch6k_dropoff",
     homeViewed: "couch6k_home_viewed",
+    coachPreviewed: "couch6k_coach_previewed",
     checkoutViewed: "couch6k_checkout_viewed",
     checkoutStarted: "couch6k_checkout_started",
     checkoutCompleted: "couch6k_checkout_completed",
@@ -348,11 +366,10 @@ window.WALKA_COUCH6K = (function () {
     FEE_CENTS: FEE_CENTS,
     TOTAL_CENTS: TOTAL_CENTS,
     MISS_LOSS_CENTS_PER_DAY: MISS_LOSS_CENTS_PER_DAY,
-    SOLO_LOSER_REFUND_PCT: SOLO_LOSER_REFUND_PCT,
     PROGRAM_WEEKS: PROGRAM_WEEKS,
     PROGRAM_DURATION_DAYS: PROGRAM_DURATION_DAYS,
     TRACKED_WEEKDAYS: TRACKED_WEEKDAYS,
-    WEEKLY_TARGETS: WEEKLY_TARGETS,
+    DAILY_GOAL_STEPS: DAILY_GOAL_STEPS,
     COHORT_START_DATE_ISO: COHORT_START_DATE_ISO,
     STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY,
     SUPABASE_URL: SUPABASE_URL,
