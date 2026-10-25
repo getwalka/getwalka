@@ -1,14 +1,20 @@
 /* ==========================================================================
    Walka Couch to 6K: paid 6-week test-cohort funnel, ENGINE
-   Step state machine, feature-flag gate, resume-from-localStorage, analytics
-   events, Supabase sync, one-time combined-charge Stripe checkout. All
-   copy/config lives in couch6k-copy.js. Structure mirrors start-app.js; see
-   that file's comments for the parts that are identical (uuid/state/sync/
-   gate plumbing). Deviations from start-app.js are called out inline where
-   they happen: the waitlist step, the pre-selected mode step with its
-   tap-to-expand disclosure, the always-tagged-with-mode track() wrapper,
-   and the one-time combined-PaymentIntent checkout (no subscription, no
-   deferred/optional stake).
+   Two-screen flow (home -> checkout), gate, resume-from-localStorage,
+   analytics events, Supabase sync, one-time combined-charge Stripe
+   checkout. All copy/config lives in couch6k-copy.js. Structure mirrors
+   start-app.js; see that file's comments for the parts that are identical
+   (uuid/state/sync/gate plumbing). Deviations from start-app.js are called
+   out inline where they happen: the homepage's inline coach/mode toggles
+   (not a quiz step -- just pills on the one screen, pre-selected so
+   nothing is a forced choice), the always-tagged-with-mode track()
+   wrapper, and the one-time combined-PaymentIntent checkout (no
+   subscription, no deferred/optional stake).
+
+   Was previously a 9-step onboarding quiz (goal, baseline, waitlist,
+   coach, mode, contact, preparing, results, checkout). Flattened to one
+   homepage that summarizes the offer and leads straight into checkout --
+   see couch6k-copy.js's header comment for what that drops.
    ========================================================================== */
 (function () {
   "use strict";
@@ -17,10 +23,7 @@
   var COPY = WS.COPY;
   var EVENTS = WS.EVENTS;
   var STORAGE_KEY = "walka_couch6k_state_v1";
-  var PREPARING_DELAY_MS = 3000;
-  var STEP_IDS = [
-    "goal", "baseline", "waitlist", "coach", "mode", "contact", "preparing", "results", "checkout"
-  ];
+  var STEP_IDS = ["home", "checkout"];
 
   /* ---------------- utilities ---------------- */
 
@@ -35,9 +38,9 @@
   }
 
   /* Always merges `mode` into every event's props, from whatever state.answers
-     holds at call time (null until the mode step is reached) -- a structural
-     fix rather than auditing each call site, since start-app.js's own track()
-     is inconsistent about which calls include mode (CLAUDE.md flag item 4). */
+     holds at call time -- a structural fix rather than auditing each call
+     site, since start-app.js's own track() is inconsistent about which
+     calls include mode (CLAUDE.md flag item 4). */
   function track(event, props) {
     try {
       if (window.posthog && window.posthog.capture) {
@@ -87,10 +90,9 @@
     return "$" + (cents / 100).toFixed(2);
   }
 
-  /* ---------------- plan-facts rendering (paywall + checkout) ---------------- *
+  /* ---------------- plan-facts rendering (homepage + checkout) ---------------- *
    * The weekly ramp is ONE fixed schedule for every user (WS.WEEKLY_TARGETS),
-   * never computed from onboarding answers -- the baseline-steps question is
-   * analytics only (see syncLead below) and must never feed this. */
+   * never personalized. */
 
   function templ(str, map) {
     return Object.keys(map).reduce(function (s, key) {
@@ -103,7 +105,7 @@
      distinct "you start here" label + the real start date (group) or "the
      day you join" (solo) instead of a plain week number. Bars fill in on
      load via CSS animation (--fill custom property, staggered --i delay);
-     @media (prefers-reduced-motion:reduce) in couch6k.html shows the final
+     @media (prefers-reduced-motion:reduce) in myplan.html shows the final
      height immediately instead. */
   function rampBars(targets, startLabel, startDateText) {
     var min = Math.min.apply(null, targets);
@@ -113,7 +115,7 @@
         var pct = max === min ? 100 : Math.round(10 + 90 * ((steps - min) / (max - min)));
         var weekLine = i === 0
           ? '<p class="ramp-bar__week ramp-bar__week--start">' + escapeAttr(startLabel) + '</p><p class="ramp-bar__date">' + escapeAttr(startDateText) + '</p>'
-          : '<p class="ramp-bar__week">' + COPY.steps.results.rampWeekLabel + ' ' + (i + 1) + '</p>';
+          : '<p class="ramp-bar__week">' + COPY.steps.home.rampWeekLabel + ' ' + (i + 1) + '</p>';
         return '<div class="ramp-bar">' +
           '<div class="ramp-bar__track"><div class="ramp-bar__fill" style="--fill:' + pct + '%;--i:' + i + '"></div></div>' +
           '<p class="ramp-bar__value">' + steps.toLocaleString() + '</p>' +
@@ -155,9 +157,7 @@
     }
   };
 
-  /* ---------------- accordion: independent, multi-item expand/collapse ---------------- *
-   * Sibling to disclosureMarkup/bindDisclosure (the mode step's single
-   * tap-to-expand), but supports several items open/closed independently. */
+  /* ---------------- accordion: independent, multi-item expand/collapse ---------------- */
   function accordionItem(id, title, body) {
     return '<div class="accordion-item">' +
       '<button type="button" class="accordion-toggle" data-accordion="' + id + '" aria-expanded="false">' +
@@ -211,14 +211,10 @@
       updated_at: new Date().toISOString(),
       country: a.country || null,
       billing_currency: checkoutCurrency(a),
-      goal: a.goal || null,
-      fitness_goal: a.goal ? (WS.GOAL_TO_FITNESS_GOAL[a.goal] || null) : null,
-      baseline_bucket: a.baseline_bucket || null,
       coach_style: a.coach_style || null,
       mode: a.mode || null,
       first_name: a.first_name || null,
       email: a.email || null,
-      referral_source: a.referral_source || null,
       last_step: STEP_IDS[state.stepIndex] || null,
       checkout_status: a.checkout_status || "not_started"
     }, extra || {});
@@ -244,13 +240,10 @@
           stepIndex: idx >= 0 ? idx : 0,
           answers: {
             country: row.country || null,
-            goal: row.goal || null,
-            baseline_bucket: row.baseline_bucket || null,
             coach_style: row.coach_style || null,
             mode: row.mode || null,
             first_name: row.first_name || null,
             email: row.email || null,
-            referral_source: row.referral_source || null,
             checkout_status: row.checkout_status || "not_started"
           },
           startedAt: Date.now(),
@@ -268,17 +261,9 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, progressFill, progressLabel, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, introHeaderEl, belowCardNoteEl;
+  var screenEl, continueBtn, backBtn, skipBtn, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, introHeaderEl;
 
   /* ---------------- small render helpers ---------------- */
-
-  function pillOption(name, value, label, active) {
-    return '<button type="button" class="answer-card' + (active ? " is-active" : "") +
-      '" data-value="' + value + '" data-name="' + name + '">' +
-      '<span class="answer-card__label">' + label + '</span>' +
-      '<span class="answer-card__indicator" aria-hidden="true"></span>' +
-      '</button>';
-  }
 
   function pillOptionWithSub(name, value, label, sub, active) {
     return '<button type="button" class="answer-card' + (active ? " is-active" : "") +
@@ -288,13 +273,9 @@
       '</button>';
   }
 
-  /* New: tap-to-expand disclosure, sibling to pillOption/pillOptionWithSub.
-     Plain click/aria-expanded toggle -- no :hover dependency anywhere, this
-     funnel is mobile-first. */
-  /* Used by both the mode step's "what's the difference" and the results
-     step's "why 6,000" row -- IDs are plain (not step-prefixed) and safe
-     to reuse since only one step's DOM exists at a time. A step with more
-     than one disclosure would need per-instance IDs; neither does today. */
+  /* Tap-to-expand disclosure. Plain click/aria-expanded toggle -- no
+     :hover dependency anywhere, this funnel is mobile-first. IDs are
+     plain (not step-prefixed) since only one step's DOM exists at a time. */
   function disclosureMarkup(label, body) {
     return '<button type="button" class="disclosure-toggle" id="pageDisclosureToggle" aria-expanded="false">' +
         escapeAttr(label) +
@@ -314,217 +295,36 @@
 
   /* ---------------- step definitions ---------------- */
   /* Each step: render() -> HTML, bind(root) attach listeners, canAdvance()
-     -> bool, onEnter()/onLeave() optional, skip(a) optional (bypassed
-     entirely in both directions when it returns true -- used to hide the
-     `waitlist` step for anyone who didn't pick the 7,000+ baseline). */
+     -> bool, onEnter()/onLeave() optional. Just two steps now: the
+     homepage (the offer, with coach/mode as inline toggles and a
+     name/email field) and checkout. */
 
   var steps = {
 
-    goal: {
-      hideContinue: true,
-      render: function (a) {
-        var c = COPY.steps.goal;
-        var opts = c.options.map(function (o) {
-          return pillOption("goal_value", o.value, o.label, a.goal === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="answer-grid" id="goalOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#goalOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.goal = b.getAttribute("data-value");
-            root.querySelectorAll('#goalOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            autoAdvance();
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.goal; }
-    },
+    /* The homepage. Screen order: headline, ramp, money card (with the
+       solo/group toggle inline), coach card (with its own toggle inline),
+       one-liners, rules accordion, "why 6,000" row, a short name/email
+       field, sticky total+button bar. No per-user ramp math anywhere:
+       WS.WEEKLY_TARGETS is the one schedule every user gets. "N already
+       joined" and any countdown are left out entirely -- there's no real
+       data source for a manually-created one-off cohort (wiring a real
+       count would mean a get-weekly-cohort-preview-style Edge Function
+       call scoped to this cohort's actual challenge row, which doesn't
+       exist yet; flagged here rather than faked).
 
-    baseline: {
-      hideContinue: true,
-      render: function (a) {
-        var c = COPY.steps.baseline;
-        var opts = c.options.map(function (o) {
-          return pillOption("baseline_value", o.value, o.label, a.baseline_bucket === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-hint">' + c.hint + '</p>' +
-          '<div class="answer-grid" id="baselineOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#baselineOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.baseline_bucket = b.getAttribute("data-value");
-            root.querySelectorAll('#baselineOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            autoAdvance();
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.baseline_bucket; }
-    },
-
-    /* 7,000+ only -- skipped entirely for everyone else, in both nav
-       directions. Terminal: its own submit button absorbs the step rather
-       than calling goNext(), same self-contained idea checkout's pay
-       button uses. */
-    waitlist: {
-      hideNav: true,
-      skip: function (a) { return a.baseline_bucket !== "seven_plus"; },
-      render: function (a) {
-        var c = COPY.steps.waitlist;
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.body + '</p>' +
-          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="wlName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
-          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="wlEmail" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
-          '<button type="button" class="btn btn--ink" id="wlSubmit" style="width:100%;margin-top:16px" disabled>' + c.submitCta + '</button>';
-      },
-      bind: function (root) {
-        var c = COPY.steps.waitlist;
-        var name = root.querySelector("#wlName"), email = root.querySelector("#wlEmail"), submit = root.querySelector("#wlSubmit");
-        function fieldsValid() {
-          return name.value.trim().length > 0 && /\S+@\S+\.\S+/.test(email.value.trim());
-        }
-        function refresh() { submit.disabled = !fieldsValid(); }
-        name.addEventListener("input", function () { state.answers.first_name = name.value; refresh(); });
-        email.addEventListener("input", function () { state.answers.email = email.value; refresh(); });
-        submit.addEventListener("click", function () {
-          if (!fieldsValid()) return;
-          state.answers.checkout_status = "waitlisted";
-          saveState();
-          track(EVENTS.waitlisted, { local_id: state.localId });
-          syncLead({ checkout_status: "waitlisted" });
-          root.innerHTML = '<h2 class="q-title">' + c.confirmedTitle + '</h2>' +
-            '<p class="q-body">' + c.confirmedBody + '</p>';
-        });
-      },
-      canAdvance: function () { return false; }
-    },
-
-    coach: {
-      hideContinue: true,
-      render: function (a) {
-        var c = COPY.steps.coach;
-        var opts = c.options.map(function (o) {
-          return pillOptionWithSub("coach_value", o.value, o.label, o.sub, a.coach_style === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="answer-grid" id="coachOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#coachOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.coach_style = b.getAttribute("data-value");
-            root.querySelectorAll('#coachOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            autoAdvance();
-          });
-        });
-      },
-      canAdvance: function (a) { return !!a.coach_style; }
-    },
-
-    /* Real engine deviation from start-app.js's mode step: pre-selected to
-       "group" (Continue is visible and already enabled, no tap required),
-       plus a tap-to-expand "what's the difference?" disclosure. A tap on a
-       card still requires hitting the visible Continue button -- it does
-       NOT auto-advance, since the step no longer needs a forced choice to
-       become valid. */
-    mode: {
-      onEnter: function (a) { if (!a.mode) a.mode = "group"; },
-      render: function (a) {
-        var c = COPY.steps.mode;
-        var opts = c.options.map(function (o) {
-          return pillOptionWithSub("mode_value", o.value, o.label, o.sub, a.mode === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<div class="answer-grid" id="modeOpts">' + opts + '</div>' +
-          (a.mode === "solo" ? '<p class="q-hint">' + c.soloMoneyNote + '</p>' : '') +
-          '<div class="disclosure">' + disclosureMarkup(c.disclosureLabel, c.disclosureBody) + '</div>';
-      },
-      bind: function (root) {
-        root.querySelectorAll('#modeOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.mode = b.getAttribute("data-value");
-            root.querySelectorAll('#modeOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-            refreshContinue();
-            renderStep(false); // re-render to toggle the solo money note, without re-tracking a step view
-          });
-        });
-        bindDisclosure(root);
-      },
-      canAdvance: function (a) { return !!a.mode; }
-    },
-
-    contact: {
-      render: function (a) {
-        var c = COPY.steps.contact;
-        var opts = c.referralOptions.map(function (o) {
-          return pillOption("referral_value", o.value, o.label, a.referral_source === o.value);
-        }).join("");
-        return '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.subtitle + '</p>' +
-          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="firstName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
-          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="email" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
-          '<p class="q-label">' + c.referralLabel + '</p>' +
-          '<div class="answer-grid" id="referralOpts">' + opts + '</div>';
-      },
-      bind: function (root) {
-        var name = root.querySelector("#firstName"), email = root.querySelector("#email");
-        name.addEventListener("input", function () { state.answers.first_name = name.value; refreshContinue(); });
-        email.addEventListener("input", function () { state.answers.email = email.value; refreshContinue(); });
-        root.querySelectorAll('#referralOpts .answer-card').forEach(function (b) {
-          b.addEventListener("click", function () {
-            state.answers.referral_source = b.getAttribute("data-value");
-            root.querySelectorAll('#referralOpts .answer-card').forEach(function (p) { p.classList.toggle("is-active", p === b); });
-          });
-        });
-      },
-      canAdvance: function (a) {
-        return !!(a.first_name && a.first_name.trim()) && /\S+@\S+\.\S+/.test((a.email || "").trim());
-      }
-    },
-
-    preparing: {
-      hideNav: true,
-      render: function () {
-        var c = COPY.steps.preparing;
-        return '<div class="preparing">' +
-          '<div class="preparing__dots" aria-hidden="true">' +
-            '<span class="preparing__dot preparing__dot--sage"></span>' +
-            '<span class="preparing__dot preparing__dot--lavender"></span>' +
-            '<span class="preparing__dot preparing__dot--amber"></span>' +
-          '</div>' +
-          '<h2 class="q-title">' + c.title + '</h2>' +
-          '<p class="q-body">' + c.body + '</p>' +
-        '</div>';
-      },
-      bind: function () {},
-      canAdvance: function () { return true; },
-      onEnter: function (a) {
-        clearTimeout(pendingAdvanceTimer);
-        pendingAdvanceTimer = setTimeout(function () { goNext(); }, PREPARING_DELAY_MS);
-      }
-    },
-
-    /* The paywall. Screen order: headline, ramp, money card (slider),
-       coach card, one-liners, rules accordion, "why 6,000" row, sticky
-       total+button bar. No "made for you" framing and no per-user ramp
-       math anywhere: WS.WEEKLY_TARGETS is the one schedule every user
-       gets, independent of onboarding answers. "N already joined" and any
-       countdown are left out entirely -- there's no real data source for
-       a manually-created one-off cohort (wiring a real count would mean a
-       get-weekly-cohort-preview-style Edge Function call scoped to this
-       cohort's actual challenge row, which doesn't exist yet; flagged
-       here rather than faked).
-
-       Its own sticky bottom bar drives navigation (hideContinue:true
-       hides the shared flownav's Continue button; Back stays visible). */
-    results: {
+       Its own sticky bottom bar drives navigation to checkout
+       (hideContinue:true hides the shared flownav's Continue button). */
+    home: {
       flownavVariant: "tight",
       hideContinue: true,
+      onEnter: function (a) {
+        if (!a.mode) a.mode = "group";
+        if (!a.coach_style) a.coach_style = "princess";
+        track(EVENTS.homeViewed, { local_id: state.localId });
+        syncLead();
+      },
       render: function (a) {
-        var c = COPY.steps.results;
+        var c = COPY.steps.home;
         var isGroup = a.mode === "group";
         var targets = WS.WEEKLY_TARGETS;
         var coach = COACH_META[a.coach_style] || COACH_META.princess;
@@ -537,6 +337,14 @@
 
         var payoutDetail = isGroup ? c.rulePayoutDetailGroup : c.rulePayoutDetailSolo;
 
+        var modeOpts = c.modeOptions.map(function (o) {
+          return pillOptionWithSub("mode_value", o.value, o.label, o.sub, a.mode === o.value);
+        }).join("");
+
+        var coachOpts = c.coachOptions.map(function (o) {
+          return pillOptionWithSub("coach_value", o.value, o.label, o.sub, a.coach_style === o.value);
+        }).join("");
+
         return '<div class="stagger">' +
 
           /* 1. Headline + subline. Solo's mechanic is genuinely different
@@ -548,11 +356,12 @@
           /* 2. Ramp chart */
           rampBars(targets, startLabel, startDateText) +
 
-          /* 3. Money card. Group: interactive slider (genuinely prorated).
-             Solo: static binary outcome (see the copy comment on
-             soloOutcomePerfect/soloOutcomeMiss -- a slider would otherwise
-             sit flat for every miss count from 1 upward, reading as
-             broken rather than intentional). */
+          /* 3. Money card, with the solo/group toggle inline (pre-selected
+             to "group", not a forced choice). Group: interactive slider
+             (genuinely prorated). Solo: static binary outcome (see the
+             copy comment on soloOutcomePerfect/soloOutcomeMiss -- a slider
+             would otherwise sit flat for every miss count from 1 upward,
+             reading as broken rather than intentional). */
           '<div class="money-card">' +
             '<p class="money-card__finish">' + templ(c.moneyFinishLine, { fee: centsLabel(WS.FEE_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
             (isGroup ? (
@@ -571,9 +380,14 @@
                 }) + '</p>' +
               '</div>'
             )) +
+            '<p class="q-label" style="margin-top:18px">' + c.modeLabel + '</p>' +
+            '<div class="answer-grid" id="modeOpts">' + modeOpts + '</div>' +
+            (a.mode === "solo" ? '<p class="q-hint">' + c.soloMoneyNote + '</p>' : '') +
+            '<div class="disclosure">' + disclosureMarkup(c.modeDisclosureLabel, c.modeDisclosureBody) + '</div>' +
           '</div>' +
 
-          /* 4. Coach card */
+          /* 4. Coach card, with coach style as an inline toggle
+             (pre-selected to "princess", not a forced choice). */
           '<div class="coach-card">' +
             '<div class="coach-card__avatar" aria-hidden="true">' + coach.emoji + '</div>' +
             '<div class="coach-card__text">' +
@@ -583,6 +397,7 @@
             '</div>' +
           '</div>' +
           '<p class="coach-card__caption">' + c.coachCardCaption + '</p>' +
+          '<div class="answer-grid" id="coachOpts">' + coachOpts + '</div>' +
 
           /* 5. Fact one-liner(s) */
           '<ul class="fact-lines">' +
@@ -603,8 +418,13 @@
             accordionItem("edge-cases", c.ruleEdgeCases.title, '<p>' + c.ruleEdgeCases.body + '</p>') +
           '</div>' +
 
-          /* "Joined"/countdown omitted: no real data source for this
-             manually-created one-off cohort. */
+          /* 7. "Get your plan" name/email, captured before checkout so a
+             dropoff there still leaves a reachable lead. */
+          '<p class="q-label">' + c.leadFormTitle + '</p>' +
+          '<p class="q-body">' + c.leadFormSubtitle + '</p>' +
+          '<label class="field"><span>' + c.nameLabel + '</span><input type="text" id="homeName" value="' + escapeAttr(a.first_name || "") + '" autocomplete="given-name"></label>' +
+          '<label class="field"><span>' + c.emailLabel + '</span><input type="email" id="homeEmail" value="' + escapeAttr(a.email || "") + '" placeholder="you@example.com" autocomplete="email"></label>' +
+
           '<div class="sticky-bar-spacer" aria-hidden="true"></div>' +
         '</div>' +
 
@@ -613,15 +433,30 @@
         '<div class="sticky-bar">' +
           '<div class="sticky-bar__row">' +
             '<p class="sticky-bar__total">' + templ(c.totalLine, { total: centsLabelExact(WS.TOTAL_CENTS), stake: centsLabel(WS.STAKE_CENTS) }) + '</p>' +
-            '<button type="button" class="btn btn--ink sticky-bar__btn" id="resultsContinueBtn">' + c.continueCta + '</button>' +
+            '<button type="button" class="btn btn--ink sticky-bar__btn" id="homeContinueBtn">' + c.continueCta + '</button>' +
           '</div>' +
           '<p class="sticky-bar__note">' + c.afterButtonNote + '</p>' +
         '</div>';
       },
       bind: function (root) {
-        var c = COPY.steps.results;
         bindAccordion(root);
+        bindDisclosure(root);
 
+        root.querySelectorAll('#modeOpts .answer-card').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.mode = b.getAttribute("data-value");
+            renderStep(false); // re-render to swap the slider/static outcome and the solo money note, without re-tracking a step view
+          });
+        });
+
+        root.querySelectorAll('#coachOpts .answer-card').forEach(function (b) {
+          b.addEventListener("click", function () {
+            state.answers.coach_style = b.getAttribute("data-value");
+            renderStep(false); // re-render to swap the coach card's sample line
+          });
+        });
+
+        var c = COPY.steps.home;
         var slider = root.querySelector("#missSlider");
         var label = root.querySelector("#missSliderLabel");
         var backEl = root.querySelector("#missSliderBack");
@@ -637,13 +472,16 @@
           });
         }
 
-        var stickyBtn = root.querySelector("#resultsContinueBtn");
-        if (stickyBtn) stickyBtn.addEventListener("click", function () { goNext(); });
+        var name = root.querySelector("#homeName"), email = root.querySelector("#homeEmail");
+        var cta = root.querySelector("#homeContinueBtn");
+        function refreshCta() { cta.disabled = !steps.home.canAdvance(state.answers); }
+        name.addEventListener("input", function () { state.answers.first_name = name.value; refreshCta(); });
+        email.addEventListener("input", function () { state.answers.email = email.value; refreshCta(); });
+        refreshCta();
+        cta.addEventListener("click", function () { goNext(); });
       },
-      canAdvance: function () { return true; },
-      onEnter: function (a) {
-        track(EVENTS.resultsViewed, { local_id: state.localId });
-        syncLead();
+      canAdvance: function (a) {
+        return !!(a.first_name && a.first_name.trim()) && /\S+@\S+\.\S+/.test((a.email || "").trim());
       }
     },
 
@@ -816,27 +654,12 @@
 
   function currentStepId() { return STEP_IDS[state.stepIndex]; }
 
-  function isSkipped(index) {
-    var step = steps[STEP_IDS[index]];
-    return !!(step && step.skip && step.skip(state.answers));
-  }
-
   function refreshContinue() {
     var step = steps[currentStepId()];
     continueBtn.disabled = !step.canAdvance(state.answers);
   }
 
-  var pendingAdvanceTimer = null;
-  function autoAdvance() {
-    refreshContinue();
-    clearTimeout(pendingAdvanceTimer);
-    if (steps[currentStepId()].canAdvance(state.answers)) {
-      pendingAdvanceTimer = setTimeout(function () { goNext(); }, 220);
-    }
-  }
-
   function renderStep(trackView) {
-    clearTimeout(pendingAdvanceTimer);
     var id = currentStepId();
     var step = steps[id];
     screenEl.innerHTML = step.render(state.answers);
@@ -845,16 +668,11 @@
     void screenEl.offsetWidth;
     screenEl.classList.add("card--enter");
     flownavEl.classList.toggle("flownav--tight", step.flownavVariant === "tight");
-    introHeaderEl.hidden = id !== "goal";
-    belowCardNoteEl.hidden = id !== "goal";
-    progressFill.style.width = Math.round(((state.stepIndex + 1) / STEP_IDS.length) * 100) + "%";
-    progressLabel.textContent = (id === "goal") ? COPY.firstStepProgressLabel : "Step " + (state.stepIndex + 1);
+    introHeaderEl.hidden = id !== "home";
     backBtn.hidden = state.stepIndex === 0;
-    var isCheckout = id === "checkout";
-    var hideNav = isCheckout || step.hideNav;
+    var hideNav = id === "checkout" || step.hideNav;
     continueBtn.hidden = hideNav || step.hideContinue;
     skipBtn.hidden = true; // no optional/skippable questions in this funnel
-    if (step.hideNav) backBtn.hidden = true;
     if (!hideNav) {
       continueBtn.textContent = step.continueLabel ? step.continueLabel(state.answers) : COPY.continueLabel;
       refreshContinue();
@@ -873,26 +691,16 @@
     track(EVENTS.stepCompleted, { step: id, step_index: state.stepIndex });
     if (step.onLeave) step.onLeave(state.answers);
     syncLead();
-    var next = state.stepIndex;
-    while (next < STEP_IDS.length - 1) {
-      next++;
-      if (!isSkipped(next)) break;
-    }
-    if (next !== state.stepIndex || !isSkipped(next)) {
-      state.stepIndex = Math.min(next, STEP_IDS.length - 1);
+    if (state.stepIndex < STEP_IDS.length - 1) {
+      state.stepIndex++;
       resumeBanner.hidden = true;
       renderStep();
     }
   }
 
   function goBack() {
-    var prev = state.stepIndex;
-    while (prev > 0) {
-      prev--;
-      if (!isSkipped(prev)) break;
-    }
-    if (prev !== state.stepIndex) {
-      state.stepIndex = prev;
+    if (state.stepIndex > 0) {
+      state.stepIndex--;
       resumeBanner.hidden = true;
       renderStep();
     }
@@ -1006,8 +814,6 @@
     continueBtn = document.getElementById("continueBtn");
     backBtn = document.getElementById("backBtn");
     skipBtn = document.getElementById("skipBtn");
-    progressFill = document.getElementById("progressFill");
-    progressLabel = document.getElementById("progressLabel");
     resumeBanner = document.getElementById("resumeBanner");
     resumeBannerText = document.getElementById("resumeBannerText");
     resumeBannerDismiss = document.getElementById("resumeBannerDismiss");
@@ -1018,7 +824,6 @@
     exitLink = document.getElementById("exitLink");
     flownavEl = document.querySelector(".flownav");
     introHeaderEl = document.getElementById("introHeader");
-    belowCardNoteEl = document.getElementById("belowCardNote");
 
     continueBtn.addEventListener("click", function () { goNext(); });
     backBtn.addEventListener("click", goBack);
@@ -1034,7 +839,6 @@
           return '<span class="intro-header__feature"><span aria-hidden="true">' + f.icon + '</span> ' + escapeAttr(templ(f.label, { startSteps: startSteps })) + '</span>';
         }).join("") +
       '</div>';
-    belowCardNoteEl.textContent = COPY.belowCardNote;
 
     maybeRehydrateFromLink().then(function () { initGate(); });
   });
