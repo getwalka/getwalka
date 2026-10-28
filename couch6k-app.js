@@ -61,9 +61,19 @@
     return match ? decodeURIComponent(match[1]) : "";
   }
 
-  /* Same numeral-in-the-visitor's-own-currency pattern as /start. */
+  /* GB/AU/NG bill in USD at the same price point as the US -- only CA
+     gets its own currency. */
   function checkoutCurrency(a) {
     return a.country === "CA" ? "cad" : "usd";
+  }
+
+  /* Real USD->CAD conversion (WS.USD_TO_CAD_RATE), not the same numeral
+     relabeled -- a Canadian buy-in must come out to the actual CAD
+     equivalent of the USD price, not a cheaper flat number that happens
+     to share digits with it. Rounds to the nearest cent so Stripe always
+     receives a whole-cent integer. */
+  function convertedCents(usdCents, currency) {
+    return currency === "cad" ? Math.round(usdCents * WS.USD_TO_CAD_RATE) : usdCents;
   }
 
   /* supabase-js's FunctionsHttpError.message is always the generic "Edge
@@ -115,18 +125,29 @@
 
   /* Every placeholder the homepage's copy templates reference, derived
      straight from WS's config constants so the page can never show a
-     number that disagrees with what checkout actually charges. */
+     number that disagrees with what checkout actually charges. Currency-
+     aware: a Canadian visitor (state.answers.country === "CA", stamped
+     from middleware.js's geo cookie before this ever renders) sees the
+     real CAD-converted fee/stake/total/perDay, suffixed " CAD" so it's
+     never mistaken for a bare USD number. convertedCents() is mirrored
+     server-side in create-couch6k-payment-intent/index.ts, so the amount
+     shown here is always the amount Stripe actually charges. */
   function commonVars() {
     var dates = cohortDates();
+    var currency = checkoutCurrency(state.answers);
+    var suffix = currency === "cad" ? " CAD" : "";
+    var feeCents = convertedCents(WS.FEE_CENTS, currency);
+    var stakeCents = convertedCents(WS.STAKE_CENTS, currency);
+    var perDayCents = convertedCents(WS.MISS_LOSS_CENTS_PER_DAY, currency);
     return {
       weeks: String(WS.PROGRAM_WEEKS), // numeral, for the compact hero badge only
       weeksWord: NUMBER_WORDS[WS.PROGRAM_WEEKS] || String(WS.PROGRAM_WEEKS), // spelled out, sentence-initial ("Four weeks is...")
       weeksWordLower: (NUMBER_WORDS[WS.PROGRAM_WEEKS] || String(WS.PROGRAM_WEEKS)).toLowerCase(), // spelled out, mid-sentence ("...for four weeks.")
       goal: WS.DAILY_GOAL_STEPS.toLocaleString(),
-      fee: centsLabel(WS.FEE_CENTS),
-      stake: centsLabel(WS.STAKE_CENTS),
-      total: centsLabelExact(WS.TOTAL_CENTS),
-      perDay: centsLabel(WS.MISS_LOSS_CENTS_PER_DAY),
+      fee: centsLabel(feeCents) + suffix,
+      stake: centsLabel(stakeCents) + suffix,
+      total: centsLabelExact(feeCents + stakeCents) + suffix, // summed from the already-converted parts, so it never drifts a cent from the itemized rows
+      perDay: centsLabel(perDayCents) + suffix,
       trackedWeekdays: String(WS.TRACKED_WEEKDAYS),
       month: dates.month,
       monthUpper: dates.month.toUpperCase(),
@@ -562,11 +583,13 @@
         var c = COPY.steps.checkout;
         var vars = commonVars();
         var currency = checkoutCurrency(a);
+        var feeCents = convertedCents(WS.FEE_CENTS, currency);
+        var stakeCents = convertedCents(WS.STAKE_CENTS, currency);
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
           '<div class="charge-breakdown">' +
-            '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabel(WS.FEE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
-            '<div class="charge-breakdown__row"><span>' + templ(c.stakeRowLabel, vars) + '</span><strong>' + centsLabel(WS.STAKE_CENTS) + ' ' + currency.toUpperCase() + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + c.feeRowLabel + '</span><strong>' + centsLabel(feeCents) + ' ' + currency.toUpperCase() + '</strong></div>' +
+            '<div class="charge-breakdown__row"><span>' + templ(c.stakeRowLabel, vars) + '</span><strong>' + centsLabel(stakeCents) + ' ' + currency.toUpperCase() + '</strong></div>' +
           '</div>' +
           '<p class="q-hint">' + templ(c.billingNoteBase, vars) + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +

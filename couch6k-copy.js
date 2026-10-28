@@ -40,13 +40,15 @@ window.WALKA_COUCH6K = (function () {
   var POSTHOG_FLAG_TIMEOUT_MS = 2500; // fail closed if flags never arrive
 
   /* ------------------------------------------------------------------ *
-   * 1b. GEO GATE: US/Canada only, same mechanism as /start.
+   * 1b. GEO GATE: same mechanism as /start.
    *    middleware.js stamps walka_geo_country on every /couch6k request;
    *    couch6k-app.js reads that cookie and blocks checkout for anyone
    *    outside this list. Fails OPEN if the cookie is missing (e.g. local
    *    dev), same reasoning as start-copy.js's identical gate.
+   *    GB/AU/NG bill in USD, same price point as US: checkoutCurrency() in
+   *    couch6k-app.js only special-cases "CA".
    * ------------------------------------------------------------------ */
-  var GEO_ALLOWED_COUNTRIES = ["US", "CA"];
+  var GEO_ALLOWED_COUNTRIES = ["US", "CA", "GB", "AU", "NG"];
 
   /* ------------------------------------------------------------------ *
    * 2. PAYMENTS: Stripe, ONE combined one-time charge. No subscription.
@@ -78,6 +80,18 @@ window.WALKA_COUCH6K = (function () {
   var FEE_CENTS = 1999;     // $19.99 entry fee
   var TOTAL_CENTS = STAKE_CENTS + FEE_CENTS; // $39.99
   var MISS_LOSS_CENTS_PER_DAY = 100; // $1/missed weekday, capped at the buy-in
+
+  /* USD->CAD conversion for Canadian visitors. Static and hand-maintained
+     on purpose -- not a live FX API call, so checkout has no network
+     dependency or failure mode riding on an exchange-rate service, and
+     this funnel's volume doesn't justify the added complexity. A few
+     points of drift between updates is an acceptable tradeoff. Mirrored
+     by hand in create-couch6k-payment-intent/index.ts's own
+     USD_TO_CAD_RATE, same reasoning as STAKE_CENTS/FEE_CENTS above --
+     the two MUST match, or the price Canadians see won't be the price
+     Stripe actually charges them. Rate as of 2026-10-27: ~1.40 CAD per
+     USD (recent range has been roughly 1.35-1.41); review periodically. */
+  var USD_TO_CAD_RATE = 1.40;
   var PROGRAM_WEEKS = 4;
   var PROGRAM_DURATION_DAYS = 28; // 4 calendar weeks; only Mon-Fri are actually tracked (weekdays_only on the manually-created challenge row)
   var TRACKED_WEEKDAYS = PROGRAM_WEEKS * 5; // 20 -- the actual scored days (weekends are free)
@@ -365,6 +379,7 @@ window.WALKA_COUCH6K = (function () {
     FEE_CENTS: FEE_CENTS,
     TOTAL_CENTS: TOTAL_CENTS,
     MISS_LOSS_CENTS_PER_DAY: MISS_LOSS_CENTS_PER_DAY,
+    USD_TO_CAD_RATE: USD_TO_CAD_RATE,
     PROGRAM_WEEKS: PROGRAM_WEEKS,
     PROGRAM_DURATION_DAYS: PROGRAM_DURATION_DAYS,
     TRACKED_WEEKDAYS: TRACKED_WEEKDAYS,
