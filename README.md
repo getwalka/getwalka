@@ -17,31 +17,36 @@ pages).
 separate feature flag on mobile, not built here. Every `/moms` signup joins
 a cohort group.
 
-As of 2026-10-16, `/moms` goes straight into the step-by-step wizard, no
-separate marketing landing page first. (There used to be a full-width hero
-section with a headline, a 3-step "how it works," and a cohort preview,
-gated behind its own "Let's begin" button; `startFlow()` in `moms-app.js`
-now enters the wizard directly instead of calling into that, and the old
-render function was deleted along with the scroll-reveal helper it was the
-only caller of. `landingEl`/`#landing` is still a sibling of `<main>` in
-`moms.html`, left in place but permanently empty/hidden, in case this gets
-reverted.) `COPY.landing` in `moms-copy.js` is consequently unused by the
-flow itself; `moms_landing_view` no longer fires for the same reason.
+As of 2026-10-31, `/moms` is a two-screen flow: `home` (a full marketing-
+style landing page, no quiz) then `checkout`. This replaces the earlier
+13-screen onboarding quiz (motherhood stage, motivations, barriers,
+interludes, connection, conversations, baseline, clearance, contact,
+preparing, results) entirely, the same landing+checkout shape the
+November-challenge funnel (`couch6k.html`/`couch6k-copy.js`/
+`couch6k-app.js`) already moved to. Matching/personalization questions
+("which stage are you") are gone from this page; that happens in the app
+after signup instead, same as couch6k moved coach selection post-purchase.
+`STEP_IDS` in `moms-app.js` is now just `["home", "checkout"]`; `COPY.landing`,
+`COPY.cohort`, and `RESULTS_COPY` (the old quiz's personalization data) were
+deleted along with the quiz, and `moms_landing_view` no longer fires (see
+`moms_home_viewed` below instead).
 
 Files:
-- `moms.html`: the route itself (page shell, styles, landing + step markup
-  containers).
+- `moms.html`: the route itself (page shell, styles, landing + checkout
+  markup containers). Styled to match `myplan.html` (same Anton/Inter
+  fonts, same lavender/cream/pink/mint palette, same button/spacing system)
+  rather than this funnel's older sage/Quicksand look, which `moms-success.html`
+  still uses.
 - `moms-copy.js`: **every** piece of copy and every tunable config value
-  (feature flag key, Stripe link/mode, stake/fee/miss amounts, program
-  length, the fixed goal options, tone copy for "princess"/"coach"). Edit
-  this file, not the others, to change wording or mechanics.
-- `moms-app.js`: the step engine (state machine, validation, resume,
-  analytics, Supabase sync, Stripe handoff). Shouldn't contain user-facing
-  strings.
-- `moms-success.html`: where Stripe redirects after a successful test-mode
-  payment.
+  (feature flag key, Stripe link/mode, plan price/billing interval). Edit
+  this file, not the others, to change wording or pricing.
+- `moms-app.js`: the step engine (state machine, resume, analytics,
+  Supabase sync, Stripe handoff). Shouldn't contain user-facing strings.
+- `moms-success.html`: where Stripe redirects after a successful payment.
 - `supabase/moms_leads.sql`: schema + RLS policy for the leads table (run
-  once in the Supabase SQL editor).
+  once in the Supabase SQL editor). The quiz-answer columns (motherhood
+  stage, motivations, barriers, etc.) stay in the schema, nullable and
+  simply no longer written to.
 
 ### Enabling / disabling the flow
 
@@ -177,13 +182,13 @@ the browser as the upsert key.
 ### Analytics events
 
 All fire via the existing PostHog instance, prefixed `moms_` (see `EVENTS` in
-`moms-copy.js`): `moms_landing_view`, `moms_onboarding_start`,
-`moms_step_viewed`, `moms_step_completed`, `moms_dropoff`,
-`moms_clearance_answered`, `moms_motivation_chosen`, `moms_cohort_chosen`,
+`moms-copy.js`): `moms_onboarding_start`, `moms_step_viewed`,
+`moms_step_completed`, `moms_dropoff`, `moms_home_viewed`,
 `moms_checkout_viewed`, `moms_checkout_started`, `moms_checkout_completed`,
-`moms_checkout_failed`, `moms_geo_blocked`, `moms_prepare_reserved` (fires
-instead of `moms_checkout_started`/`completed` in prepare mode, since there's
-no Stripe handoff to track).
+`moms_checkout_failed`, `moms_geo_blocked`. The quiz-specific events
+(`moms_clearance_answered`, `moms_motivation_chosen`, `moms_cohort_chosen`,
+`moms_prepare_reserved`) were retired along with the quiz; a flag set up in
+PostHog around any of those is now dead.
 
 ### Assumptions & open questions
 
