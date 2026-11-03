@@ -182,6 +182,26 @@
      top to bottom.
      ==================================================================== */
 
+  /* Concentric-circle "moiré ring" decoration (two overlapping sets of
+     circles, offset from each other) -- a plain CSS gradient can't
+     produce this interference-pattern look, so it's built as inline SVG.
+     Purely decorative (aria-hidden), colored via the .ring-motif circle
+     CSS rule, not inline, so it always follows the page's rose token. */
+  function ringMotif(size, extraClass) {
+    var cx1 = size * 0.42, cx2 = size * 0.58, cy = size * 0.5;
+    var n = 14, maxR = size * 0.46;
+    var circles = "";
+    for (var i = 0; i < n; i++) {
+      var r1 = (4 + i * (maxR / n)).toFixed(1);
+      circles += '<circle cx="' + cx1 + '" cy="' + cy + '" r="' + r1 + '"/>';
+    }
+    for (var j = 0; j < n; j++) {
+      var r2 = (4 + j * (maxR / n)).toFixed(1);
+      circles += '<circle cx="' + cx2 + '" cy="' + cy + '" r="' + r2 + '"/>';
+    }
+    return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '" class="ring-motif' + (extraClass ? " " + extraClass : "") + '" aria-hidden="true">' + circles + '</svg>';
+  }
+
   function renderHero(c, vars) {
     var h = c.hero;
     var headlineRaw = h.headline;
@@ -190,7 +210,7 @@
     if (highlightIndex !== -1) {
       var before = escapeAttr(headlineRaw.slice(0, highlightIndex).trim());
       var highlight = escapeAttr(headlineRaw.slice(highlightIndex));
-      headlineHtml = before + '<br>' + '<mark class="hl-mark">' + highlight + '</mark>';
+      headlineHtml = before + '<br>' + '<span class="hl">' + highlight + '</span>';
     } else {
       headlineHtml = escapeAttr(headlineRaw);
     }
@@ -198,32 +218,48 @@
     return '<section class="sec sec--hero">' +
       '<div class="sec__in hero__in">' +
         '<div class="hero__top">' +
-          '<span class="wordmark">walka</span>' +
+          '<span class="wordmark">walka mom</span>' +
         '</div>' +
-        '<p class="eyebrow eyebrow--mono eyebrow--indigo" style="text-align:center">' + h.eyebrow + '</p>' +
-        '<h1 class="display display--xl" style="text-align:center;margin-left:auto;margin-right:auto">' + headlineHtml + '</h1>' +
-        '<p class="lede" style="text-align:center;margin-left:auto;margin-right:auto">' + h.body + '</p>' +
-        '<div class="hero__cta-row" style="justify-content:center">' +
-          '<button type="button" class="btn btn--ink js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
+        '<div class="hero__grid">' +
+          '<div class="hero__copy">' +
+            '<p class="eyebrow eyebrow--mono">' + h.eyebrow + '</p>' +
+            '<h1 class="display display--xl">' + headlineHtml + '</h1>' +
+            '<p class="lede">' + h.body + '</p>' +
+            '<div class="hero__cta-row">' +
+              '<button type="button" class="btn btn--cream js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="hero__media">' +
+            ringMotif(180, "ring-motif--hero") +
+            '<div class="hero__media-card"><img src="images/feature-pace.jpg" alt="A mom walking with a stroller" loading="eager"></div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</section>';
   }
 
+  /* Each feature block is paired with one of the three existing
+     illustration assets (already used by this funnel before the quiz
+     redesign, warm/earthy palette that already reads well against the
+     elune-inspired maroon+cream system -- no new photography sourced). */
+  var FEATURE_IMAGES = ["images/feature-coach.jpg", "images/feature-pace.jpg", "images/feature-circle.jpg"];
+
   function renderFeatures(c) {
     var f = c.features;
-    var cards = f.items.map(function (item) {
-      return '<div class="step-card">' +
-        '<p style="font-size:1.8rem;line-height:1;margin-bottom:10px" aria-hidden="true">' + item.icon + '</p>' +
-        '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
-        '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
+    var cards = f.items.map(function (item, i) {
+      return '<div class="feature-card">' +
+        '<div class="feature-card__media"><img src="' + FEATURE_IMAGES[i % FEATURE_IMAGES.length] + '" alt="" loading="lazy"></div>' +
+        '<div class="feature-card__body">' +
+          '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
+          '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
+        '</div>' +
       '</div>';
     }).join("");
 
-    return '<section class="sec sec--cream">' +
+    return '<section class="sec sec--alt">' +
       '<div class="sec__in">' +
-        '<p class="eyebrow eyebrow--mono eyebrow--indigo">' + f.eyebrow + '</p>' +
-        '<div class="steps-grid steps-grid--3">' + cards + '</div>' +
+        '<p class="eyebrow eyebrow--mono" style="text-align:center">' + f.eyebrow + '</p>' +
+        '<div class="feature-grid">' + cards + '</div>' +
       '</div>' +
     '</section>';
   }
@@ -232,30 +268,31 @@
     var h = c.howItWorks;
     var cards = h.items.map(function (item) {
       return '<div class="step-card">' +
-        '<p class="eyebrow eyebrow--mono eyebrow--rose">' + item.label + '</p>' +
+        '<p class="eyebrow eyebrow--mono">' + item.label + '</p>' +
         '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
         '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
       '</div>';
     }).join("");
 
-    return '<section class="sec sec--pink">' +
+    return '<section class="sec sec--hero">' +
       '<div class="sec__in">' +
-        '<p class="eyebrow eyebrow--mono eyebrow--rose">' + h.eyebrow + '</p>' +
-        '<h2 class="display display--lg">' + h.headline + '</h2>' +
-        '<div class="steps-grid steps-grid--3">' + cards + '</div>' +
+        '<p class="eyebrow eyebrow--mono" style="text-align:center">' + h.eyebrow + '</p>' +
+        '<h2 class="display display--lg" style="text-align:center;margin-left:auto;margin-right:auto">' + h.headline + '</h2>' +
+        '<div class="steps-grid">' + cards + '</div>' +
       '</div>' +
     '</section>';
   }
 
   function renderFinalCta(c, vars) {
     var f = c.finalCta;
-    return '<section class="sec sec--periwinkle">' +
+    return '<section class="sec sec--alt">' +
+      ringMotif(160, "ring-motif--final") +
       '<div class="sec__in final-cta">' +
         '<div class="final-cta__copy">' +
           '<h2 class="display display--lg">' + f.headline + '</h2>' +
           '<p class="lede" style="margin-bottom:0">' + templ(f.priceNote, vars) + '</p>' +
         '</div>' +
-        '<button type="button" class="btn btn--ink js-cta">' + f.ctaLabel + '</button>' +
+        '<button type="button" class="btn btn--cream js-cta">' + f.ctaLabel + '</button>' +
       '</div>' +
       '<div class="sec__in">' +
         '<p class="q-disclaimer" style="margin-top:0">' + f.footerDisclaimer + '</p>' +
