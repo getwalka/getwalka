@@ -257,7 +257,7 @@
 
   /* ---------------- DOM refs ---------------- */
 
-  var screenEl, continueBtn, backBtn, skipBtn, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, exitLink, flownavEl, navEl, footerEl, stickyCta;
+  var screenEl, continueBtn, backBtn, skipBtn, resumeBanner, resumeBannerText, resumeBannerDismiss, gateEl, appEl, loadingEl, mainEl, flownavEl, navEl, footerEl, stickyCta;
 
   /* ====================================================================
      HOME step: section renderers. One function per section on the page,
@@ -756,7 +756,6 @@
     saveState();
     mainEl.hidden = false;
     appEl.hidden = false;
-    exitLink.hidden = false;
     if (state.stepIndex > 0) {
       resumeBanner.hidden = false;
       resumeBannerText.textContent = COPY.resumeBanner;
@@ -808,7 +807,6 @@
     appEl = document.getElementById("app");
     loadingEl = document.getElementById("loading");
     mainEl = document.getElementById("top");
-    exitLink = document.getElementById("exitLink");
     flownavEl = document.querySelector(".flownav");
     navEl = document.querySelector(".nav");
     footerEl = document.querySelector(".footer");
