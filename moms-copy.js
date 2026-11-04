@@ -164,7 +164,7 @@ window.WALKA_MOMS = (function () {
           headline: "Walk. Breathe. You're not doing this alone.",
           headlineHighlight: "not doing this alone.",
           body: "A gentle walking community for new moms, matched with moms at the same stage as you.",
-          ctaLabel: "Get started"
+          ctaLabel: "Find your village"
         },
 
         features: {
@@ -228,7 +228,7 @@ window.WALKA_MOMS = (function () {
 
         finalCta: {
           headline: "Your first walk is waiting.",
-          ctaLabel: "Get started",
+          ctaLabel: "Find your village",
           priceNote: "{price}, charged once. No subscription.",
           guarantee: "14-day money-back guarantee",
           footerDisclaimer: "Walka is not medical advice. Check with your provider before starting any exercise after birth."
