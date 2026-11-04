@@ -243,9 +243,7 @@ window.WALKA_MOMS = (function () {
           "An 8-week plan, week by week",
           "A daily walk-along, guided and a few human-recorded ones",
           "Daily check-ins with step goals that adjust to you",
-          "Your matched mom group, share anonymously anytime",
-          "Streaks that build day by day",
-          "Free tracking, history and leaderboards, always"
+          "Your matched mom group, share anonymously anytime"
         ],
         nameLabel: "First name",
         emailLabel: "Email",
@@ -270,13 +268,13 @@ window.WALKA_MOMS = (function () {
       title: "You're in.",
       subtitle: "Welcome to the founding circle of Walka Mom. We're so glad you're here.",
       circleLabel: "Your circle begins",
-      circleDate: "November 2, 2026",
+      circleDate: "November 9, 2026",
       circleNote: "Everything you need to get started will be ready for you before your circle opens.",
       nextTitle: "What happens next",
       nextSteps: [
         { title: "Check your inbox", body: "Watch for a receipt from Stripe confirming today's payment." },
         { title: "We'll get your circle ready", body: "We're bringing together moms who are in this same season of life." },
-        { title: "Start together on November 2", body: "That's when your 8-week program and the Walka app open up to you." }
+        { title: "Start together on November 9", body: "That's when your 8-week program and the Walka app open up to you." }
       ],
       guaranteeFooter: "Backed by our 14-day money-back guarantee. Questions or want a refund? Email susan@getwalka.com."
     },
