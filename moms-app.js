@@ -357,11 +357,11 @@
       '</div>' +
       '<div class="sec__in">' +
         '<p class="q-disclaimer" style="margin-top:0">' + f.footerDisclaimer + '</p>' +
-      '</div>' +
-      '<div class="final-cta__footer">' +
-        '<span class="wordmark wordmark--sm">walka</span>' +
-        '<div class="final-cta__legal"><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a></div>' +
-        '<span class="final-cta__domain">getwalka.com</span>' +
+        '<div class="final-cta__footer">' +
+          '<span class="wordmark wordmark--sm">walka</span>' +
+          '<div class="final-cta__legal"><a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a></div>' +
+          '<span class="final-cta__domain">getwalka.com</span>' +
+        '</div>' +
       '</div>' +
     '</section>';
   }
