@@ -144,7 +144,7 @@ window.WALKA_MOMS = (function () {
 
     geoGate: {
       title: "Not available in your country yet.",
-      body: "This program is currently only open to the US and Canada. Check back as we expand to more places.",
+      body: "This program is currently only open to the US, Canada, the UK, Australia, and Nigeria. Check back as we expand to more places.",
       cta: "Back to getwalka.com"
     },
 
@@ -262,7 +262,7 @@ window.WALKA_MOMS = (function () {
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         genericError: "Something went wrong. Please try again.",
-        legalLinks: { terms: "/terms", privacy: "/privacy" }
+        legalLinks: { terms: "/moms-terms", privacy: "/moms-privacy" }
       }
     },
 
