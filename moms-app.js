@@ -303,25 +303,6 @@
     '</section>';
   }
 
-  function renderHowItWorks(c) {
-    var h = c.howItWorks;
-    var cards = h.items.map(function (item) {
-      return '<div class="step-card">' +
-        '<p class="eyebrow eyebrow--mono">' + item.label + '</p>' +
-        '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
-        '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
-      '</div>';
-    }).join("");
-
-    return '<section class="sec sec--alt">' +
-      '<div class="sec__in">' +
-        '<p class="eyebrow eyebrow--mono" style="text-align:center">' + h.eyebrow + '</p>' +
-        '<h2 class="display display--lg" style="text-align:center;margin-left:auto;margin-right:auto">' + h.headline + '</h2>' +
-        '<div class="steps-grid">' + cards + '</div>' +
-      '</div>' +
-    '</section>';
-  }
-
   function renderFinalCta(c, vars) {
     var f = c.finalCta;
     return '<section class="sec sec--alt">' +
@@ -364,7 +345,6 @@
         return renderHero(c, vars) +
           renderFeatures(c) +
           renderCommunity(c) +
-          renderHowItWorks(c) +
           renderFinalCta(c, vars);
       },
       bind: function (root) {

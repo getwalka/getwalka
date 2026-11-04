@@ -175,7 +175,7 @@ window.WALKA_MOMS = (function () {
             {
               icon: "🗓️",
               title: "8 week walking plan",
-              body: "Your next 8 weeks, planned out. One week at a time, starting right where you are."
+              body: "Your next 8 weeks, planned out. One week at a time, starting right where you are, with other moms like you"
             },
             {
               icon: "🎧",
@@ -185,7 +185,7 @@ window.WALKA_MOMS = (function () {
             {
               icon: "💬",
               title: "Anonymous forum to share your experiences",
-              body: "Say the thing you wouldn't say out loud. Post it without your name, and read other moms who are going through the exact same thing. No judgement, no name attached."
+              body: "Say the thing you wouldn't say out loud. Post it without your name, and read other moms who are going through the exact same thing."
             }
           ]
         },
@@ -194,16 +194,6 @@ window.WALKA_MOMS = (function () {
           eyebrow: "YOUR CIRCLE",
           headline: "Moms who get it, right when you need them.",
           body: "Matched with a small group of moms at your stage. Share under your name, or post anonymously when you'd rather not."
-        },
-
-        howItWorks: {
-          eyebrow: "HOW IT WORKS",
-          headline: "Three steps, at your pace.",
-          items: [
-            { label: "STEP 1", title: "Join", body: "Join, then tell us how many weeks postpartum you are, right in the app." },
-            { label: "STEP 2", title: "Get matched", body: "Get matched with a small group of moms at the same stage." },
-            { label: "STEP 3", title: "Walk", body: "Take a walk, listen, share, repeat." }
-          ]
         },
 
         /* Testimonials section removed until there are real, collected
