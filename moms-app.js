@@ -69,6 +69,63 @@
     return "$" + (cents / 100).toFixed(2).replace(/\.00$/, "");
   }
 
+  function formatTime(seconds) {
+    if (!isFinite(seconds) || seconds < 0) seconds = 0;
+    var m = Math.floor(seconds / 60);
+    var s = Math.floor(seconds % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  /* Custom playback UI over a plain <audio> element -- native controls
+     render inconsistently (and ugly) across browsers, so the markup in
+     renderFeatures() ships a hidden <audio> plus our own button/track/
+     time, and this wires them together. */
+  function bindAudioPlayers(root) {
+    root.querySelectorAll("[data-audio-player]").forEach(function (player) {
+      var audio = player.querySelector("audio");
+      var btn = player.querySelector(".audio-player__btn");
+      var playIcon = player.querySelector(".audio-player__icon--play");
+      var pauseIcon = player.querySelector(".audio-player__icon--pause");
+      var track_ = player.querySelector("[data-audio-track]");
+      var fill = player.querySelector("[data-audio-fill]");
+      var time = player.querySelector("[data-audio-time]");
+      if (!audio || !btn) return;
+      var tracked = false;
+
+      function setPlaying(isPlaying) {
+        playIcon.hidden = isPlaying;
+        pauseIcon.hidden = !isPlaying;
+        btn.classList.toggle("is-playing", isPlaying);
+      }
+
+      function updateProgress() {
+        var dur = audio.duration;
+        if (dur) fill.style.width = Math.min(100, (audio.currentTime / dur) * 100) + "%";
+        time.textContent = formatTime(audio.currentTime > 0 ? audio.currentTime : (dur || 0));
+      }
+
+      btn.addEventListener("click", function () {
+        if (audio.paused) audio.play(); else audio.pause();
+      });
+      audio.addEventListener("play", function () {
+        setPlaying(true);
+        if (!tracked) {
+          tracked = true;
+          track(EVENTS.audioSamplePlayed, { local_id: state.localId, src: audio.getAttribute("src") });
+        }
+      });
+      audio.addEventListener("pause", function () { setPlaying(false); });
+      audio.addEventListener("ended", function () { setPlaying(false); updateProgress(); });
+      audio.addEventListener("timeupdate", updateProgress);
+      audio.addEventListener("loadedmetadata", updateProgress);
+      track_.addEventListener("click", function (e) {
+        var rect = track_.getBoundingClientRect();
+        var ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+        if (audio.duration) audio.currentTime = ratio * audio.duration;
+      });
+    });
+  }
+
   function templ(str, map) {
     return Object.keys(map).reduce(function (s, key) {
       return s.split("{" + key + "}").join(map[key]);
@@ -271,9 +328,17 @@
     var f = c.features;
     var cards = f.items.map(function (item) {
       var audio = item.audioSrc ?
-        '<audio class="step-card__audio" controls preload="none" src="' + escapeAttr(item.audioSrc) + '">' +
-          '<a href="' + escapeAttr(item.audioSrc) + '">' + escapeAttr(item.audioLabel || "Play sample") + '</a>' +
-        '</audio>' : "";
+        '<div class="audio-player" data-audio-player>' +
+          '<audio preload="metadata" src="' + escapeAttr(item.audioSrc) + '">' +
+            '<a href="' + escapeAttr(item.audioSrc) + '">' + escapeAttr(item.audioLabel || "Play sample") + '</a>' +
+          '</audio>' +
+          '<button type="button" class="audio-player__btn" aria-label="' + escapeAttr(item.audioLabel || "Play sample") + '">' +
+            '<svg class="audio-player__icon audio-player__icon--play" width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden="true"><path d="M13 7.13a1 1 0 0 1 0 1.74L2 15.6A1 1 0 0 1 .5 14.73V1.27A1 1 0 0 1 2 .4l11 6.73Z" fill="currentColor"/></svg>' +
+            '<svg class="audio-player__icon audio-player__icon--pause" width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden="true" hidden><rect x="0.5" y="0.5" width="4" height="15" rx="1.2" fill="currentColor"/><rect x="9.5" y="0.5" width="4" height="15" rx="1.2" fill="currentColor"/></svg>' +
+          '</button>' +
+          '<div class="audio-player__track" data-audio-track><div class="audio-player__fill" data-audio-fill></div></div>' +
+          '<span class="audio-player__time" data-audio-time>0:00</span>' +
+        '</div>' : "";
       return '<div class="step-card">' +
         '<p style="font-size:1.6rem;line-height:1;margin-bottom:10px" aria-hidden="true">' + item.icon + '</p>' +
         '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
@@ -350,11 +415,7 @@
           renderFinalCta(c, vars);
       },
       bind: function (root) {
-        root.querySelectorAll(".step-card__audio").forEach(function (audio) {
-          audio.addEventListener("play", function () {
-            track(EVENTS.audioSamplePlayed, { local_id: state.localId, src: audio.getAttribute("src") });
-          }, { once: true });
-        });
+        bindAudioPlayers(root);
         root.querySelectorAll(".js-cta").forEach(function (btn) {
           btn.addEventListener("click", function () { goNext(); });
         });

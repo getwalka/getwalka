@@ -201,7 +201,16 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
 
   .step-card__title{font-family:var(--display);font-weight:600;font-size:1.3rem;margin-bottom:8px;color:var(--ink)}
   .step-card__body{font-size:.94rem;color:var(--ink-soft);line-height:1.55}
-  .step-card__audio{width:100%;height:36px;margin-top:16px}
+
+  .audio-player{display:flex;align-items:center;gap:12px;margin-top:18px}
+  .audio-player audio{display:none}
+  .audio-player__btn{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:none;background:var(--rose-deep);color:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s ease,transform .15s ease}
+  .audio-player__btn:hover{background:var(--maroon)}
+  .audio-player__btn:active{transform:scale(.94)}
+  .audio-player__icon--play{margin-left:2px}
+  .audio-player__track{flex:1 1 auto;height:4px;border-radius:2px;background:var(--tan);cursor:pointer;position:relative}
+  .audio-player__fill{height:100%;width:0;border-radius:2px;background:var(--rose-deep);pointer-events:none}
+  .audio-player__time{flex:0 0 auto;font-family:var(--mono);font-size:.76rem;color:var(--ink-soft);min-width:2.6em;text-align:right}
 
   /* ================= community spotlight (photo + copy) ================= */
 
@@ -319,7 +328,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
       <img src="logo.png" alt="" onerror="this.style.display='none'">
       <span class="brand__name">walka mom</span>
     </a>
-    <a class="exit" href="/" id="exitLink" hidden>Save &amp; exit</a>
+    <a class="exit" href="/moms" id="exitLink" hidden>Save &amp; exit</a>
   </div>
 </header>
 
