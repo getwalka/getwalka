@@ -178,7 +178,9 @@ window.WALKA_MOMS = (function () {
             {
               icon: "🎧",
               title: "A daily walk-along",
-              body: "Put your earbuds in, push the stroller, press play. You're not walking alone, you'll hear a real mom, or a doula, or a therapist, right in your ear."
+              body: "Put your earbuds in, push the stroller, press play. You're not walking alone, you'll hear a real mom, or a doula, or a therapist, right in your ear.",
+              audioSrc: "audio/moms-sample-walk-along.mp3",
+              audioLabel: "Sample walk-along"
             },
             {
               icon: "💬",
@@ -274,7 +276,8 @@ window.WALKA_MOMS = (function () {
     checkoutStarted: "moms_checkout_started",
     checkoutCompleted: "moms_checkout_completed",
     checkoutFailed: "moms_checkout_failed",
-    geoBlocked: "moms_geo_blocked"
+    geoBlocked: "moms_geo_blocked",
+    audioSamplePlayed: "moms_audio_sample_played"
   };
 
   return {

@@ -270,10 +270,15 @@
   function renderFeatures(c) {
     var f = c.features;
     var cards = f.items.map(function (item) {
+      var audio = item.audioSrc ?
+        '<audio class="step-card__audio" controls preload="none" src="' + escapeAttr(item.audioSrc) + '">' +
+          '<a href="' + escapeAttr(item.audioSrc) + '">' + escapeAttr(item.audioLabel || "Play sample") + '</a>' +
+        '</audio>' : "";
       return '<div class="step-card">' +
         '<p style="font-size:1.6rem;line-height:1;margin-bottom:10px" aria-hidden="true">' + item.icon + '</p>' +
         '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
         '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
+        audio +
       '</div>';
     }).join("");
 
@@ -345,6 +350,11 @@
           renderFinalCta(c, vars);
       },
       bind: function (root) {
+        root.querySelectorAll(".step-card__audio").forEach(function (audio) {
+          audio.addEventListener("play", function () {
+            track(EVENTS.audioSamplePlayed, { local_id: state.localId, src: audio.getAttribute("src") });
+          }, { once: true });
+        });
         root.querySelectorAll(".js-cta").forEach(function (btn) {
           btn.addEventListener("click", function () { goNext(); });
         });
