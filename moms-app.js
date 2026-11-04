@@ -93,10 +93,11 @@
       var tracked = false;
 
       function setPlaying(isPlaying) {
-        playIcon.hidden = isPlaying;
-        pauseIcon.hidden = !isPlaying;
+        playIcon.style.display = isPlaying ? "none" : "block";
+        pauseIcon.style.display = isPlaying ? "block" : "none";
         btn.classList.toggle("is-playing", isPlaying);
       }
+      setPlaying(false);
 
       function updateProgress() {
         var dur = audio.duration;
