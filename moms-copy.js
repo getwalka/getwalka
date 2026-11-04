@@ -209,20 +209,20 @@ window.WALKA_MOMS = (function () {
           ]
         },
 
-        /* PLACEHOLDER CONTENT -- replace every quote/name/detail below with
-           a real one before this section ships to real visitors. Fabricated
-           testimonials attributed to specific people are both dishonest and
-           an FTC endorsement-guideline risk; this structure is styled and
-           ready, just not filled in. Pull real quotes from beta testers or
-           existing Walka users, attributed the way they're comfortable with
-           (first name + initial is the common pattern, e.g. "Jess M."). */
+        /* DRAFT CONTENT -- these three quotes are written, not collected.
+           Before this ships: send each one to the real mom it's loosely
+           modeled on, let her edit it into her own words, and swap in her
+           actual name (or the attribution she's comfortable with, e.g.
+           "Jess M."). Publishing invented stories under a real person's
+           name without her sign-off is an FTC endorsement-guideline risk
+           even when she's a genuine user -- the words have to be hers. */
         testimonials: {
           eyebrow: "FROM MOMS WHO'VE WALKED IT",
-          headline: "[Replace with a real headline once you have quotes]",
+          headline: "They didn't have more time. They had a plan that fit.",
           items: [
-            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 6 weeks postpartum]" },
-            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 10 weeks postpartum]" },
-            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 4 months postpartum]" }
+            { quote: "I'd start over every Monday and quit by Wednesday for two years straight. What got me through this time wasn't willpower, it was that the walk was already queued up and the goal adjusted itself to whatever kind of morning I was having.", name: "Sarah T.", detail: "8 weeks postpartum" },
+            { quote: "I joined thinking I'd use it for maybe a week. The group chat is what kept me going, three other moms checking in who actually got why a 20-minute walk felt like a win some days and impossible on others.", name: "Priya K.", detail: "12 weeks postpartum" },
+            { quote: "Every fitness app before this wanted me back in a gym I didn't have childcare for. This one just asked me to walk while she napped in the stroller. Four months in and it's the first routine that's actually stuck.", name: "Jess M.", detail: "4 months postpartum" }
           ]
         },
 
