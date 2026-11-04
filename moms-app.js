@@ -249,8 +249,6 @@
             '<p class="eyebrow eyebrow--mono">' + h.eyebrow + '</p>' +
             '<h1 class="display display--xl">' + headlineHtml + '</h1>' +
             '<p class="lede">' + h.body + '</p>' +
-            '<p class="hero__subline">' + templ(h.subhead, vars) + '</p>' +
-            '<p class="hero__subline hero__subline--muted">' + h.anonymityNote + '</p>' +
             '<div class="hero__cta-row">' +
               '<button type="button" class="btn btn--cream js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
             '</div>' +
@@ -320,7 +318,6 @@
         '<div class="final-cta__footer">' +
           '<span class="wordmark wordmark--sm">walka</span>' +
           '<div class="final-cta__legal"><a href="/moms-terms">Terms of Service</a><a href="/moms-privacy">Privacy Policy</a></div>' +
-          '<span class="final-cta__domain">getwalka.com</span>' +
         '</div>' +
       '</div>' +
     '</section>';

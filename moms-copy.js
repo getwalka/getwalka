@@ -164,8 +164,6 @@ window.WALKA_MOMS = (function () {
           headline: "Walk. Breathe. You're not doing this alone.",
           headlineHighlight: "not doing this alone.",
           body: "A gentle walking community for new moms, matched with moms at the same stage as you.",
-          subhead: "8 weeks of community, audio walks, and steps. {price} once, no subscription.",
-          anonymityNote: "Share as yourself, or anonymously.",
           ctaLabel: "Find your village"
         },
 
