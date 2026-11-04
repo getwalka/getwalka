@@ -264,7 +264,7 @@
     '</section>';
   }
 
-  /* Plain icon+text cards (no imagery): four short, scannable features.
+  /* Plain icon+text cards (no imagery): three short, scannable features.
      The one feature that does pair well with an existing illustration
      (the matched mom group) gets its own dedicated spotlight below
      instead of being squeezed into this grid, so no image here is
@@ -282,7 +282,7 @@
     return '<section class="sec sec--alt">' +
       '<div class="sec__in">' +
         '<p class="eyebrow eyebrow--mono" style="text-align:center">' + f.eyebrow + '</p>' +
-        '<div class="steps-grid steps-grid--4">' + cards + '</div>' +
+        '<div class="steps-grid">' + cards + '</div>' +
       '</div>' +
     '</section>';
   }

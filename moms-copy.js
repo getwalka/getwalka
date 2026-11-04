@@ -174,23 +174,18 @@ window.WALKA_MOMS = (function () {
           items: [
             {
               icon: "🗓️",
-              title: "An 8-week plan",
-              body: "Week by week, built for where you are. No guessing what's next."
+              title: "8 week walking plan",
+              body: "Your next 8 weeks, planned out. One week at a time, starting right where you are."
             },
             {
               icon: "🎧",
               title: "A daily walk-along",
-              body: "Press play. A voice walks with you."
+              body: "Put your earbuds in, push the stroller, press play. You're not walking alone, you'll hear a real mom, or a doula, or a therapist, right in your ear."
             },
             {
-              icon: "✅",
-              title: "Daily check-ins",
-              body: "Tell us how you feel. We set today's step goal."
-            },
-            {
-              icon: "🔥",
-              title: "Streaks",
-              body: "Watch your streak build day by day. Rest days never break it."
+              icon: "💬",
+              title: "Anonymous forum to share your experiences",
+              body: "Say the thing you wouldn't say out loud. Post it without your name, and read other moms who are going through the exact same thing. No judgement, no name attached."
             }
           ]
         },
