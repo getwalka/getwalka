@@ -665,6 +665,20 @@
     }
   }
 
+  /* The "walka mom" logo in the nav: jumps straight back to the home step
+     from wherever the visitor is (checkout), unlike goBack() which only
+     steps back one at a time. Its href="#top" in moms.html is a no-op on
+     its own -- there's no hash routing here, step state lives in
+     state.stepIndex, so without this handler the logo did nothing. */
+  function goHome() {
+    if (state.stepIndex !== 0) {
+      state.stepIndex = 0;
+      resumeBanner.hidden = true;
+      renderStep();
+    }
+    window.scrollTo(0, 0);
+  }
+
   /* drop-off: best-effort signal fired if the tab is hidden/closed before checkout completes */
   var dropoffFired = false;
   function maybeFireDropoff() {
@@ -804,6 +818,8 @@
     backBtn.addEventListener("click", goBack);
     resumeBannerDismiss.addEventListener("click", function () { resumeBanner.hidden = true; });
     stickyCta.querySelector(".js-cta").addEventListener("click", function () { goNext(); });
+    var brandLink = document.querySelector(".brand");
+    if (brandLink) brandLink.addEventListener("click", function (e) { e.preventDefault(); goHome(); });
 
     maybeRehydrateFromLink().then(function () { initGate(); });
   });
