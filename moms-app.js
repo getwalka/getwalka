@@ -511,11 +511,19 @@
             elements = stripeClient.elements({ clientSecret: data.clientSecret });
             paymentContainer.className = "";
             paymentContainer.innerHTML = '<p class="q-label">' + c.cardLabel + '</p><div id="paymentElement"></div>';
-            elements.create("payment").mount("#paymentElement");
-
-            mounted = true;
-            err.hidden = true;
-            refreshButton();
+            var paymentElement = elements.create("payment");
+            paymentElement.mount("#paymentElement");
+            // mount() returns before the Element's iframe is actually
+            // interactive -- flipping `mounted` here let the Pay button
+            // enable (and confirmPayment fire) against an Element that
+            // hadn't finished mounting, which Stripe rejects with "We
+            // could not retrieve data from the specified Element... make
+            // sure the ready event has been emitted." Wait for `ready`.
+            paymentElement.on("ready", function () {
+              mounted = true;
+              err.hidden = true;
+              refreshButton();
+            });
 
             track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: currentPriceCents(), currency: currency });
           }).catch(function (e) {
