@@ -89,8 +89,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
 
   .billing-note{font-family:var(--display);font-weight:700;font-size:.92rem;color:var(--ink);margin-top:0}
 
-  a.manage{display:block;margin-top:18px;font-family:var(--display);font-weight:600;font-size:.92rem;color:var(--sage);text-decoration:underline}
-  .cancel-fallback{font-size:.82rem;margin-top:18px}
+  .guarantee-footer{font-size:.82rem;margin-top:18px}
 </style>
 </head>
 <body>
@@ -116,8 +115,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
       <p class="billing-note" id="billingNote"></p>
     </div>
 
-    <a class="manage" id="manageLink" href="#" hidden>Manage or cancel my membership</a>
-    <p class="cancel-fallback" id="cancelFallback" hidden></p>
+    <p class="guarantee-footer" id="guaranteeFooter"></p>
   </main>
 
 <script src="moms-copy.js"></script>
@@ -155,24 +153,23 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
   var nextTitleEl = document.getElementById("nextTitle");
   var nextStepsEl = document.getElementById("nextSteps");
   var billingNoteEl = document.getElementById("billingNote");
-  var manageLink = document.getElementById("manageLink");
-  var cancelFallbackEl = document.getElementById("cancelFallback");
+  var guaranteeFooterEl = document.getElementById("guaranteeFooter");
 
   var params = new URLSearchParams(window.location.search);
   var hasSessionId = !!params.get("session_id");
 
-  if (WM.CUSTOMER_PORTAL_URL) {
-    manageLink.href = WM.CUSTOMER_PORTAL_URL;
-    manageLink.hidden = false;
-  } else {
-    cancelFallbackEl.textContent = WM.COPY.success.cancelFallback;
-    cancelFallbackEl.hidden = false;
-  }
+  guaranteeFooterEl.textContent = WM.COPY.success.guaranteeFooter;
 
   if (state && state.localId) {
     var c = WM.COPY.success;
     var currency = checkoutCurrency(state.answers);
-    var priceLabel = centsLabel(WM.PLAN_PRICE_CENTS) + " " + currency.toUpperCase();
+    // The price actually shown/charged this session, not a static
+    // constant -- two price tiers exist now (see PRICE_FLAG_KEY in
+    // moms-copy.js), and ad-conversion values below must reflect what
+    // was really charged, not a guess. Falls back to the safe default
+    // tier only for a pre-pricing-flag saved session that never set this.
+    var priceCents = state.answers.price_cents || WM.PRICE_TIERS.default;
+    var priceLabel = centsLabel(priceCents) + " " + currency.toUpperCase();
 
     titleEl.textContent = c.title;
     subtitleEl.textContent = c.subtitle;
@@ -189,15 +186,14 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
         '<p class="next-item__body">' + step.body + '</p></div></div>';
     }).join("");
 
-    billingNoteEl.textContent = "Renews automatically for " + priceLabel + " on " + c.renewalDate + ", then monthly until you cancel.";
+    billingNoteEl.textContent = "Charged once: " + priceLabel + ". No subscription, nothing else to manage.";
 
     state.answers.checkout_status = "completed_unverified";
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
 
     track(WM.EVENTS.checkoutCompleted, {
       local_id: state.localId,
-      plan_price_cents: WM.PLAN_PRICE_CENTS,
-      billing_interval: WM.BILLING_INTERVAL,
+      plan_price_cents: priceCents,
       currency: currency,
       has_session_id: hasSessionId
     });
@@ -211,7 +207,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     try {
       var metaPurchaseKey = "meta_purchase:" + state.localId;
       if (window.fbq && !localStorage.getItem(metaPurchaseKey)) {
-        fbq("track", "Purchase", { value: WM.PLAN_PRICE_CENTS / 100, currency: currency.toUpperCase() });
+        fbq("track", "Purchase", { value: priceCents / 100, currency: currency.toUpperCase() });
         localStorage.setItem(metaPurchaseKey, "1");
       }
     } catch (e) {}
@@ -222,7 +218,7 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     try {
       var tiktokPurchaseKey = "tiktok_purchase:" + state.localId;
       if (window.ttq && !localStorage.getItem(tiktokPurchaseKey)) {
-        ttq.track("CompletePayment", { value: WM.PLAN_PRICE_CENTS / 100, currency: currency.toUpperCase() });
+        ttq.track("CompletePayment", { value: priceCents / 100, currency: currency.toUpperCase() });
         localStorage.setItem(tiktokPurchaseKey, "1");
       }
     } catch (e) {}
@@ -235,12 +231,14 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
           updated_at: new Date().toISOString()
         }).eq("local_id", state.localId).then(function () {});
 
-        // Payment Links don't hand back a Stripe customer/subscription id
-        // in this redirect, so look it up server-side by email and mirror
-        // it onto the lead row. Best-effort: never blocks this page.
-        sb.functions.invoke("link-moms-subscriber", { body: { local_id: state.localId } })
+        // Server-side confirms the PaymentIntent's real status with Stripe
+        // and writes payment_status/paid_at onto the lead row -- the
+        // client-side "completed_unverified" above is optimistic (it only
+        // means stripe.confirmPayment() didn't return an error), this is
+        // the actual verification. Best-effort: never blocks this page.
+        sb.functions.invoke("link-moms-purchase", { body: { local_id: state.localId } })
           .then(function () {})
-          .catch(function (e) { console.warn("[moms-success] link-moms-subscriber failed", e); });
+          .catch(function (e) { console.warn("[moms-success] link-moms-purchase failed", e); });
       } catch (e) {}
     }
   } else {

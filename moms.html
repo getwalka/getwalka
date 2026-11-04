@@ -190,26 +190,39 @@ var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n
     .hero__grid{grid-template-columns:1fr;gap:30px}
   }
 
-  /* ================= feature blocks (cream cards w/ imagery) ================= */
-
-  .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:30px}
-  .feature-grid>*{min-width:0}
-  .feature-card{background:var(--cream);border-radius:var(--r-card);overflow:hidden;box-shadow:0 22px 54px -26px rgba(0,0,0,.5)}
-  .feature-card__media{aspect-ratio:4/3;overflow:hidden;background:var(--cream-soft)}
-  .feature-card__media img{width:100%;height:100%;object-fit:cover;display:block}
-  .feature-card__body{padding:22px 22px 26px;color:var(--ink)}
-  @media (max-width:860px){ .feature-grid{grid-template-columns:1fr} }
-
-  /* ================= how it works (plain cream cards) ================= */
+  /* ================= feature blocks + how it works (plain cream cards) ================= */
 
   .steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:30px}
+  .steps-grid--4{grid-template-columns:repeat(2,1fr)}
   .steps-grid>*{min-width:0}
   .step-card{background:var(--cream);color:var(--ink);border-radius:var(--r-card);padding:26px}
   .step-card .eyebrow{color:var(--rose-deep)}
   @media (max-width:860px){ .steps-grid{grid-template-columns:1fr} }
 
-  .step-card__title,.feature-card__body .step-card__title{font-family:var(--display);font-weight:600;font-size:1.3rem;margin-bottom:8px;color:var(--ink)}
-  .step-card__body,.feature-card__body .step-card__body{font-size:.94rem;color:var(--ink-soft);line-height:1.55}
+  .step-card__title{font-family:var(--display);font-weight:600;font-size:1.3rem;margin-bottom:8px;color:var(--ink)}
+  .step-card__body{font-size:.94rem;color:var(--ink-soft);line-height:1.55}
+
+  /* ================= testimonials ================= */
+
+  .testimonial-card__quote{font-family:var(--display);font-style:italic;font-size:1.15rem;line-height:1.4;color:var(--ink);margin-bottom:16px}
+  .testimonial-card__name{font-family:var(--body);font-weight:700;font-size:.9rem;color:var(--ink)}
+  .testimonial-card__detail{font-size:.82rem;color:var(--ink-soft)}
+
+  /* ================= community spotlight (photo + copy) ================= */
+
+  .spotlight{display:grid;grid-template-columns:.9fr 1.1fr;gap:48px;align-items:center}
+  .spotlight>*{min-width:0}
+  .spotlight__media{border-radius:28px;overflow:hidden;background:var(--cream);box-shadow:0 30px 70px -26px rgba(0,0,0,.5)}
+  .spotlight__media img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+  @media (max-width:860px){ .spotlight{grid-template-columns:1fr;gap:28px} }
+
+  /* ================= guarantee badge ================= */
+
+  .guarantee-badge{
+    display:inline-flex;align-items:center;gap:.4rem;margin-top:14px;
+    font-family:var(--mono);font-weight:700;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--maroon);background:var(--rose);border-radius:999px;padding:.5rem 1rem;
+  }
 
   /* ================= disclaimer / footer text ================= */
 

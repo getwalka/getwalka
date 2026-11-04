@@ -54,9 +54,9 @@ create table if not exists public.moms_leads (
   last_step text,                        -- furthest step reached, the drop-off signal
   checkout_status text not null default 'not_started', -- not_started | viewed | started | completed_unverified | reserved (reserved is historical only: the no-charge fork was retired along with the stake model)
 
-  stripe_customer_id text,               -- set by create-moms-subscription-intent (inline checkout) or link-moms-subscriber (Payment Link redirect fallback), matched by email in the latter case since Payment Links don't return a customer id in the URL
-  stripe_subscription_id text,            -- set by create-moms-subscription-intent; lets a retry/resume reuse the same incomplete subscription instead of creating a duplicate
-  subscription_status text,              -- mirrors Stripe's own subscription.status (active | trialing | past_due | canceled | incomplete | ...)
+  stripe_customer_id text,               -- subscription-era column, no longer written by new code; see the one-time-payment note near the bottom of this file
+  stripe_subscription_id text,            -- subscription-era column, no longer written by new code; see the one-time-payment note near the bottom of this file
+  subscription_status text,              -- subscription-era column, no longer written by new code; see the one-time-payment note near the bottom of this file
 
   abandoned_email_touch1_sent_at timestamptz, -- claimed (set before sending) by process-abandoned-moms-leads; doubles as its dedup state, there being no notify()-equivalent for email
   abandoned_email_touch2_sent_at timestamptz
@@ -94,6 +94,17 @@ alter table public.moms_leads add column if not exists referral_source text;
 -- The tone picker is retired and no longer writes this column; stop new rows
 -- from silently inheriting 'princess' as if it were a real answer.
 alter table public.moms_leads alter column motivation_style drop default;
+
+-- Moved from a recurring membership to a one-time payment for the 8-week
+-- program (2026-11-03). stripe_customer_id/stripe_subscription_id/
+-- subscription_status above are no longer written by new code (kept for
+-- historical rows); these four mirror couch6k_leads' one-time-payment shape
+-- exactly (create-moms-payment-intent / link-moms-purchase, not
+-- create-moms-subscription-intent / link-moms-subscriber, both retired).
+alter table public.moms_leads add column if not exists stripe_payment_intent_id text; -- set by create-moms-payment-intent; lets a retry/resume reuse the same unconfirmed PaymentIntent instead of creating a duplicate
+alter table public.moms_leads add column if not exists payment_amount_cents int;      -- the amount that PaymentIntent was actually created for (server-resolved from the validated price tier, never trusted from the client)
+alter table public.moms_leads add column if not exists payment_status text;           -- mirrors Stripe's PaymentIntent.status; 'succeeded' once link-moms-purchase confirms it -- the authoritative "already converted" signal (see process-abandoned-moms-leads)
+alter table public.moms_leads add column if not exists paid_at timestamptz;           -- set by link-moms-purchase once Stripe confirms success
 
 create index if not exists moms_leads_checkout_status_idx on public.moms_leads (checkout_status);
 create index if not exists moms_leads_created_at_idx on public.moms_leads (created_at);

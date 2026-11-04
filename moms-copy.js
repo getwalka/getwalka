@@ -61,36 +61,49 @@ window.WALKA_MOMS = (function () {
   var GEO_ALLOWED_COUNTRIES = ["US", "CA", "GB", "AU", "NG"];
 
   /* ------------------------------------------------------------------ *
-   * 2. PAYMENTS: Stripe, recurring membership, priced per currency
+   * 2. PAYMENTS: Stripe, ONE one-time charge, priced per currency
    *
-   *    Inline checkout (Stripe Elements) is the primary path:
-   *    create-moms-subscription-intent returns a clientSecret, the
-   *    Payment Element mounts right on the checkout screen, and
+   *    Moved off a recurring membership (2026-11-03): the 8-week program
+   *    is now a single payment, no subscription, nothing to cancel or
+   *    renew. Inline checkout (Stripe Elements) is the only path:
+   *    create-moms-payment-intent returns a clientSecret, the Payment
+   *    Element mounts right on the checkout screen, and
    *    stripe.confirmPayment charges the card without leaving
-   *    getwalka.com. MEMBERSHIP_PAYMENT_LINK below is the fallback if
-   *    Stripe.js fails to load, the publishable key isn't configured, or
-   *    the intent call errors, so checkout never dead-ends.
+   *    getwalka.com. No Payment Link fallback exists (same as the
+   *    November-challenge funnel) -- if Stripe.js fails to load, checkout
+   *    shows an error rather than redirecting somewhere that could charge
+   *    a different amount than what was just shown.
    *
-   *    Same numeral, two currencies: $39.99 USD for US visitors, $39.99
-   *    CAD for Canadian visitors (not a currency conversion of one price
-   *    into the other -- two separate Stripe Prices, each literally 3999
-   *    minor units in its own currency). GB/AU/NG bill in USD too:
-   *    checkoutCurrency() in moms-app.js only special-cases "CA".
-   * ------------------------------------------------------------------ */
+   *    Same numeral, two currencies per tier: $X.XX USD for US visitors,
+   *    $X.XX CAD for Canadian visitors (not a currency conversion of one
+   *    price into the other). GB/AU/NG bill in USD too: checkoutCurrency()
+   *    in moms-app.js only special-cases "CA".
+   *
+   *    TWO PRICE TIERS, flag-controlled. PRICE_FLAG_KEY is a PostHog
+   *    boolean flag: ON shows/charges PRICE_TIERS.discount ($19.99), OFF
+   *    or unresolved (flag fetch failed/timed out) falls back to
+   *    PRICE_TIERS.default ($29.99) -- the higher price is the safe
+   *    default so a flag outage never undercharges. moms-app.js resolves
+   *    this once per session (resolvePriceTier()), persists the chosen
+   *    cents onto state.answers.price_cents, and sends it to
+   *    create-moms-payment-intent, which independently validates it
+   *    against the two allowed values before charging -- the server never
+   *    trusts an arbitrary client-sent amount as-is, only as a lookup key
+   *    into a fixed allow-list. ?price=19 / ?price=29 on the URL overrides
+   *    the flag for QA, same pattern as ?preview=1.
+   *
+   *    Unlike the retired subscription version, no Stripe Price objects
+   *    need creating in the dashboard -- the amount goes straight into
+   *    paymentIntents.create, same simplification create-couch6k-payment-
+   *    intent already uses for its own fixed charge. The PostHog flag
+   *    itself still needs to exist (key below) before this does anything
+   *    but show the $29.99 default to everyone. */
   var STRIPE_MODE = "live"; // "test" | "live"
 
-  var PLAN_PRICE_CENTS = 3999; // $39.99, same numeral in both currencies
-  var BILLING_INTERVAL = "month";
-
-  var MEMBERSHIP_PAYMENT_LINK = {
-    test: {
-      usd: "https://buy.stripe.com/test_dRmbJ25I2aIz0Iddkddwc05",
-      cad: "https://buy.stripe.com/test_5kQeVefiC17Z9eJ5RLdwc06"
-    },
-    live: {
-      usd: "https://buy.stripe.com/3cIaEY8UeeYP2Qlcg9dwc02",
-      cad: "https://buy.stripe.com/eVqbJ2fiCdUL8aFcg9dwc04"
-    }
+  var PRICE_FLAG_KEY = "moms-price-1999";
+  var PRICE_TIERS = {
+    default: 2999, // $29.99 -- shown/charged when the flag is off, unresolved, or PostHog can't be reached
+    discount: 1999 // $19.99 -- shown/charged only when moms-price-1999 is explicitly on
   };
 
   /* Publishable keys are not secret, safe to ship in client code (unlike
@@ -100,14 +113,6 @@ window.WALKA_MOMS = (function () {
     test: "pk_test_51IAPwwKmW6iAmon9BvmoxKu3jXyKpZsKwOQ3uEoeZDk36hIzuECAUktrzreXANmhKa03DWf7GFhUPT8i54UZBWUV00oO4xYgwS",
     live: "pk_live_51IAPwwKmW6iAmon97vBggpfUblagf7SYYMOQ6mYGj0gWjCtZQ1nnst9oiSu9rka7jvlwnIPbca0RLScydPB8Scy4005VuT8ANc"
   };
-
-  /* No-code cancellation, per the README's documented plan: Settings >
-     Billing > Customer portal > the shareable link option (asks the
-     member to verify their email, no login system needed on our side).
-     Empty until that's enabled in the Stripe dashboard and the link is
-     pasted in here -- moms-success.html only shows the "manage membership"
-     link when this is non-empty, so there's never a dead link on the page. */
-  var CUSTOMER_PORTAL_URL = "";
 
   /* ------------------------------------------------------------------ *
    * 3. SUPABASE: stores leads + checkout status
@@ -150,7 +155,7 @@ window.WALKA_MOMS = (function () {
 
     steps: {
       /* The homepage: one long landing page, no quiz. Each key below is
-         one section, top to bottom. {price}/{interval} are filled in by
+         one section, top to bottom. {price} is filled in by
          moms-app.js from WM's config constants above, so the copy can't
          go stale relative to what checkout actually charges. */
       home: {
@@ -166,21 +171,32 @@ window.WALKA_MOMS = (function () {
           eyebrow: "WHAT'S INSIDE",
           items: [
             {
-              icon: "💬",
-              title: "Share anonymously",
-              body: "Say the things you can't say anywhere else. No names, no photos, no judgment."
-            },
-            {
-              icon: "🚶‍♀️",
-              title: "Walk at your pace",
-              body: "Simple step goals that fit your stage, from week 1 to year 2. Rest days never break your streak."
+              icon: "🗓️",
+              title: "An 8-week plan",
+              body: "Week by week, built for where you are. No guessing what's next."
             },
             {
               icon: "🎧",
-              title: "Something to listen to on every walk",
-              body: "Guided walks, real stories, and short talks from people who know this stage: other moms, doulas, therapists, pelvic floor specialists, and more. Press play, push the stroller, and let someone keep you company."
+              title: "A daily walk-along",
+              body: "Guided audio for every walk, plus a few human-recorded ones from moms, doulas, and therapists who've been there."
+            },
+            {
+              icon: "✅",
+              title: "Daily check-ins",
+              body: "A quick check-in each day, with step goals that adjust to how you're actually feeling."
+            },
+            {
+              icon: "🔥",
+              title: "Streaks",
+              body: "Watch your streak build day by day. Rest days never break it."
             }
           ]
+        },
+
+        community: {
+          eyebrow: "YOUR CIRCLE",
+          headline: "Moms who get it, right when you need them.",
+          body: "Matched with a small group of moms at your stage. Share under your name, or post anonymously when you'd rather not."
         },
 
         howItWorks: {
@@ -193,27 +209,48 @@ window.WALKA_MOMS = (function () {
           ]
         },
 
+        /* PLACEHOLDER CONTENT -- replace every quote/name/detail below with
+           a real one before this section ships to real visitors. Fabricated
+           testimonials attributed to specific people are both dishonest and
+           an FTC endorsement-guideline risk; this structure is styled and
+           ready, just not filled in. Pull real quotes from beta testers or
+           existing Walka users, attributed the way they're comfortable with
+           (first name + initial is the common pattern, e.g. "Jess M."). */
+        testimonials: {
+          eyebrow: "FROM MOMS WHO'VE WALKED IT",
+          headline: "[Replace with a real headline once you have quotes]",
+          items: [
+            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 6 weeks postpartum]" },
+            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 10 weeks postpartum]" },
+            { quote: "[Quote from a beta tester about their experience]", name: "[Name]", detail: "[e.g., 4 months postpartum]" }
+          ]
+        },
+
         finalCta: {
           headline: "Your first walk is waiting.",
           ctaLabel: "Get started",
-          priceNote: "{price}/{interval}. Cancel anytime.",
+          priceNote: "{price}, charged once. No subscription.",
+          guarantee: "14-day money-back guarantee",
           footerDisclaimer: "Walka is not medical advice. Check with your provider before starting any exercise after birth."
         }
       },
 
       checkout: {
-        title: "Your membership",
+        title: "Your program",
         intro: "Here's what you're joining.",
         includedLabel: "What's included",
         includedItems: [
-          "A private community where you can share anonymously, anytime",
-          "Step goals that fit your stage, rest days never break your streak",
-          "Guided walks, real stories, and short talks from moms, doulas, and therapists",
+          "An 8-week plan, week by week",
+          "A daily walk-along, guided and a few human-recorded ones",
+          "Daily check-ins with step goals that adjust to you",
+          "Your matched mom group, share anonymously anytime",
+          "Streaks that build day by day",
           "Free tracking, history and leaderboards, always"
         ],
         nameLabel: "First name",
         emailLabel: "Email",
-        billingNote: "Billed monthly. Cancel anytime, a link to manage or cancel your membership is in your confirmation email.",
+        guaranteeNote: "Backed by our 14-day money-back guarantee. Not for you? Email us within 14 days for a full refund.",
+        billingNote: "Charged once today. No subscription, nothing to cancel.",
         agreePrefix: "I agree to the",
         agreeTermsText: "Terms",
         agreeJoiner: "and",
@@ -221,7 +258,7 @@ window.WALKA_MOMS = (function () {
         cardLabel: "Card details",
         paymentPlaceholder: "Complete the fields above to enter payment details.",
         paymentLoading: "Loading payment details...",
-        confirmCta: "Subscribe",
+        confirmCta: "Pay {price} and start",
         processingCta: "Processing...",
         testModeNote: "Test mode: card 4242 4242 4242 4242, any date, any CVC.",
         genericError: "Something went wrong. Please try again.",
@@ -234,21 +271,14 @@ window.WALKA_MOMS = (function () {
       subtitle: "Welcome to the founding circle of Walka Mom. We're so glad you're here.",
       circleLabel: "Your circle begins",
       circleDate: "November 2, 2026",
-      /* Fixed to match the founding circle's Nov 2 start, not computed
-         from signup date. NOTE: this is display copy only, Stripe still
-         actually bills each subscription one month from its own creation
-         date (whatever day someone actually signs up), so this will be
-         inaccurate for anyone who doesn't sign up on exactly Nov 2. Known
-         tradeoff, not a bug, revisit if that mismatch becomes a problem. */
-      renewalDate: "December 2, 2026",
       circleNote: "Everything you need to get started will be ready for you before your circle opens.",
       nextTitle: "What happens next",
       nextSteps: [
         { title: "Check your inbox", body: "Watch for a receipt from Stripe confirming today's payment." },
         { title: "We'll get your circle ready", body: "We're bringing together moms who are in this same season of life." },
-        { title: "Start together on November 2", body: "That's when your walking circle and the Walka app open up to you." }
+        { title: "Start together on November 2", body: "That's when your 8-week program and the Walka app open up to you." }
       ],
-      cancelFallback: "To manage or cancel anytime, email susan@getwalka.com."
+      guaranteeFooter: "Backed by our 14-day money-back guarantee. Questions or want a refund? Email susan@getwalka.com."
     },
 
     returnMissing: {
@@ -281,11 +311,9 @@ window.WALKA_MOMS = (function () {
     POSTHOG_FLAG_TIMEOUT_MS: POSTHOG_FLAG_TIMEOUT_MS,
     GEO_ALLOWED_COUNTRIES: GEO_ALLOWED_COUNTRIES,
     STRIPE_MODE: STRIPE_MODE,
-    PLAN_PRICE_CENTS: PLAN_PRICE_CENTS,
-    BILLING_INTERVAL: BILLING_INTERVAL,
-    MEMBERSHIP_PAYMENT_LINK: MEMBERSHIP_PAYMENT_LINK,
+    PRICE_FLAG_KEY: PRICE_FLAG_KEY,
+    PRICE_TIERS: PRICE_TIERS,
     STRIPE_PUBLISHABLE_KEY: STRIPE_PUBLISHABLE_KEY,
-    CUSTOMER_PORTAL_URL: CUSTOMER_PORTAL_URL,
     SUPABASE_URL: SUPABASE_URL,
     SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     SUPABASE_TABLE: SUPABASE_TABLE,

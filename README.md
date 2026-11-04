@@ -31,15 +31,34 @@ after signup instead, same as couch6k moved coach selection post-purchase.
 deleted along with the quiz, and `moms_landing_view` no longer fires (see
 `moms_home_viewed` below instead).
 
+As of 2026-11-03, this is also an 8-week one-time-payment program, not a
+recurring membership: `create-moms-payment-intent` replaces
+`create-moms-subscription-intent` (deleted) and `link-moms-purchase`
+replaces `link-moms-subscriber` (deleted), both mirroring the one-time
+PaymentIntent pattern `create-couch6k-payment-intent`/
+`link-couch6k-purchase` already use for the November-challenge funnel. Two
+price tiers, $19.99 and $29.99, controlled by a PostHog boolean flag
+(`PRICE_FLAG_KEY` in `moms-copy.js`) -- no Stripe Price objects needed,
+the amount goes straight into `paymentIntents.create`. `moms_leads` gained
+`stripe_payment_intent_id` / `payment_amount_cents` / `payment_status` /
+`paid_at`; the old `stripe_customer_id` / `stripe_subscription_id` /
+`subscription_status` columns stay in the schema, nullable and no longer
+written to (same "kept for historical rows" treatment as the retired quiz
+columns). `process-abandoned-moms-leads` (main `stepr` repo, not here) was
+updated to exclude already-converted leads by `payment_status = 'succeeded'`
+instead of `subscription_status`.
+
 Files:
 - `moms.html`: the route itself (page shell, styles, landing + checkout
-  markup containers). Styled to match `myplan.html` (same Anton/Inter
-  fonts, same lavender/cream/pink/mint palette, same button/spacing system)
-  rather than this funnel's older sage/Quicksand look, which `moms-success.html`
-  still uses.
+  markup containers). Restyled 2026-11-03 around a deep wine/cream palette
+  and Playfair Display serif type (a design reference blending an "elune"
+  app-concept mockup with photography-driven template examples), replacing
+  an earlier pass that matched `myplan.html`'s lavender/Anton look. Neither
+  matches `moms-success.html`'s older sage/Quicksand look, which hasn't
+  been touched.
 - `moms-copy.js`: **every** piece of copy and every tunable config value
-  (feature flag key, Stripe link/mode, plan price/billing interval). Edit
-  this file, not the others, to change wording or pricing.
+  (feature flag key, Stripe mode, the two price tiers). Edit this file,
+  not the others, to change wording or pricing.
 - `moms-app.js`: the step engine (state machine, resume, analytics,
   Supabase sync, Stripe handoff). Shouldn't contain user-facing strings.
 - `moms-success.html`: where Stripe redirects after a successful payment.

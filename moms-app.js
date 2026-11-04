@@ -1,16 +1,18 @@
 /* ==========================================================================
    Walka Mom funnel, ENGINE
    Two-screen flow (home -> checkout), gate, resume-from-localStorage,
-   analytics events, Supabase sync, recurring-membership Stripe checkout.
-   All copy/config lives in moms-copy.js. Structure mirrors couch6k-app.js
-   (the November-challenge funnel already made this same landing+checkout
-   move); see that file's comments for the parts that are identical
-   (uuid/state/sync/gate plumbing).
+   analytics events, Supabase sync, one-time-charge Stripe checkout (moved
+   off a recurring membership 2026-11-03 -- see moms-copy.js's PAYMENTS
+   section). All copy/config lives in moms-copy.js. Structure mirrors
+   couch6k-app.js (the November-challenge funnel already made this same
+   landing+checkout move AND is itself a one-time charge, same pattern);
+   see that file's comments for the parts that are identical (uuid/state/
+   sync/gate plumbing).
 
    The homepage is a full marketing-style landing page (hero, feature
-   blocks, how-it-works, final CTA), not a quiz card -- it renders its own
-   full-bleed sections and escapes the narrow centered "shell" that
-   checkout still uses (see body.is-home in moms.html's CSS).
+   blocks, how-it-works, testimonials, final CTA), not a quiz card -- it
+   renders its own full-bleed sections and escapes the narrow centered
+   "shell" that checkout still uses (see body.is-home in moms.html's CSS).
    ========================================================================== */
 (function () {
   "use strict";
@@ -73,13 +75,35 @@
     }, str);
   }
 
+  /* supabase-js's FunctionsHttpError.message is always the generic "Edge
+     Function returned a non-2xx status code" -- unwraps the Edge Function's
+     real { error: "..." } body, same helper couch6k-app.js uses. */
+  function describeFunctionError(err) {
+    if (err && err.context && typeof err.context.json === "function") {
+      return err.context.json().then(function (body) {
+        return new Error((body && body.error) || (err && err.message) || "Request failed");
+      }).catch(function () {
+        return err instanceof Error ? err : new Error("Request failed");
+      });
+    }
+    return Promise.resolve(err instanceof Error ? err : new Error(String((err && err.message) || "Request failed")));
+  }
+
+  /* The resolved price for this visitor: state.answers.price_cents is set
+     once, early (see resolvePriceTier()), and persisted to localStorage +
+     Supabase so a resumed session never shows a different price than the
+     one it started with. Falls back to the safe default tier if somehow
+     unset (e.g. a pre-pricing-flag saved session). */
+  function currentPriceCents() {
+    return state.answers.price_cents || WM.PRICE_TIERS.default;
+  }
+
   /* Every placeholder the homepage/checkout copy templates reference. */
   function commonVars() {
     var currency = checkoutCurrency(state.answers);
     var suffix = currency === "cad" ? " CAD" : "";
     return {
-      price: centsLabel(WM.PLAN_PRICE_CENTS) + suffix,
-      interval: WM.BILLING_INTERVAL
+      price: centsLabel(currentPriceCents()) + suffix
     };
   }
 
@@ -122,8 +146,7 @@
       local_id: state.localId,
       updated_at: new Date().toISOString(),
       country: a.country || null,
-      plan_price_cents: WM.PLAN_PRICE_CENTS,
-      billing_interval: WM.BILLING_INTERVAL,
+      plan_price_cents: currentPriceCents(),
       billing_currency: checkoutCurrency(a),
       email: a.email || null,
       first_name: a.first_name || null,
@@ -156,6 +179,7 @@
             email: row.email || null,
             first_name: row.first_name || null,
             country: row.country || null,
+            price_cents: row.plan_price_cents || null, // resume at the same price they originally saw, never re-roll the flag
             checkout_status: row.checkout_status || "not_started"
           },
           startedAt: Date.now(),
@@ -238,28 +262,41 @@
     '</section>';
   }
 
-  /* Each feature block is paired with one of the three existing
-     illustration assets (already used by this funnel before the quiz
-     redesign, warm/earthy palette that already reads well against the
-     elune-inspired maroon+cream system -- no new photography sourced). */
-  var FEATURE_IMAGES = ["images/feature-coach.jpg", "images/feature-pace.jpg", "images/feature-circle.jpg"];
-
+  /* Plain icon+text cards (no imagery): four short, scannable features.
+     The one feature that does pair well with an existing illustration
+     (the matched mom group) gets its own dedicated spotlight below
+     instead of being squeezed into this grid, so no image here is
+     awkwardly reused across unrelated features. */
   function renderFeatures(c) {
     var f = c.features;
-    var cards = f.items.map(function (item, i) {
-      return '<div class="feature-card">' +
-        '<div class="feature-card__media"><img src="' + FEATURE_IMAGES[i % FEATURE_IMAGES.length] + '" alt="" loading="lazy"></div>' +
-        '<div class="feature-card__body">' +
-          '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
-          '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
-        '</div>' +
+    var cards = f.items.map(function (item) {
+      return '<div class="step-card">' +
+        '<p style="font-size:1.6rem;line-height:1;margin-bottom:10px" aria-hidden="true">' + item.icon + '</p>' +
+        '<p class="step-card__title">' + escapeAttr(item.title) + '</p>' +
+        '<p class="step-card__body">' + escapeAttr(item.body) + '</p>' +
       '</div>';
     }).join("");
 
     return '<section class="sec sec--alt">' +
       '<div class="sec__in">' +
         '<p class="eyebrow eyebrow--mono" style="text-align:center">' + f.eyebrow + '</p>' +
-        '<div class="feature-grid">' + cards + '</div>' +
+        '<div class="steps-grid steps-grid--4">' + cards + '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  /* The one feature paired with real imagery: the existing "moms at a
+     park together" illustration, already used by this funnel pre-quiz. */
+  function renderCommunity(c) {
+    var co = c.community;
+    return '<section class="sec sec--hero">' +
+      '<div class="sec__in spotlight">' +
+        '<div class="spotlight__media"><img src="images/feature-circle.jpg" alt="A group of moms together with their babies at a park" loading="lazy"></div>' +
+        '<div class="spotlight__copy">' +
+          '<p class="eyebrow eyebrow--mono">' + co.eyebrow + '</p>' +
+          '<h2 class="display display--lg">' + co.headline + '</h2>' +
+          '<p class="lede" style="margin-bottom:0">' + co.body + '</p>' +
+        '</div>' +
       '</div>' +
     '</section>';
   }
@@ -274,10 +311,33 @@
       '</div>';
     }).join("");
 
-    return '<section class="sec sec--hero">' +
+    return '<section class="sec sec--alt">' +
       '<div class="sec__in">' +
         '<p class="eyebrow eyebrow--mono" style="text-align:center">' + h.eyebrow + '</p>' +
         '<h2 class="display display--lg" style="text-align:center;margin-left:auto;margin-right:auto">' + h.headline + '</h2>' +
+        '<div class="steps-grid">' + cards + '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  /* PLACEHOLDER CONTENT -- see the testimonials comment in moms-copy.js.
+     Renders whatever's in COPY.steps.home.testimonials.items as-is, so the
+     bracketed placeholder text shows up on the page until real quotes
+     replace it there; nothing special-cased here. */
+  function renderTestimonials(c) {
+    var t = c.testimonials;
+    var cards = t.items.map(function (item) {
+      return '<div class="step-card testimonial-card">' +
+        '<p class="testimonial-card__quote">“' + escapeAttr(item.quote) + '”</p>' +
+        '<p class="testimonial-card__name">' + escapeAttr(item.name) + '</p>' +
+        '<p class="testimonial-card__detail">' + escapeAttr(item.detail) + '</p>' +
+      '</div>';
+    }).join("");
+
+    return '<section class="sec sec--hero">' +
+      '<div class="sec__in">' +
+        '<p class="eyebrow eyebrow--mono" style="text-align:center">' + t.eyebrow + '</p>' +
+        '<h2 class="display display--lg" style="text-align:center;margin-left:auto;margin-right:auto">' + t.headline + '</h2>' +
         '<div class="steps-grid">' + cards + '</div>' +
       '</div>' +
     '</section>';
@@ -290,7 +350,8 @@
       '<div class="sec__in final-cta">' +
         '<div class="final-cta__copy">' +
           '<h2 class="display display--lg">' + f.headline + '</h2>' +
-          '<p class="lede" style="margin-bottom:0">' + templ(f.priceNote, vars) + '</p>' +
+          '<p class="lede">' + templ(f.priceNote, vars) + '</p>' +
+          '<span class="guarantee-badge">' + f.guarantee + '</span>' +
         '</div>' +
         '<button type="button" class="btn btn--cream js-cta">' + f.ctaLabel + '</button>' +
       '</div>' +
@@ -323,7 +384,9 @@
         var vars = commonVars();
         return renderHero(c, vars) +
           renderFeatures(c) +
+          renderCommunity(c) +
           renderHowItWorks(c) +
+          renderTestimonials(c) +
           renderFinalCta(c, vars);
       },
       bind: function (root) {
@@ -340,8 +403,9 @@
         var vars = commonVars();
         return '<h2 class="q-title">' + c.title + '</h2>' +
           '<p class="q-body">' + c.intro + '</p>' +
-          '<div class="price-tag">' + templ(vars.price, vars) + '/' + vars.interval + '</div>' +
+          '<div class="price-tag">' + vars.price + '</div>' +
           '<p class="q-hint">' + c.billingNote + '</p>' +
+          '<p class="q-note">' + c.guaranteeNote + '</p>' +
           '<p class="q-label">' + c.includedLabel + '</p>' +
           '<div class="recap"><ul class="recap__list">' +
             c.includedItems.map(function (t) { return '<li>' + t + '</li>'; }).join("") +
@@ -354,11 +418,13 @@
           '<p class="q-disclaimer">' + COPY.disclaimer + '</p>' +
           (WM.STRIPE_MODE === "test" ? '<p class="q-note">' + c.testModeNote + '</p>' : '') +
           '<div id="paymentElementContainer" class="payment-pending"><p class="q-hint">' + c.paymentPlaceholder + '</p></div>' +
-          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + c.confirmCta + '</button>' +
+          '<button type="button" class="btn btn--ink" id="payBtn" style="width:100%;margin-top:8px" disabled>' + templ(c.confirmCta, vars) + '</button>' +
           '<p class="q-error" id="checkoutError" hidden></p>';
       },
       bind: function (root) {
         var c = COPY.steps.checkout;
+        var vars = commonVars();
+        var confirmCtaText = templ(c.confirmCta, vars);
         var name = root.querySelector("#firstName"), email = root.querySelector("#email");
         var agree = root.querySelector("#agreeCheck"), pay = root.querySelector("#payBtn"), err = root.querySelector("#checkoutError");
         var paymentContainer = root.querySelector("#paymentElementContainer");
@@ -366,21 +432,24 @@
         /* No "continue" click: the intent is created automatically, in the
            background, the moment name/email/terms are all valid (debounced
            so we don't fire on every keystroke), and the Payment Element
-           replaces the dimmed placeholder as soon as it mounts. The Subscribe
+           replaces the dimmed placeholder as soon as it mounts. The Pay
            button stays disabled until both that AND the fields are valid.
-           Falls back to the old Payment Link redirect if Stripe.js never
-           loaded, the publishable key isn't configured, or the intent call
-           fails, so checkout never dead-ends on a broken inline path. */
+           No redirect fallback (same as the November-challenge funnel):
+           if Stripe.js never loaded or the intent call fails, checkout
+           shows an error rather than sending anyone somewhere that could
+           confirm a different amount than what was just shown. */
         var stripeClient = null, elements = null;
         var initiated = false; // intent creation started (or already done)
         var mounted = false;   // Payment Element is actually on the page
+        var alreadyPaid = false;
         var debounceTimer = null;
 
         function fieldsValid() {
           return name.value.trim().length > 0 && agree.checked && /\S+@\S+\.\S+/.test(email.value.trim());
         }
         function refreshButton() {
-          pay.disabled = !(mounted && fieldsValid());
+          pay.disabled = !((mounted || alreadyPaid) && fieldsValid());
+          if (!pay.disabled || pay.textContent !== c.processingCta) pay.textContent = confirmCtaText;
         }
 
         function showError(msg) {
@@ -388,39 +457,25 @@
           err.hidden = false;
         }
 
-        function fallbackToRedirect(currency) {
-          var link = WM.MEMBERSHIP_PAYMENT_LINK[WM.STRIPE_MODE][currency];
-          if (!link || link.indexOf("REPLACE_ME") !== -1) {
-            showError("Payment isn't configured yet. Add it to moms-copy.js.");
-            track(EVENTS.checkoutFailed, { reason: "missing_payment_link", currency: currency });
-            return;
-          }
-          var url = link + "?client_reference_id=" + encodeURIComponent(state.localId) +
-            "&prefilled_email=" + encodeURIComponent(email.value.trim());
-          var navigated = false;
-          function goToStripe() { if (!navigated) { navigated = true; window.location.href = url; } }
-          syncLead().then(goToStripe).catch(goToStripe);
-          setTimeout(goToStripe, 1200);
-        }
-
         function startInlineCheckout(currency) {
           var pk = WM.STRIPE_PUBLISHABLE_KEY[WM.STRIPE_MODE];
           if (!window.Stripe || !pk || pk.indexOf("REPLACE_ME") !== -1) {
-            fallbackToRedirect(currency);
+            showError("Payment isn't configured yet. Add the publishable key to moms-copy.js.");
+            track(EVENTS.checkoutFailed, { reason: "missing_publishable_key" });
             return;
           }
-          sbClient.functions.invoke("create-moms-subscription-intent", {
-            body: { local_id: state.localId, email: email.value.trim(), name: name.value.trim(), currency: currency }
+          sbClient.functions.invoke("create-moms-payment-intent", {
+            body: { local_id: state.localId, email: email.value.trim(), name: name.value.trim(), currency: currency, price_cents: currentPriceCents() }
           }).then(function (res) {
             if (res.error) throw res.error;
             var data = res.data || {};
             if (data.error) throw new Error(data.error);
 
             if (data.alreadyActive) {
-              state.answers.checkout_status = "completed_unverified";
-              state.answers.billing_currency = currency;
-              saveState();
-              window.location.href = "/moms-success";
+              alreadyPaid = true;
+              paymentContainer.className = "";
+              paymentContainer.innerHTML = '<p class="q-hint">Payment already received. Ready when you are.</p>';
+              refreshButton();
               return;
             }
             if (!data.clientSecret) throw new Error("no clientSecret in response");
@@ -435,10 +490,13 @@
             err.hidden = true;
             refreshButton();
 
-            track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS, currency: currency });
+            track(EVENTS.checkoutStarted, { local_id: state.localId, plan_price_cents: currentPriceCents(), currency: currency });
           }).catch(function (e) {
-            console.warn("[moms checkout] create-moms-subscription-intent failed, falling back to redirect", e);
-            fallbackToRedirect(currency);
+            describeFunctionError(e).then(function (described) {
+              console.warn("[moms checkout] create-moms-payment-intent failed", described);
+              showError(described.message || c.genericError);
+              track(EVENTS.checkoutFailed, { reason: "payment_intent_error" });
+            });
           });
         }
 
@@ -464,7 +522,7 @@
             saveState();
 
             /* The real email just typed needs to land in Supabase before
-               create-moms-subscription-intent reads it back, but a
+               create-moms-payment-intent reads it back, but a
                slow/broken connection must never trap someone who can't pay. */
             var started = false;
             function begin() { if (!started) { started = true; startInlineCheckout(currency); } }
@@ -481,32 +539,33 @@
           pay.disabled = true;
           pay.textContent = c.processingCta;
           err.hidden = true;
-          stripeClient.confirmPayment({
-            elements: elements,
-            confirmParams: { return_url: window.location.origin + "/moms-success" },
-            redirect: "if_required"
-          }).then(function (result) {
-            if (result.error) {
-              showError(result.error.message || c.genericError);
-              pay.textContent = c.confirmCta;
-              refreshButton();
-              return;
-            }
+
+          var paymentConfirmed = alreadyPaid
+            ? Promise.resolve()
+            : stripeClient.confirmPayment({
+                elements: elements,
+                confirmParams: { return_url: window.location.origin + "/moms-success" },
+                redirect: "if_required"
+              }).then(function (result) {
+                if (result.error) throw result.error;
+              });
+
+          paymentConfirmed.then(function () {
             // Confirmed without a redirect (no 3D Secure challenge needed);
             // a challenge would have sent the browser to return_url itself.
             state.answers.checkout_status = "completed_unverified";
             saveState();
-            track(EVENTS.checkoutCompleted, { local_id: state.localId, plan_price_cents: WM.PLAN_PRICE_CENTS });
+            track(EVENTS.checkoutCompleted, { local_id: state.localId, plan_price_cents: currentPriceCents() });
             window.location.href = "/moms-success";
-          }).catch(function () {
-            showError(c.genericError);
-            pay.textContent = c.confirmCta;
+          }).catch(function (e) {
+            showError((e && e.message) || c.genericError);
             refreshButton();
+            track(EVENTS.checkoutFailed, { reason: "confirm_error" });
           });
         }
 
         pay.addEventListener("click", function () {
-          if (!mounted) return; // guarded by disabled state anyway
+          if (!(mounted || alreadyPaid)) return; // guarded by disabled state anyway
           confirmInlinePayment();
         });
       },
@@ -622,7 +681,26 @@
     return WM.GEO_ALLOWED_COUNTRIES.indexOf(country) === -1;
   }
 
+  /* Resolves state.answers.price_cents once per session. Never re-rolls an
+     already-resolved price (a prior visit on this device, or a rehydrated
+     cross-device session, both set it already) -- a visitor must see and
+     be charged the same price throughout. ?price=19 / ?price=29 overrides
+     the flag for QA, same convention as ?preview=1. Reading the flag can
+     only make PRICE_TIERS.discount ($19.99) apply; any failure (no
+     PostHog, flag unresolved, thrown error) leaves the safe default
+     ($29.99) in place. */
+  function resolvePriceTier() {
+    if (state.answers.price_cents) return;
+    var override = getQueryParam("price");
+    if (override === "19") { state.answers.price_cents = WM.PRICE_TIERS.discount; return; }
+    if (override === "29") { state.answers.price_cents = WM.PRICE_TIERS.default; return; }
+    var discount = false;
+    try { discount = !!(window.posthog && posthog.isFeatureEnabled(WM.PRICE_FLAG_KEY)); } catch (e) { discount = false; }
+    state.answers.price_cents = discount ? WM.PRICE_TIERS.discount : WM.PRICE_TIERS.default;
+  }
+
   function startFlow() {
+    resolvePriceTier();
     loadingEl.hidden = true;
     state.onboardingStarted = true;
     track(EVENTS.onboardingStart, { local_id: state.localId });
