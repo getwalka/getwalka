@@ -164,6 +164,8 @@ window.WALKA_MOMS = (function () {
           headline: "Walk. Breathe. You're not doing this alone.",
           headlineHighlight: "not doing this alone.",
           body: "A gentle walking community for new moms, matched with moms at the same stage as you.",
+          subhead: "8 weeks of community, audio walks, and steps. {price} once, no subscription.",
+          anonymityNote: "Share as yourself, or anonymously.",
           ctaLabel: "Find your village"
         },
 
@@ -178,12 +180,12 @@ window.WALKA_MOMS = (function () {
             {
               icon: "🎧",
               title: "A daily walk-along",
-              body: "Guided audio for every walk, plus a few human-recorded ones from moms, doulas, and therapists who've been there."
+              body: "Press play. A voice walks with you."
             },
             {
               icon: "✅",
               title: "Daily check-ins",
-              body: "A quick check-in each day, with step goals that adjust to how you're actually feeling."
+              body: "Tell us how you feel. We set today's step goal."
             },
             {
               icon: "🔥",
@@ -209,27 +211,17 @@ window.WALKA_MOMS = (function () {
           ]
         },
 
-        /* DRAFT CONTENT -- these three quotes are written, not collected.
-           Before this ships: send each one to the real mom it's loosely
-           modeled on, let her edit it into her own words, and swap in her
-           actual name (or the attribution she's comfortable with, e.g.
-           "Jess M."). Publishing invented stories under a real person's
-           name without her sign-off is an FTC endorsement-guideline risk
-           even when she's a genuine user -- the words have to be hers. */
-        testimonials: {
-          eyebrow: "FROM MOMS WHO'VE WALKED IT",
-          headline: "They didn't have more time. They had a plan that fit.",
-          items: [
-            { quote: "I'd start over every Monday and quit by Wednesday for two years straight. What got me through this time wasn't willpower, it was that the walk was already queued up and the goal adjusted itself to whatever kind of morning I was having.", name: "Sarah T.", detail: "8 weeks postpartum" },
-            { quote: "I joined thinking I'd use it for maybe a week. The group chat is what kept me going, three other moms checking in who actually got why a 20-minute walk felt like a win some days and impossible on others.", name: "Priya K.", detail: "12 weeks postpartum" },
-            { quote: "Every fitness app before this wanted me back in a gym I didn't have childcare for. This one just asked me to walk while she napped in the stroller. Four months in and it's the first routine that's actually stuck.", name: "Jess M.", detail: "4 months postpartum" }
-          ]
-        },
+        /* Testimonials section removed until there are real, collected
+           quotes to show. Re-add a `testimonials` block here (and the
+           matching renderTestimonials() call in moms-app.js, removed in
+           the same change) once actual moms have signed off on their
+           words -- see git history for the last draft/markup if useful
+           as a starting point. */
 
         finalCta: {
-          headline: "Your first walk is waiting.",
-          ctaLabel: "Find your village",
-          priceNote: "{price}, charged once. No subscription.",
+          headline: "Your village is already walking. Join them.",
+          ctaLabel: "Join your village",
+          priceNote: "{price} once for 8 weeks. No subscription.",
           guarantee: "14-day money-back guarantee",
           footerDisclaimer: "Walka is not medical advice. Check with your provider before starting any exercise after birth."
         }

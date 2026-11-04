@@ -249,6 +249,8 @@
             '<p class="eyebrow eyebrow--mono">' + h.eyebrow + '</p>' +
             '<h1 class="display display--xl">' + headlineHtml + '</h1>' +
             '<p class="lede">' + h.body + '</p>' +
+            '<p class="hero__subline">' + templ(h.subhead, vars) + '</p>' +
+            '<p class="hero__subline hero__subline--muted">' + h.anonymityNote + '</p>' +
             '<div class="hero__cta-row">' +
               '<button type="button" class="btn btn--cream js-cta">' + templ(h.ctaLabel, vars) + '</button>' +
             '</div>' +
@@ -320,29 +322,6 @@
     '</section>';
   }
 
-  /* PLACEHOLDER CONTENT -- see the testimonials comment in moms-copy.js.
-     Renders whatever's in COPY.steps.home.testimonials.items as-is, so the
-     bracketed placeholder text shows up on the page until real quotes
-     replace it there; nothing special-cased here. */
-  function renderTestimonials(c) {
-    var t = c.testimonials;
-    var cards = t.items.map(function (item) {
-      return '<div class="step-card testimonial-card">' +
-        '<p class="testimonial-card__quote">“' + escapeAttr(item.quote) + '”</p>' +
-        '<p class="testimonial-card__name">' + escapeAttr(item.name) + '</p>' +
-        '<p class="testimonial-card__detail">' + escapeAttr(item.detail) + '</p>' +
-      '</div>';
-    }).join("");
-
-    return '<section class="sec sec--hero">' +
-      '<div class="sec__in">' +
-        '<p class="eyebrow eyebrow--mono" style="text-align:center">' + t.eyebrow + '</p>' +
-        '<h2 class="display display--lg" style="text-align:center;margin-left:auto;margin-right:auto">' + t.headline + '</h2>' +
-        '<div class="steps-grid">' + cards + '</div>' +
-      '</div>' +
-    '</section>';
-  }
-
   function renderFinalCta(c, vars) {
     var f = c.finalCta;
     return '<section class="sec sec--alt">' +
@@ -386,7 +365,6 @@
           renderFeatures(c) +
           renderCommunity(c) +
           renderHowItWorks(c) +
-          renderTestimonials(c) +
           renderFinalCta(c, vars);
       },
       bind: function (root) {
